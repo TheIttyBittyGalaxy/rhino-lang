@@ -1,3 +1,4 @@
+#include "tokenise.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,10 +69,16 @@ int main(int argc, char *argv[])
     if (source_text == NULL)
         return EXIT_FAILURE;
 
-    // HEADING("Tokenise");
-    // TokenArray tokens = tokenise(source_text);
-    // if (flag_debug)
-    //     print_tokens(tokens);
+    HEADING("Tokenise");
+    TokenArray token_array = tokenise(source_text);
+    if (flag_debug)
+    {
+        for (size_t i = 0; i < token_array.count; i++)
+        {
+            Token t = token_array.tokens[i];
+            printf("%03d\t%-*s\t%3d %2d\t%.*s\n", i, 13, token_kind_string(t.kind), t.pos, t.len, t.len, source_text + t.pos);
+        }
+    }
 
     // HEADING("Parse");
     // Program *apm = create_apm();
