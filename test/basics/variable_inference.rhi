@@ -1,0 +1,7 @@
+main() {
+    var x = 42;
+    > x;
+}
+
+// RESULTS
+// 42

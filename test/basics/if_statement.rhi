@@ -1,0 +1,112 @@
+main() {
+    // Test 1
+    if true:
+        > "1 correct";
+
+    // Test 2
+    if false:
+        > "2 wrong";
+
+    // Test 3
+    if true:
+        > "3 correct";
+    else:
+        > "3 wrong";
+
+    // Test 4
+    if false:
+        > "4 wrong";
+    else:
+        > "4 correct";
+
+    // Test 5
+    if true:
+        > "5 correct";
+    else if true:
+        > "5 wrong";
+
+    // Test 6
+    if false:
+        > "6 wrong";
+    else if true:
+        > "6 correct";
+    
+    // Test 7
+    if false:
+        > "7 wrong";
+    else if true:
+        > "7 correct";
+    
+    // Test 8
+    if false:
+        > "8 wrong";
+    else if false:
+        > "8 wrong";
+
+    // Test 9
+    if true:
+        > "9 correct";
+    else if false:
+        > "9 wrong";
+    else if false:
+        > "9 wrong";
+    else:
+        > "9 wrong";
+
+    // Test 10
+    if false:
+        > "10 wrong";
+    else if true:
+        > "10 correct";
+    else if false:
+        > "10 wrong";
+    else:
+        > "10 wrong";
+
+    // Test 11
+    if false:
+        > "11 wrong";
+    else if false:
+        > "11 wrong";
+    else if true:
+        > "11 correct";
+    else:
+        > "11 wrong";
+
+    // Test 12
+    if false:
+        > "12 wrong";
+    else if false:
+        > "12 wrong";
+    else if false:
+        > "12 wrong";
+    else:
+        > "12 correct";
+
+    // Test 13
+    if false {
+        > "13 wrong";
+    }
+    else if false {
+        > "13 wrong";
+    }
+    else if false {
+        > "13 wrong";
+    }
+    else {
+        > "13 correct";
+    }
+}
+
+// RESULTS
+// 1 correct
+// 3 correct
+// 4 correct
+// 5 correct
+// 6 correct
+// 7 correct
+// 9 correct
+// 10 correct
+// 11 correct
+// 12 correct
+// 13 correct
