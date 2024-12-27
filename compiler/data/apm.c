@@ -24,26 +24,38 @@ void init_program(Program *apm)
 
 // Print apm
 size_t newlines_left;
-size_t indent;
+size_t current_indent;
+enum LineStatus
+{
+    NONE,
+    LAST,
+    ACTIVE
+} line_status[64];
 
-#define BEFORE_PRINT()                              \
-    {                                               \
-        if (newlines_left >= 2)                     \
-        {                                           \
-            printf("\n");                           \
-            for (size_t i = 0; i < indent; ++i)     \
-                printf("|   ");                     \
-        }                                           \
-                                                    \
-        if (newlines_left >= 1)                     \
-        {                                           \
-            printf("\n");                           \
-            for (size_t i = 0; i < indent - 1; ++i) \
-                printf("|   ");                     \
-            printf("+---");                         \
-        }                                           \
-                                                    \
-        newlines_left = 0;                          \
+#define INDENT() line_status[current_indent++] = ACTIVE
+#define UNINDENT() current_indent--
+#define LAST_ON_LINE() line_status[current_indent - 1] = LAST
+
+#define BEFORE_PRINT()                                                          \
+    {                                                                           \
+        if (newlines_left >= 2)                                                 \
+        {                                                                       \
+            printf("\n");                                                       \
+            for (size_t i = 0; i < current_indent; ++i)                         \
+                printf(line_status[i] > NONE ? "│   " : "    ");                \
+        }                                                                       \
+                                                                                \
+        if (newlines_left >= 1)                                                 \
+        {                                                                       \
+            printf("\n");                                                       \
+            for (size_t i = 0; i < current_indent - 1; ++i)                     \
+                printf(line_status[i] > NONE ? "│   " : "    ");                \
+            printf(line_status[current_indent - 1] == ACTIVE ? "├──" : "└───"); \
+        }                                                                       \
+                                                                                \
+        newlines_left = 0;                                                      \
+        if (line_status[current_indent - 1] == LAST)                            \
+            line_status[current_indent - 1] = NONE;                             \
     }
 
 #define PRINT(...)           \
@@ -87,50 +99,43 @@ void print_statement(Program *apm, size_t stmt_index, const char *source_text)
     Statement *stmt = get_statement(apm->statement, stmt_index);
 
     PRINT("%s", statement_kind_string(stmt->kind));
-
-    indent++;
+    INDENT();
     NEWLINE();
+
     switch (stmt->kind)
     {
     case CODE_BLOCK:
     case SINGLE_BLOCK:
     {
-        size_t show_next_scope = true;
-        size_t statements_remaining_in_nested_scope = 0;
         for (size_t i = 0; i < stmt->statements.count; i++)
         {
-            if (statements_remaining_in_nested_scope > 0)
-            {
-                statements_remaining_in_nested_scope--;
-                continue;
-            }
+            if (i == stmt->statements.count - 1)
+                LAST_ON_LINE(); // FIXME: This will only work when the last statement in the slice is not in a nested scope
+
+            print_statement(apm, stmt->statements.first + i, source_text);
 
             Statement *child = get_statement(apm->statement, stmt->statements.first + i);
             if (child->kind == CODE_BLOCK || child->kind == SINGLE_BLOCK)
             {
-                statements_remaining_in_nested_scope = child->statements.count;
-                if (!show_next_scope)
-                {
-                    show_next_scope = true;
-                    continue;
-                }
+                i += child->statements.count;
             }
             else if (child->kind == IF_STATEMENT)
             {
-                show_next_scope = false;
+                Statement *body = get_statement(apm->statement, child->body);
+                i += body->statements.count + 1;
             }
-
-            print_statement(apm, stmt->statements.first + i, source_text);
         }
-    }
 
-    break;
+        NEWLINE();
+        break;
+    }
 
     case IF_STATEMENT:
         PRINT("condition: ");
         print_expression(apm, stmt->condition, source_text);
         NEWLINE();
 
+        LAST_ON_LINE();
         PRINT("body: ");
         print_statement(apm, stmt->body, source_text);
         NEWLINE();
@@ -138,14 +143,14 @@ void print_statement(Program *apm, size_t stmt_index, const char *source_text)
         break;
 
     case OUTPUT_STATEMENT:
-        PRINT("value: ");
+        LAST_ON_LINE();
         print_expression(apm, stmt->value, source_text);
-        NEWLINE();
 
+        NEWLINE();
         break;
     }
 
-    indent--;
+    UNINDENT();
     NEWLINE();
 }
 
@@ -155,24 +160,28 @@ void print_function(Program *apm, size_t funct_index, const char *source_text)
 
     PRINT("FUNCTION ");
     PRINT_SUBSTR(funct->identity);
-    indent++;
+    INDENT();
     NEWLINE();
 
+    LAST_ON_LINE();
     PRINT("body: ");
     print_statement(apm, funct->body, source_text);
-    indent--;
+    UNINDENT();
     NEWLINE();
 }
 
 void print_apm(Program *apm, const char *source_text)
 {
     newlines_left = 0;
-    indent = 0;
+    current_indent = 0;
 
     for (size_t i = 0; i < apm->function.count; i++)
         print_function(apm, i, source_text);
 }
 
+#undef INDENT
+#undef UNINDENT
+#undef LAST_ON_LINE
 #undef BEFORE_PRINT
 #undef PRINT
 #undef PRINT_SUBSTR
