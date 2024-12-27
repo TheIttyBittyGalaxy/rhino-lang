@@ -130,6 +130,7 @@ void print_statement(Program *apm, size_t stmt_index, const char *source_text)
         print_expression(apm, stmt->condition, source_text);
         NEWLINE();
 
+    case ELSE_STATEMENT:
         LAST_ON_LINE();
         PRINT("body: ");
         print_statement(apm, stmt->body, source_text);
@@ -252,7 +253,7 @@ size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, siz
 
     if (child->kind == CODE_BLOCK || child->kind == SINGLE_BLOCK)
         return n + child->statements.count;
-    else if (child->kind == IF_STATEMENT)
+    else if (child->kind == IF_STATEMENT || child->kind == ELSE_STATEMENT)
         return n + get_statement(apm->statement, child->body)->statements.count + 1;
 
     return n;

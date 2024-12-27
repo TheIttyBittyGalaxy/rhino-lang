@@ -95,6 +95,7 @@ void tokenise(Compiler *const c)
 
                 IF_KEYWORD_ELSE("true", KEYWORD_TRUE)
                 IF_KEYWORD_ELSE("false", KEYWORD_FALSE)
+                IF_KEYWORD_ELSE("else", KEYWORD_ELSE)
                 IF_KEYWORD_ELSE("for", KEYWORD_FOR)
                 IF_KEYWORD_ELSE("if", KEYWORD_IF)
                 IF_KEYWORD_ELSE("loop", KEYWORD_LOOP)

@@ -43,6 +43,7 @@ DECLARE_LIST_TYPE(Expression, expression)
     MACRO(SINGLE_BLOCK)        \
                                \
     MACRO(IF_STATEMENT)        \
+    MACRO(ELSE_STATEMENT)      \
     MACRO(OUTPUT_STATEMENT)
 
 DECLARE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
@@ -58,7 +59,7 @@ typedef struct
         {
             StatementSlice statements;
         };
-        struct // IF_STATEMENT
+        struct // IF_STATEMENT / ELSE_SEGMENT
         {
             size_t condition; // Expression
             size_t body;      // Statement

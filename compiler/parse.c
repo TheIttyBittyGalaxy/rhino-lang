@@ -118,11 +118,20 @@ size_t parse_statement(Compiler *c, Program *apm)
         size_t condition = parse_expression(c, apm);
         size_t body = parse_code_block(c, apm, true);
 
-        // TODO: Parse else blocks
-
         STATEMENT(stmt)->kind = IF_STATEMENT;
         STATEMENT(stmt)->condition = condition;
         STATEMENT(stmt)->body = body;
+
+        if (PEEK(KEYWORD_ELSE))
+        {
+            EAT(KEYWORD_ELSE);
+
+            size_t else_stmt = add_statement(&apm->statement);
+            size_t else_body = parse_code_block(c, apm, true);
+
+            STATEMENT(else_stmt)->kind = ELSE_STATEMENT;
+            STATEMENT(else_stmt)->body = else_body;
+        }
     }
 
     else if (PEEK(ARROW_R)) // OUTPUT_STATEMENT
