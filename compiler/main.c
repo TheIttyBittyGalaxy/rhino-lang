@@ -1,3 +1,4 @@
+#include "parse.h"
 #include "tokenise.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -42,13 +43,14 @@ char *read_file(const char *path)
 
 // MAIN //
 bool flag_debug = false;
+bool flag_tree = false;
 
 int main(int argc, char *argv[])
 {
     // Parse and validate arguments
     if (argc < 2)
     {
-        fprintf(stderr, "Usage: %s <file_path> [-debug]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <file_path> [-debug] [-tree]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
@@ -56,6 +58,8 @@ int main(int argc, char *argv[])
     {
         if (strcmp(argv[i], "-debug") == 0)
             flag_debug = true;
+        else if (strcmp(argv[i], "-tree") == 0)
+            flag_tree = true;
         else
         {
             fprintf(stderr, "Usage: %s <file_path> [-debug]\n", argv[0]);
@@ -76,15 +80,21 @@ int main(int argc, char *argv[])
         for (size_t i = 0; i < token_array.count; i++)
         {
             Token t = token_array.tokens[i];
-            printf("%03d\t%-*s\t%3d %2d\t%.*s\n", i, 13, token_kind_string(t.kind), t.pos, t.len, t.len, source_text + t.pos);
+            printf("%03d\t", i);
+            printf("%-*s\t", 13, token_kind_string(t.kind));
+            printf("%3d %2d\t", t.str.pos, t.str.len);
+            printf("%.*s\n", t.str.len, source_text + t.str.pos);
         }
     }
 
-    // HEADING("Parse");
-    // Program *apm = create_apm();
-    // parse(apm, tokens);
-    // if (flag_debug)
-    //     print_apm(apm);
+    HEADING("Parse");
+    Program apm;
+    init_program(&apm);
+    parse(&apm, token_array);
+    if (flag_tree)
+        print_apm(&apm, source_text);
+    else if (flag_debug)
+        dump_apm(&apm, source_text);
 
     // HEADING("Resolve");
     // resolve(apm);

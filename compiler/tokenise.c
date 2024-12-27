@@ -96,6 +96,8 @@ TokenArray tokenise(const char *const src)
                 while (is_word_or_digit(*c))
                     c++;
 
+                IF_KEYWORD_ELSE("true", KEYWORD_TRUE)
+                IF_KEYWORD_ELSE("false", KEYWORD_FALSE)
                 IF_KEYWORD_ELSE("for", KEYWORD_FOR)
                 IF_KEYWORD_ELSE("if", KEYWORD_IF)
                 IF_KEYWORD_ELSE("loop", KEYWORD_LOOP)
@@ -137,8 +139,8 @@ TokenArray tokenise(const char *const src)
         }
 
         token_array.tokens[token_array.count].kind = kind;
-        token_array.tokens[token_array.count].pos = start - src;
-        token_array.tokens[token_array.count].len = c - start;
+        token_array.tokens[token_array.count].str.pos = start - src;
+        token_array.tokens[token_array.count].str.len = c - start;
         token_array.count++;
 
         if (kind == END_OF_FILE)

@@ -1,0 +1,13 @@
+main() {
+    {
+        {
+            {
+                if true:
+                    > "Hello World!";
+
+                if false:
+                    > "Goodbye World!";
+            }
+        }
+    }
+}

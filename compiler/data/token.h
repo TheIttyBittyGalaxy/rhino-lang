@@ -1,8 +1,9 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
-#include <stdlib.h>
 #include "macro.h"
+#include "substr.h"
+#include <stdlib.h>
 
 #define LIST_TOKENS(MACRO) \
     MACRO(INVALID_TOKEN)   \
@@ -20,6 +21,9 @@
     MACRO(ARROW_R)         \
     MACRO(ARROW_L_EQUAL)   \
     MACRO(ARROW_R_EQUAL)   \
+                           \
+    MACRO(KEYWORD_TRUE)    \
+    MACRO(KEYWORD_FALSE)   \
                            \
     MACRO(KEYWORD_FOR)     \
     MACRO(KEYWORD_IF)      \
@@ -39,8 +43,7 @@ DECLARE_ENUM(LIST_TOKENS, TokenKind, token_kind)
 typedef struct
 {
     TokenKind kind;
-    size_t pos;
-    size_t len;
+    substr str;
 } Token;
 
 // TokenArray
