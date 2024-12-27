@@ -5,6 +5,7 @@
 #include "substr.h"
 #include <stdlib.h>
 
+// Token kind
 #define LIST_TOKENS(MACRO) \
     MACRO(INVALID_TOKEN)   \
                            \
@@ -37,9 +38,9 @@
                            \
     MACRO(END_OF_FILE)
 
-// Token
 DECLARE_ENUM(LIST_TOKENS, TokenKind, token_kind)
 
+// Token
 typedef struct
 {
     TokenKind kind;
