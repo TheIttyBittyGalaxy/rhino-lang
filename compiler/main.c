@@ -1,3 +1,4 @@
+#include "interpret.h"
 #include "parse.h"
 #include "tokenise.h"
 #include <stdbool.h>
@@ -113,6 +114,6 @@ int main(int argc, char *argv[])
     //     return EXIT_SUCCESS;
     // }
 
-    // HEADING("Running program");
-    // interpret(apm);
+    HEADING("Running program");
+    interpret(&apm, source_text);
 }
