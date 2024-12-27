@@ -52,22 +52,11 @@ void interpret_statement(Program *apm, const char *source_text, size_t stmt_inde
     case CODE_BLOCK:
     case SINGLE_BLOCK:
     {
-        for (size_t n = 0; n < stmt->statements.count; n++)
+        size_t n = get_first_statement_in_code_block(apm, stmt);
+        while (n < stmt->statements.count)
         {
-            size_t i = stmt->statements.first + n;
-            // print("%d\t%d\n", stmt->statements.first, i);
-            interpret_statement(apm, source_text, i);
-
-            Statement *child = get_statement(apm->statement, i);
-            if (child->kind == CODE_BLOCK || child->kind == SINGLE_BLOCK)
-            {
-                n += child->statements.count;
-            }
-            else if (child->kind == IF_STATEMENT)
-            {
-                Statement *body = get_statement(apm->statement, child->body);
-                n += body->statements.count + 1;
-            }
+            interpret_statement(apm, source_text, stmt->statements.first + n);
+            n = get_next_statement_in_code_block(apm, stmt, n);
         }
         break;
     }

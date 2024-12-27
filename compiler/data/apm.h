@@ -95,4 +95,9 @@ void init_program(Program *apm);
 void dump_apm(Program *apm, const char *source_text);
 void print_apm(Program *apm, const char *source_text);
 
+// APM utility methods
+size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, size_t n);
+size_t get_first_statement_in_code_block(Program *apm, Statement *code_block);
+size_t get_last_statement_in_code_block(Program *apm, Statement *code_block);
+
 #endif

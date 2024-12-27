@@ -107,23 +107,15 @@ void print_statement(Program *apm, size_t stmt_index, const char *source_text)
     case CODE_BLOCK:
     case SINGLE_BLOCK:
     {
-        for (size_t i = 0; i < stmt->statements.count; i++)
+        size_t last = get_last_statement_in_code_block(apm, stmt);
+        size_t n = get_first_statement_in_code_block(apm, stmt);
+        while (n < stmt->statements.count)
         {
-            if (i == stmt->statements.count - 1)
+            if (n == last)
                 LAST_ON_LINE(); // FIXME: This will only work when the last statement in the slice is not in a nested scope
 
-            print_statement(apm, stmt->statements.first + i, source_text);
-
-            Statement *child = get_statement(apm->statement, stmt->statements.first + i);
-            if (child->kind == CODE_BLOCK || child->kind == SINGLE_BLOCK)
-            {
-                i += child->statements.count;
-            }
-            else if (child->kind == IF_STATEMENT)
-            {
-                Statement *body = get_statement(apm->statement, child->body);
-                i += body->statements.count + 1;
-            }
+            print_statement(apm, stmt->statements.first + n, source_text);
+            n = get_next_statement_in_code_block(apm, stmt, n);
         }
 
         NEWLINE();
@@ -241,5 +233,42 @@ void dump_apm(Program *apm, const char *source_text)
             break;
         }
         printf("\n");
+    }
+}
+
+// APM utility methods
+size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, size_t n)
+{
+    if (code_block->statements.count == 0)
+        return 0;
+
+    Statement *child = get_statement(apm->statement, code_block->statements.first + n);
+    n++;
+
+    if (child->kind == CODE_BLOCK || child->kind == SINGLE_BLOCK)
+        return n + child->statements.count;
+    else if (child->kind == IF_STATEMENT)
+        return n + get_statement(apm->statement, child->body)->statements.count + 1;
+
+    return n;
+}
+
+size_t get_first_statement_in_code_block(Program *apm, Statement *code_block)
+{
+    return 0;
+}
+
+size_t get_last_statement_in_code_block(Program *apm, Statement *code_block)
+{
+    if (code_block->statements.count == 0)
+        return 0;
+
+    size_t n = 0;
+    while (true)
+    {
+        size_t next = get_next_statement_in_code_block(apm, code_block, n);
+        if (next >= code_block->statements.count)
+            return n;
+        n = next;
     }
 }
