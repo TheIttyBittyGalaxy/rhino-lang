@@ -1,6 +1,7 @@
 #ifndef LIST_H
 #define LIST_H
 
+#include <assert.h>
 #include <stdlib.h>
 
 #define DECLARE_LIST_TYPE(camel_case_name, snake_case_name)                           \
@@ -37,7 +38,7 @@
                                                                                                                \
     camel_case_name *get_##snake_case_name(camel_case_name##List list, size_t index)                           \
     {                                                                                                          \
-        /* FIXME: Check the index is not out of range*/                                                        \
+        assert(index < list.count);                                                                            \
         return list.values + index;                                                                            \
     }
 
@@ -51,7 +52,8 @@
 #define DEFINE_SLICE_TYPE(camel_case_name, snake_case_name)                                                                     \
     camel_case_name *get_##snake_case_name##_from_slice(camel_case_name##List list, camel_case_name##Slice slice, size_t index) \
     {                                                                                                                           \
-        /* FIXME: Check the index is not out of range*/                                                                         \
+        assert(index < slice.count);                                                                                            \
+        assert(slice.first + index < list.count);                                                                               \
         return list.values + slice.first + index;                                                                               \
     }
 
