@@ -49,6 +49,10 @@ void determine_error_positions(Compiler *c)
 // Compiler
 void init_compiler(Compiler *c)
 {
+    c->token_capacity = 64;
+    c->token_count = 0;
+    c->tokens = (Token *)malloc(sizeof(Token) * c->token_capacity);
+
     c->error_capacity = 8;
     c->error_count = 0;
     c->errors = (CompilationError *)malloc(sizeof(CompilationError) * c->error_capacity);

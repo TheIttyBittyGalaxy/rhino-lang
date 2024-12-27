@@ -51,10 +51,15 @@ typedef struct
 // Compiler
 typedef struct
 {
-    // Source and tokenise
+    // Source
     const char *source_path;
     const char *source_text;
-    TokenArray token_array; // TODO: Discard the token array class and incorporate it's fields into the compiler
+
+    // Tokenize
+    // TokenArray
+    Token *tokens;
+    size_t token_capacity;
+    size_t token_count;
 
     // Parse
     size_t next_token;

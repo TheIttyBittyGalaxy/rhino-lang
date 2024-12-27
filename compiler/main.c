@@ -83,9 +83,9 @@ int main(int argc, char *argv[])
     tokenise(&compiler);
     if (flag_debug)
     {
-        for (size_t i = 0; i < compiler.token_array.count; i++)
+        for (size_t i = 0; i < compiler.token_count; i++)
         {
-            Token t = compiler.token_array.tokens[i];
+            Token t = compiler.tokens[i];
             printf("%03d\t", i);
             printf("%-*s\t", 13, token_kind_string(t.kind));
             printf("%3d %2d\t", t.str.pos, t.str.len);
@@ -129,5 +129,6 @@ int main(int argc, char *argv[])
     HEADING("Running program");
     interpret(&apm, compiler.source_text);
 
+    HEADING("Complete");
     return EXIT_SUCCESS;
 }

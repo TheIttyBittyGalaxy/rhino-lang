@@ -48,12 +48,4 @@ typedef struct
     substr str;
 } Token;
 
-// TokenArray
-typedef struct
-{
-    Token *tokens;
-    size_t capacity;
-    size_t count;
-} TokenArray;
-
 #endif

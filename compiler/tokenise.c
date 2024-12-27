@@ -28,17 +28,17 @@ bool is_word_or_digit(const char c)
 #define ONE_CHAR(the_char, token_kind) \
     case the_char:                     \
         kind = token_kind;             \
-        c++;                           \
+        character++;                   \
         break;
 
 #define ONE_OR_TWO_CHAR(first_char, first_kind, second_char, second_kind) \
     case first_char:                                                      \
         kind = first_kind;                                                \
-        c++;                                                              \
-        if (*c == second_char)                                            \
+        character++;                                                      \
+        if (*character == second_char)                                    \
         {                                                                 \
             kind = second_kind;                                           \
-            c++;                                                          \
+            character++;                                                  \
         }                                                                 \
         break;
 
@@ -47,20 +47,17 @@ bool is_word_or_digit(const char c)
         kind = token_kind;                                     \
     else
 
-void tokenise(Compiler *compiler)
+void tokenise(Compiler *const c)
 {
-    TokenArray *token_array = &compiler->token_array;
-    token_array->capacity = 64;
-    token_array->count = 0;
-    token_array->tokens = (Token *)malloc(sizeof(Token) * token_array->capacity);
+    c->token_count = 0;
 
-    const char *c = compiler->source_text;
+    const char *character = c->source_text;
     while (true)
     {
-        const char *const start = c;
+        const char *const start = character;
         TokenKind kind = INVALID_TOKEN;
 
-        switch (*c)
+        switch (*character)
         {
             ONE_CHAR(';', SEMI_COLON)
             ONE_CHAR(':', COLON)
@@ -79,22 +76,22 @@ void tokenise(Compiler *compiler)
         case '\t':
         case '\n':
         case '\r':
-            c++;
+            character++;
             continue; // Do not emit a token
 
         default:
 
-            if (is_digit(*c))
+            if (is_digit(*character))
             {
                 kind = NUMBER;
-                while (is_digit(*c))
-                    c++;
+                while (is_digit(*character))
+                    character++;
             }
 
-            else if (is_word(*c))
+            else if (is_word(*character))
             {
-                while (is_word_or_digit(*c))
-                    c++;
+                while (is_word_or_digit(*character))
+                    character++;
 
                 IF_KEYWORD_ELSE("true", KEYWORD_TRUE)
                 IF_KEYWORD_ELSE("false", KEYWORD_FALSE)
@@ -105,19 +102,19 @@ void tokenise(Compiler *compiler)
                 kind = IDENTITY; // This is under the "else" of the above macro
             }
 
-            else if (*c == '"')
+            else if (*character == '"')
             {
                 kind = STRING;
                 while (true)
                 {
-                    c++;
-                    if (*c == '"')
+                    character++;
+                    if (*character == '"')
                     {
-                        c++;
+                        character++;
                         break;
                     }
 
-                    if (*c == '\0' || *c == '\n' || *c == '\r')
+                    if (*character == '\0' || *character == '\n' || *character == '\r')
                     {
                         kind = BROKEN_STRING;
                         break;
@@ -127,21 +124,20 @@ void tokenise(Compiler *compiler)
 
             else
             {
-                c++; // Proceed with invalid token
+                character++; // Proceed with invalid token
             }
         }
 
-        if (token_array->count == token_array->capacity)
+        if (c->token_count == c->token_capacity)
         {
-            size_t new_capacity = token_array->capacity * 2;
-            token_array->tokens = (Token *)realloc(token_array->tokens, sizeof(Token) * new_capacity);
-            token_array->capacity = new_capacity;
+            c->token_capacity = c->token_capacity * 2;
+            c->tokens = (Token *)realloc(c->tokens, sizeof(Token) * c->token_capacity);
         }
 
-        token_array->tokens[token_array->count].kind = kind;
-        token_array->tokens[token_array->count].str.pos = start - compiler->source_text;
-        token_array->tokens[token_array->count].str.len = c - start;
-        token_array->count++;
+        c->tokens[c->token_count].kind = kind;
+        c->tokens[c->token_count].str.pos = start - c->source_text;
+        c->tokens[c->token_count].str.len = character - start;
+        c->token_count++;
 
         if (kind == END_OF_FILE)
             break;

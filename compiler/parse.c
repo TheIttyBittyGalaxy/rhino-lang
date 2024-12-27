@@ -6,13 +6,13 @@ size_t current_pos(Compiler *c)
     if (c->next_token == 0)
         return 0;
 
-    Token t = c->token_array.tokens[c->next_token - 1];
+    Token t = c->tokens[c->next_token - 1];
     return t.str.pos + t.str.len;
 }
 
 bool peek(Compiler *c, TokenKind token_kind)
 {
-    return c->token_array.tokens[c->next_token].kind == token_kind;
+    return c->tokens[c->next_token].kind == token_kind;
 }
 
 void advance(Compiler *c)
@@ -36,7 +36,7 @@ void eat(Compiler *c, TokenKind token_kind)
 
 substr token_string(Compiler *c)
 {
-    return c->token_array.tokens[c->next_token].str;
+    return c->tokens[c->next_token].str;
 }
 
 // Macros
