@@ -126,6 +126,7 @@ void print_statement(Program *apm, size_t stmt_index, const char *source_text)
     }
 
     case IF_STATEMENT:
+    case ELSE_IF_STATEMENT:
         PRINT("condition: ");
         print_expression(apm, stmt->condition, source_text);
         NEWLINE();
@@ -212,7 +213,12 @@ void dump_apm(Program *apm, const char *source_text)
             break;
 
         case IF_STATEMENT:
+        case ELSE_IF_STATEMENT:
             printf("condition %02d\tbody %02d", stmt->condition, stmt->body);
+            break;
+
+        case ELSE_STATEMENT:
+            printf("body %02d", stmt->body);
             break;
 
         case OUTPUT_STATEMENT:
@@ -253,7 +259,7 @@ size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, siz
 
     if (child->kind == CODE_BLOCK || child->kind == SINGLE_BLOCK)
         return n + child->statements.count;
-    else if (child->kind == IF_STATEMENT || child->kind == ELSE_STATEMENT)
+    else if (child->kind == IF_STATEMENT || child->kind == ELSE_IF_STATEMENT || child->kind == ELSE_STATEMENT)
         return n + get_statement(apm->statement, child->body)->statements.count + 1;
 
     return n;

@@ -99,6 +99,20 @@ void interpret_statement(Interpreter *interpreter, Program *apm, const char *sou
         break;
     }
 
+    case ELSE_IF_STATEMENT:
+    {
+        if (!STACK_LAYER.executed_if_segment)
+        {
+            Value condition = interpret_expression(interpreter, apm, stmt->condition);
+            if (condition.value)
+            {
+                interpret_statement(interpreter, apm, source_text, stmt->body);
+                STACK_LAYER.executed_if_segment = true;
+            }
+        }
+        break;
+    }
+
     case ELSE_STATEMENT:
     {
         if (!STACK_LAYER.executed_if_segment)

@@ -43,6 +43,7 @@ DECLARE_LIST_TYPE(Expression, expression)
     MACRO(SINGLE_BLOCK)        \
                                \
     MACRO(IF_STATEMENT)        \
+    MACRO(ELSE_IF_STATEMENT)   \
     MACRO(ELSE_STATEMENT)      \
     MACRO(OUTPUT_STATEMENT)
 

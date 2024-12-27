@@ -122,15 +122,30 @@ size_t parse_statement(Compiler *c, Program *apm)
         STATEMENT(stmt)->condition = condition;
         STATEMENT(stmt)->body = body;
 
-        if (PEEK(KEYWORD_ELSE))
+        while (PEEK(KEYWORD_ELSE))
         {
             EAT(KEYWORD_ELSE);
 
-            size_t else_stmt = add_statement(&apm->statement);
-            size_t else_body = parse_code_block(c, apm, true);
+            size_t segment_stmt = add_statement(&apm->statement);
 
-            STATEMENT(else_stmt)->kind = ELSE_STATEMENT;
-            STATEMENT(else_stmt)->body = else_body;
+            if (PEEK(KEYWORD_IF))
+            {
+                EAT(KEYWORD_IF);
+                size_t condition = parse_expression(c, apm);
+                size_t body = parse_code_block(c, apm, true);
+
+                STATEMENT(segment_stmt)->kind = ELSE_IF_STATEMENT;
+                STATEMENT(segment_stmt)->condition = condition;
+                STATEMENT(segment_stmt)->body = body;
+            }
+            else
+            {
+                size_t body = parse_code_block(c, apm, true);
+
+                STATEMENT(segment_stmt)->kind = ELSE_STATEMENT;
+                STATEMENT(segment_stmt)->body = body;
+                break;
+            }
         }
     }
 
