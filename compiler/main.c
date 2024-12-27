@@ -71,6 +71,7 @@ int main(int argc, char *argv[])
 
     // Compile
     Compiler compiler;
+    init_compiler(&compiler);
 
     HEADING("Reading source file");
     compiler.source_path = argv[1];
@@ -112,14 +113,21 @@ int main(int argc, char *argv[])
     //     print_apm(apm);
 
     // Report errors
-    // if (errors)
-    // {
-    //     HEADING("Errors");
-    //     print_errors();
-    //     return EXIT_SUCCESS;
-    // }
+    if (compiler.error_count > 0)
+    {
+        HEADING("Errors");
+        determine_error_positions(&compiler);
+        for (size_t i = 0; i < compiler.error_count; i++)
+        {
+            CompilationError error = compiler.errors[i];
+            printf("%s:%d:%d\t%s\n", compiler.source_path, error.line, error.column, compilation_error_code_string(error.code));
+        }
+        return EXIT_FAILURE;
+    }
 
     // Interpret
     HEADING("Running program");
     interpret(&apm, compiler.source_text);
+
+    return EXIT_SUCCESS;
 }

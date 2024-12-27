@@ -1,6 +1,15 @@
 #include "parse.h"
 
 // Parse utility
+size_t current_pos(Compiler *c)
+{
+    if (c->next_token == 0)
+        return 0;
+
+    Token t = c->token_array.tokens[c->next_token - 1];
+    return t.str.pos + t.str.len;
+}
+
 bool peek(Compiler *c, TokenKind token_kind)
 {
     return c->token_array.tokens[c->next_token].kind == token_kind;
@@ -20,7 +29,8 @@ void eat(Compiler *c, TokenKind token_kind)
     }
     else
     {
-        // TODO: Error
+        CompilationErrorCode code = (CompilationErrorCode)((int)EXPECTED_INVALID_TOKEN + (int)token_kind);
+        raise_compilation_error(c, code, current_pos(c));
     }
 }
 
@@ -74,10 +84,10 @@ size_t parse_expression(Compiler *c, Program *apm)
         return expr;
     }
 
-    // TODO: Error
-
     size_t expr = add_expression(&apm->expression);
     EXPRESSION(expr)->kind = INVALID_EXPRESSION;
+
+    raise_compilation_error(c, EXPECTED_EXPRESSION, current_pos(c));
 
     ADVANCE();
     return expr;
@@ -127,11 +137,11 @@ size_t parse_statement(Compiler *c, Program *apm)
 
     else // INVALID_STATEMENT
     {
-        // TODO: Error
+        STATEMENT(stmt)->kind = INVALID_STATEMENT;
+
+        raise_compilation_error(c, EXPECTED_STATEMENT, current_pos(c));
 
         ADVANCE();
-
-        STATEMENT(stmt)->kind = INVALID_STATEMENT;
     }
 
     return stmt;
@@ -189,7 +199,8 @@ void parse_program(Compiler *c, Program *apm)
             parse_function(c, apm);
         else
         {
-            // TODO: Error
+            raise_compilation_error(c, EXPECTED_FUNCTION, current_pos(c));
+            ADVANCE();
         }
     }
 }
