@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 // Token kind
-// NOTE: Update compilation_error.h whenever these are changed.
+// NOTE: Update compiler.h whenever these are changed.
 #define LIST_TOKENS(MACRO) \
     MACRO(INVALID_TOKEN)   \
                            \
