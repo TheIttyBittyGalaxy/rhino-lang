@@ -4,19 +4,19 @@
 typedef struct
 {
     TokenArray token_array;
-    size_t current_token;
+    size_t next_token;
 } Parser;
 
 // Parse utility
-void advance(Parser *p)
-{
-    // TODO: Don't advance once at the end of file
-    p->current_token++;
-}
-
 bool peek(Parser *p, TokenKind token_kind)
 {
-    return p->token_array.tokens[p->current_token].kind == token_kind;
+    return p->token_array.tokens[p->next_token].kind == token_kind;
+}
+
+void advance(Parser *p)
+{
+    if (!peek(p, END_OF_FILE))
+        p->next_token++;
 }
 
 void eat(Parser *p, TokenKind token_kind)
@@ -31,16 +31,16 @@ void eat(Parser *p, TokenKind token_kind)
     }
 }
 
-substr current_str(Parser *p)
+substr token_string(Parser *p)
 {
-    return p->token_array.tokens[p->current_token].str;
+    return p->token_array.tokens[p->next_token].str;
 }
 
 // Macros
 #define ADVANCE() advance(p)
 #define PEEK(token_kind) peek(p, token_kind)
 #define EAT(token_kind) eat(p, token_kind)
-#define CURRENT_STR() current_str(p)
+#define TOKEN_STRING() token_string(p)
 
 #define EXPRESSION(index) get_expression(apm->expression, index)
 #define STATEMENT(index) get_statement(apm->statement, index)
@@ -69,10 +69,13 @@ size_t parse_expression(Parser *p, Program *apm)
     }
     else if (PEEK(STRING) || PEEK(BROKEN_STRING))
     {
-        // TODO: Remove the quotation marks from the value
+        substr str = TOKEN_STRING();
+        str.pos++;
+        str.len -= PEEK(STRING) ? 2 : 1;
+
         size_t expr = add_expression(&apm->expression);
         EXPRESSION(expr)->kind = STRING_LITERAL;
-        EXPRESSION(expr)->string_value = CURRENT_STR();
+        EXPRESSION(expr)->string_value = str;
 
         ADVANCE();
         return expr;
@@ -171,7 +174,7 @@ size_t parse_code_block(Parser *p, Program *apm, bool allow_single)
 
 void parse_function(Parser *p, Program *apm)
 {
-    substr identity = CURRENT_STR();
+    substr identity = TOKEN_STRING();
     EAT(IDENTITY);
     EAT(PAREN_L);
     EAT(PAREN_R);
@@ -202,6 +205,6 @@ void parse(Program *apm, TokenArray token_array)
 {
     Parser parser;
     parser.token_array = token_array;
-    parser.current_token = 0;
+    parser.next_token = 0;
     parse_program(&parser, apm);
 }
