@@ -33,15 +33,9 @@
                            \
     MACRO(END_OF_FILE)
 
-// TokenKind
-typedef enum
-{
-    LIST_TOKENS(WITH_COMMA)
-} TokenKind;
-
-const char *token_kind_string(TokenKind kind);
-
 // Token
+DECLARE_ENUM(LIST_TOKENS, TokenKind, token_kind)
+
 typedef struct
 {
     TokenKind kind;

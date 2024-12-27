@@ -6,7 +6,7 @@
 
 // OUTPUT MARCOS //
 
-#define HEADING(text) printf("\x1b[32m" text "\n\x1b[0m")
+#define HEADING(text) printf("\n\x1b[32m" text "\n\x1b[0m")
 
 // READ FILE //
 

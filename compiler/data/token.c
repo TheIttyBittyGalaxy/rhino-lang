@@ -3,8 +3,4 @@
 
 #include "token.h"
 
-const char *token_kind_string(TokenKind value)
-{
-    LIST_TOKENS(RETURN_STRING_IF_MATCH)
-    return "INVALID_TOKEN_KIND";
-}
+DEFINE_ENUM(LIST_TOKENS, TokenKind, token_kind)
