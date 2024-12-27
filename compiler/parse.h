@@ -2,9 +2,9 @@
 #define PARSE_H
 
 #include "data/apm.h"
+#include "data/compiler.h"
 #include "data/substr.h"
-#include "data/token.h"
 
-void parse(Program *apm, TokenArray token_array);
+void parse(Compiler *compiler, Program *apm);
 
 #endif

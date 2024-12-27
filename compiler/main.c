@@ -1,3 +1,4 @@
+#include "data/compiler.h"
 #include "interpret.h"
 #include "parse.h"
 #include "tokenise.h"
@@ -68,34 +69,37 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Compile
+    Compiler compiler;
+
     HEADING("Reading source file");
-    const char *source_path = argv[1];
-    char *source_text = read_file(source_path);
-    if (source_text == NULL)
+    compiler.source_path = argv[1];
+    compiler.source_text = read_file(compiler.source_path);
+    if (compiler.source_text == NULL)
         return EXIT_FAILURE;
 
     HEADING("Tokenise");
-    TokenArray token_array = tokenise(source_text);
+    tokenise(&compiler);
     if (flag_debug)
     {
-        for (size_t i = 0; i < token_array.count; i++)
+        for (size_t i = 0; i < compiler.token_array.count; i++)
         {
-            Token t = token_array.tokens[i];
+            Token t = compiler.token_array.tokens[i];
             printf("%03d\t", i);
             printf("%-*s\t", 13, token_kind_string(t.kind));
             printf("%3d %2d\t", t.str.pos, t.str.len);
-            printf("%.*s\n", t.str.len, source_text + t.str.pos);
+            printf("%.*s\n", t.str.len, compiler.source_text + t.str.pos);
         }
     }
 
     HEADING("Parse");
     Program apm;
     init_program(&apm);
-    parse(&apm, token_array);
+    parse(&compiler, &apm);
     if (flag_tree)
-        print_apm(&apm, source_text);
+        print_apm(&apm, compiler.source_text);
     else if (flag_debug)
-        dump_apm(&apm, source_text);
+        dump_apm(&apm, compiler.source_text);
 
     // HEADING("Resolve");
     // resolve(apm);
@@ -107,6 +111,7 @@ int main(int argc, char *argv[])
     // if (flag_debug)
     //     print_apm(apm);
 
+    // Report errors
     // if (errors)
     // {
     //     HEADING("Errors");
@@ -114,6 +119,7 @@ int main(int argc, char *argv[])
     //     return EXIT_SUCCESS;
     // }
 
+    // Interpret
     HEADING("Running program");
-    interpret(&apm, source_text);
+    interpret(&apm, compiler.source_text);
 }

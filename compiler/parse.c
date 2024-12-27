@@ -1,29 +1,22 @@
 #include "parse.h"
 
-// Parser state
-typedef struct
-{
-    TokenArray token_array;
-    size_t next_token;
-} Parser;
-
 // Parse utility
-bool peek(Parser *p, TokenKind token_kind)
+bool peek(Compiler *c, TokenKind token_kind)
 {
-    return p->token_array.tokens[p->next_token].kind == token_kind;
+    return c->token_array.tokens[c->next_token].kind == token_kind;
 }
 
-void advance(Parser *p)
+void advance(Compiler *c)
 {
-    if (!peek(p, END_OF_FILE))
-        p->next_token++;
+    if (!peek(c, END_OF_FILE))
+        c->next_token++;
 }
 
-void eat(Parser *p, TokenKind token_kind)
+void eat(Compiler *c, TokenKind token_kind)
 {
-    if (peek(p, token_kind))
+    if (peek(c, token_kind))
     {
-        advance(p);
+        advance(c);
     }
     else
     {
@@ -31,23 +24,23 @@ void eat(Parser *p, TokenKind token_kind)
     }
 }
 
-substr token_string(Parser *p)
+substr token_string(Compiler *c)
 {
-    return p->token_array.tokens[p->next_token].str;
+    return c->token_array.tokens[c->next_token].str;
 }
 
 // Macros
-#define ADVANCE() advance(p)
-#define PEEK(token_kind) peek(p, token_kind)
-#define EAT(token_kind) eat(p, token_kind)
-#define TOKEN_STRING() token_string(p)
+#define ADVANCE() advance(c)
+#define PEEK(token_kind) peek(c, token_kind)
+#define EAT(token_kind) eat(c, token_kind)
+#define TOKEN_STRING() token_string(c)
 
 #define EXPRESSION(index) get_expression(apm->expression, index)
 #define STATEMENT(index) get_statement(apm->statement, index)
 #define FUNCTION(index) get_function(apm->function, index)
 
 // Parse APM
-size_t parse_expression(Parser *p, Program *apm)
+size_t parse_expression(Compiler *c, Program *apm)
 {
     if (PEEK(KEYWORD_TRUE))
     {
@@ -90,7 +83,7 @@ size_t parse_expression(Parser *p, Program *apm)
     return expr;
 }
 
-bool peek_statement(Parser *p)
+bool peek_statement(Compiler *c)
 {
     return PEEK(CURLY_L) ||
            PEEK(COLON) ||
@@ -98,13 +91,13 @@ bool peek_statement(Parser *p)
            PEEK(ARROW_R);
 }
 
-size_t parse_code_block(Parser *p, Program *apm, bool allow_single);
+size_t parse_code_block(Compiler *c, Program *apm, bool allow_single);
 
-size_t parse_statement(Parser *p, Program *apm)
+size_t parse_statement(Compiler *c, Program *apm)
 {
     if (PEEK(CURLY_L) || PEEK(COLON))
     {
-        return parse_code_block(p, apm, false);
+        return parse_code_block(c, apm, false);
     }
 
     size_t stmt = add_statement(&apm->statement);
@@ -112,8 +105,8 @@ size_t parse_statement(Parser *p, Program *apm)
     if (PEEK(KEYWORD_IF)) // IF_STATEMENT
     {
         EAT(KEYWORD_IF);
-        size_t condition = parse_expression(p, apm);
-        size_t body = parse_code_block(p, apm, true);
+        size_t condition = parse_expression(c, apm);
+        size_t body = parse_code_block(c, apm, true);
 
         // TODO: Parse else blocks
 
@@ -125,7 +118,7 @@ size_t parse_statement(Parser *p, Program *apm)
     else if (PEEK(ARROW_R)) // OUTPUT_STATEMENT
     {
         EAT(ARROW_R);
-        size_t value = parse_expression(p, apm);
+        size_t value = parse_expression(c, apm);
         EAT(SEMI_COLON);
 
         STATEMENT(stmt)->kind = OUTPUT_STATEMENT;
@@ -144,7 +137,7 @@ size_t parse_statement(Parser *p, Program *apm)
     return stmt;
 }
 
-size_t parse_code_block(Parser *p, Program *apm, bool allow_single)
+size_t parse_code_block(Compiler *c, Program *apm, bool allow_single)
 {
     size_t code_block = add_statement(&apm->statement);
     size_t first_statement = apm->statement.count;
@@ -153,13 +146,13 @@ size_t parse_code_block(Parser *p, Program *apm, bool allow_single)
     if (is_single)
     {
         EAT(COLON);
-        parse_statement(p, apm);
+        parse_statement(c, apm);
     }
     else
     {
         EAT(CURLY_L);
-        while (peek_statement(p))
-            parse_statement(p, apm);
+        while (peek_statement(c))
+            parse_statement(c, apm);
         EAT(CURLY_R);
     }
 
@@ -172,28 +165,28 @@ size_t parse_code_block(Parser *p, Program *apm, bool allow_single)
     return code_block;
 }
 
-void parse_function(Parser *p, Program *apm)
+void parse_function(Compiler *c, Program *apm)
 {
     substr identity = TOKEN_STRING();
     EAT(IDENTITY);
     EAT(PAREN_L);
     EAT(PAREN_R);
 
-    size_t body = parse_code_block(p, apm, true);
+    size_t body = parse_code_block(c, apm, true);
 
     size_t funct = add_function(&apm->function);
     FUNCTION(funct)->identity = identity;
     FUNCTION(funct)->body = body;
 }
 
-void parse_program(Parser *p, Program *apm)
+void parse_program(Compiler *c, Program *apm)
 {
     while (true)
     {
         if (PEEK(END_OF_FILE))
             break;
         else if (PEEK(IDENTITY))
-            parse_function(p, apm);
+            parse_function(c, apm);
         else
         {
             // TODO: Error
@@ -201,10 +194,8 @@ void parse_program(Parser *p, Program *apm)
     }
 }
 
-void parse(Program *apm, TokenArray token_array)
+void parse(Compiler *compiler, Program *apm)
 {
-    Parser parser;
-    parser.token_array = token_array;
-    parser.next_token = 0;
-    parse_program(&parser, apm);
+    compiler->next_token = 0;
+    parse_program(compiler, apm);
 }

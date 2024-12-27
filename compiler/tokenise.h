@@ -1,8 +1,9 @@
 #ifndef TOKENISE_H
 #define TOKENISE_H
 
+#include "data/compiler.h"
 #include "data/token.h"
 
-TokenArray tokenise(const char *const src);
+void tokenise(Compiler *compiler);
 
 #endif

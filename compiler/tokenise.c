@@ -47,14 +47,14 @@ bool is_word_or_digit(const char c)
         kind = token_kind;                                     \
     else
 
-TokenArray tokenise(const char *const src)
+void tokenise(Compiler *compiler)
 {
-    TokenArray token_array;
-    token_array.capacity = 64;
-    token_array.count = 0;
-    token_array.tokens = (Token *)malloc(sizeof(Token) * token_array.capacity);
+    TokenArray *token_array = &compiler->token_array;
+    token_array->capacity = 64;
+    token_array->count = 0;
+    token_array->tokens = (Token *)malloc(sizeof(Token) * token_array->capacity);
 
-    const char *c = src;
+    const char *c = compiler->source_text;
     while (true)
     {
         const char *const start = c;
@@ -131,21 +131,19 @@ TokenArray tokenise(const char *const src)
             }
         }
 
-        if (token_array.count == token_array.capacity)
+        if (token_array->count == token_array->capacity)
         {
-            size_t new_capacity = token_array.capacity * 2;
-            token_array.tokens = (Token *)realloc(token_array.tokens, sizeof(Token) * new_capacity);
-            token_array.capacity = new_capacity;
+            size_t new_capacity = token_array->capacity * 2;
+            token_array->tokens = (Token *)realloc(token_array->tokens, sizeof(Token) * new_capacity);
+            token_array->capacity = new_capacity;
         }
 
-        token_array.tokens[token_array.count].kind = kind;
-        token_array.tokens[token_array.count].str.pos = start - src;
-        token_array.tokens[token_array.count].str.len = c - start;
-        token_array.count++;
+        token_array->tokens[token_array->count].kind = kind;
+        token_array->tokens[token_array->count].str.pos = start - compiler->source_text;
+        token_array->tokens[token_array->count].str.len = c - start;
+        token_array->count++;
 
         if (kind == END_OF_FILE)
             break;
     }
-
-    return token_array;
 }
