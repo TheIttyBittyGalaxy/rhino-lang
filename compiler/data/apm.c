@@ -169,6 +169,8 @@ void print_apm(Program *apm, const char *source_text)
 
     for (size_t i = 0; i < apm->function.count; i++)
         print_function(apm, i, source_text);
+
+    printf("\n");
 }
 
 #undef INDENT
