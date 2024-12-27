@@ -1,1 +1,1 @@
-gdb --args main local.rhi
+gdb --args main local.rhi %*

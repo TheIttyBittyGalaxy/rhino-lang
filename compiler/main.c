@@ -44,8 +44,9 @@ char *read_file(const char *path)
 }
 
 // MAIN //
-bool flag_debug = false;
-bool flag_dump = false;
+bool flag_token_dump = false;
+bool flag_parse_dump = false;
+bool flag_dump_tree = false;
 
 bool process_arguments(int argc, char *argv[])
 {
@@ -54,10 +55,12 @@ bool process_arguments(int argc, char *argv[])
 
     for (int i = 2; i < argc; i++)
     {
-        if (strcmp(argv[i], "-debug") == 0)
-            flag_debug = true;
-        else if (strcmp(argv[i], "-dump") == 0)
-            flag_dump = true;
+        if ((strcmp(argv[i], "-t") == 0) || strcmp(argv[i], "-token") == 0)
+            flag_token_dump = true;
+        else if ((strcmp(argv[i], "-p") == 0) || strcmp(argv[i], "-parse") == 0)
+            flag_parse_dump = true;
+        else if ((strcmp(argv[i], "-n") == 0) || strcmp(argv[i], "-nice") == 0)
+            flag_dump_tree = true;
         else
             return false;
     }
@@ -71,7 +74,7 @@ int main(int argc, char *argv[])
     bool valid_arguments = process_arguments(argc, argv);
     if (!valid_arguments)
     {
-        fprintf(stderr, "Usage: %s <file_path> [-debug] [-dump]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <file_path> [-token] [-parse] [-nice]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
@@ -87,7 +90,7 @@ int main(int argc, char *argv[])
 
     HEADING("Tokenise");
     tokenise(&compiler);
-    if (flag_debug)
+    if (flag_token_dump)
     {
         for (size_t i = 0; i < compiler.token_count; i++)
         {
@@ -103,10 +106,13 @@ int main(int argc, char *argv[])
     Program apm;
     init_program(&apm);
     parse(&compiler, &apm);
-    if (flag_dump)
-        dump_apm(&apm, compiler.source_text);
-    else if (flag_debug)
-        print_apm(&apm, compiler.source_text);
+    if (flag_parse_dump)
+    {
+        if (flag_dump_tree)
+            print_apm(&apm, compiler.source_text);
+        else
+            dump_apm(&apm, compiler.source_text);
+    }
 
     // HEADING("Resolve");
     // resolve(apm);

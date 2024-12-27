@@ -1,1 +1,1 @@
-chcp 65001 && main local.rhi -debug %*
+chcp 65001 && main local.rhi -p %*
