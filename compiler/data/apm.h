@@ -109,8 +109,11 @@ typedef struct
 } Program;
 
 void init_program(Program *apm);
+
+// Display APM
 void dump_apm(Program *apm, const char *source_text);
-void print_apm(Program *apm, const char *source_text);
+void print_parsed_apm(Program *apm, const char *source_text);
+void print_analysed_apm(Program *apm, const char *source_text);
 
 // APM utility methods
 size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, size_t n);

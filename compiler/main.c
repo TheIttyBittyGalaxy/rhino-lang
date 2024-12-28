@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
     if (flag_parse_dump)
     {
         if (flag_dump_tree)
-            print_apm(&apm, compiler.source_text);
+            print_parsed_apm(&apm, compiler.source_text);
         else
             dump_apm(&apm, compiler.source_text);
     }
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
     if (flag_analyse_dump)
     {
         if (flag_dump_tree)
-            print_apm(&apm, compiler.source_text);
+            print_analysed_apm(&apm, compiler.source_text);
         else
             dump_apm(&apm, compiler.source_text);
     }
