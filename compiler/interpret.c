@@ -1,4 +1,5 @@
 #include "interpret.h"
+#include "fatal_error.h"
 #include <stdio.h>
 
 // Interpreter
@@ -46,9 +47,9 @@ Value interpret_expression(Interpreter *interpreter, Program *apm, size_t expr_i
 
     switch (expr->kind)
     {
-    case IDENTITY_LITERAL:
         // TODO: Implement
-        break;
+        // case IDENTITY_LITERAL:
+        //     break;
 
     case BOOLEAN_LITERAL:
         result.type = TYPE_BOOLEAN;
@@ -65,7 +66,7 @@ Value interpret_expression(Interpreter *interpreter, Program *apm, size_t expr_i
         break;
 
     default:
-        // TODO: Error
+        fatal_error("Could not interpret %s expression.", expression_kind_string(expr->kind));
         break;
     }
 
@@ -152,7 +153,7 @@ void interpret_statement(Interpreter *interpreter, Program *apm, size_t stmt_ind
         }
         else
         {
-            // TODO: Error
+            fatal_error("Could not interpret %s statement with %s expression.", statement_kind_string(stmt->kind), value_type_string(result.type));
         }
 
         break;
@@ -165,7 +166,7 @@ void interpret_statement(Interpreter *interpreter, Program *apm, size_t stmt_ind
     }
 
     default:
-        // TODO: Error
+        fatal_error("Could not interpret %s statement.", statement_kind_string(stmt->kind));
         break;
     }
 }
