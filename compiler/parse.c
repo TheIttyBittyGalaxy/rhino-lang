@@ -30,6 +30,7 @@ void eat(Compiler *c, TokenKind token_kind)
     }
     else
     {
+        // TODO: Implement a proper "panic mode" / "recovery mode" to deal with unexpected tokens
         CompilationErrorCode code = (CompilationErrorCode)((int)EXPECTED_INVALID_TOKEN + (int)token_kind);
         raise_compilation_error(c, code, current_pos(c));
     }
