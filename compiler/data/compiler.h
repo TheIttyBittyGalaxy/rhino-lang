@@ -40,7 +40,9 @@
     MACRO(EXPECTED_END_OF_FILE)                                     \
                                                                     \
     /* ANALYSIS ERRORS */                                           \
-    MACRO(NO_MAIN_FUNCTION)
+    MACRO(NO_MAIN_FUNCTION)                                         \
+    MACRO(EXPRESSION_IS_NOT_A_FUNCTION)                             \
+    MACRO(FUNCTION_DOES_NOT_EXIST)
 
 DECLARE_ENUM(LIST_COMPILATION_ERRORS, CompilationErrorCode, compilation_error_code)
 

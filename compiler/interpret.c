@@ -61,20 +61,8 @@ Value interpret_expression(Interpreter *interpreter, Program *apm, size_t expr_i
         break;
 
     case FUNCTION_CALL:
-    {
-        // TODO: The function reference should be resolved during analysis
-        Expression *callee = get_expression(apm->expression, expr->callee);
-        for (size_t i = 0; i < apm->function.count; i++)
-        {
-            Function *funct = get_function(apm->function, i);
-            if (substr_match(interpreter->source_text, callee->identity, funct->identity))
-            {
-                interpret_function(interpreter, apm, i);
-                break;
-            }
-        }
-    }
-    break;
+        interpret_function(interpreter, apm, expr->callee);
+        break;
 
     default:
         // TODO: Error

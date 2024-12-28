@@ -108,8 +108,14 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
         NEWLINE();
 
         LAST_ON_LINE();
+
+#ifdef PRINT_PARSED
         PRINT("callee: ");
         PRINT_EXPRESSION(apm, expr->callee, source_text);
+#endif
+#ifdef PRINT_ANALYSED
+        PRINT("callee: %d", expr->callee);
+#endif
         NEWLINE();
 
         UNINDENT();

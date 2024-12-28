@@ -39,7 +39,7 @@ typedef struct
         };
         struct // FUNCTION_CALL
         {
-            size_t callee; // Expression
+            size_t callee; // Expression -> Function
         };
     };
 } Expression;
