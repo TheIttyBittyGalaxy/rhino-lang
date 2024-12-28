@@ -3,60 +3,43 @@
 
 // FORWARD DECLARATIONS //
 
-// Parse utility
-void raise_parse_error(Compiler *c, CompilationErrorCode code);
-void recover_from_panic(Compiler *c);
+// Token consumption
 bool peek(Compiler *c, TokenKind token_kind);
 void advance(Compiler *c);
 void eat(Compiler *c, TokenKind token_kind);
+void peek_and_eat(Compiler *c, TokenKind token_kind);
 substr token_string(Compiler *c);
+
+// Error and recovery
+void raise_parse_error(Compiler *c, CompilationErrorCode code);
+void recover_from_panic(Compiler *c);
 void attempt_to_recover_at_next_code_block(Compiler *c);
 
-// Parse APM
+// Peek APM
 bool peek_expression(Compiler *c);
-size_t parse_expression(Compiler *c, Program *apm);
 bool peek_statement(Compiler *c);
+
+// Parse APM
+void parse(Compiler *compiler, Program *apm);
+void parse_program(Compiler *c, Program *apm);
+void parse_function(Compiler *c, Program *apm);
 size_t parse_statement(Compiler *c, Program *apm);
 size_t parse_code_block(Compiler *c, Program *apm, bool allow_single);
-void parse_function(Compiler *c, Program *apm);
-void parse_program(Compiler *c, Program *apm);
-void parse(Compiler *compiler, Program *apm);
+size_t parse_expression(Compiler *c, Program *apm);
 
 // MACROS //
 
-#define ADVANCE() advance(c)
 #define PEEK(token_kind) peek(c, token_kind)
+#define ADVANCE() advance(c)
 #define EAT(token_kind) eat(c, token_kind)
+#define PEEK_AND_EAT(token_kind) peek_and_eat(c, token_kind)
 #define TOKEN_STRING() token_string(c)
-#define RAISE_PARSE_ERROR(code) raise_parse_error(c, code)
 
-#define EXPRESSION(index) get_expression(apm->expression, index)
-#define STATEMENT(index) get_statement(apm->statement, index)
 #define FUNCTION(index) get_function(apm->function, index)
+#define STATEMENT(index) get_statement(apm->statement, index)
+#define EXPRESSION(index) get_expression(apm->expression, index)
 
-// PARSE UTILITY //
-
-void raise_parse_error(Compiler *c, CompilationErrorCode code)
-{
-    if (c->parse_status == OKAY)
-    {
-        size_t pos = 0;
-        if (c->next_token > 0)
-        {
-            Token t = c->tokens[c->next_token - 1];
-            pos = t.str.pos + t.str.len;
-        }
-        raise_compilation_error(c, code, pos);
-    }
-
-    c->parse_status = PANIC;
-}
-
-void recover_from_panic(Compiler *c)
-{
-    if (c->parse_status == PANIC)
-        c->parse_status = RECOVERED;
-}
+// TOKEN CONSUMPTION //
 
 bool peek(Compiler *c, TokenKind token_kind)
 {
@@ -82,9 +65,42 @@ void eat(Compiler *c, TokenKind token_kind)
     }
 }
 
+void peek_and_eat(Compiler *c, TokenKind token_kind)
+{
+    if (peek(c, token_kind))
+    {
+        c->parse_status = OKAY;
+        advance(c);
+    }
+}
+
 substr token_string(Compiler *c)
 {
     return c->tokens[c->next_token].str;
+}
+
+// ERROR AND RECOVERY //
+
+void raise_parse_error(Compiler *c, CompilationErrorCode code)
+{
+    if (c->parse_status == OKAY)
+    {
+        size_t pos = 0;
+        if (c->next_token > 0)
+        {
+            Token t = c->tokens[c->next_token - 1];
+            pos = t.str.pos + t.str.len;
+        }
+        raise_compilation_error(c, code, pos);
+    }
+
+    c->parse_status = PANIC;
+}
+
+void recover_from_panic(Compiler *c)
+{
+    if (c->parse_status == PANIC)
+        c->parse_status = RECOVERED;
 }
 
 void attempt_to_recover_at_next_code_block(Compiler *c)
@@ -121,7 +137,7 @@ void attempt_to_recover_at_next_code_block(Compiler *c)
     c->next_token = start;
 }
 
-// PARSE APM //
+// PEEK APM  //
 
 bool peek_expression(Compiler *c)
 {
@@ -132,67 +148,6 @@ bool peek_expression(Compiler *c)
            PEEK(BROKEN_STRING);
 }
 
-// TODO: Check that call calls to parse_expression are accounted for
-// NOTE: Can return with status OKAY, RECOVERED, or PANIC
-size_t parse_expression(Compiler *c, Program *apm)
-{
-    size_t expr = add_expression(&apm->expression);
-
-    // Left-hand side of expression
-    if (PEEK(IDENTITY))
-    {
-        EXPRESSION(expr)->kind = IDENTITY_LITERAL;
-        EXPRESSION(expr)->identity = TOKEN_STRING();
-        ADVANCE();
-    }
-    else if (PEEK(KEYWORD_TRUE))
-    {
-        EXPRESSION(expr)->kind = BOOLEAN_LITERAL;
-        EXPRESSION(expr)->bool_value = true;
-        ADVANCE();
-    }
-    else if (PEEK(KEYWORD_FALSE))
-    {
-        EXPRESSION(expr)->kind = BOOLEAN_LITERAL;
-        EXPRESSION(expr)->bool_value = false;
-        ADVANCE();
-    }
-    else if (PEEK(STRING) || PEEK(BROKEN_STRING))
-    {
-        substr str = TOKEN_STRING();
-        str.pos++;
-        str.len -= PEEK(STRING) ? 2 : 1;
-
-        EXPRESSION(expr)->kind = STRING_LITERAL;
-        EXPRESSION(expr)->string_value = str;
-        ADVANCE();
-    }
-    else
-    {
-        EXPRESSION(expr)->kind = INVALID_EXPRESSION;
-        RAISE_PARSE_ERROR(EXPECTED_EXPRESSION);
-
-        // NOTE: parse_expression can put the parser in panic mode and then return.
-        //       This means anyone who calls parse_expression needs to be able to recover.
-        return expr;
-    }
-
-    // Function call
-    if (PEEK(PAREN_L))
-    {
-        size_t callee = expr;
-        expr = add_expression(&apm->expression);
-        EXPRESSION(expr)->kind = FUNCTION_CALL;
-        EXPRESSION(expr)->callee = callee;
-
-        ADVANCE();
-        EAT(PAREN_R);
-        recover_from_panic(c);
-    }
-
-    return expr;
-}
-
 bool peek_statement(Compiler *c)
 {
     return PEEK(CURLY_L) ||
@@ -200,6 +155,65 @@ bool peek_statement(Compiler *c)
            PEEK(KEYWORD_IF) ||
            PEEK(ARROW_R) ||
            peek_expression(c);
+}
+
+// PARSE APM //
+
+void parse(Compiler *compiler, Program *apm)
+{
+    compiler->next_token = 0;
+    compiler->parse_status = OKAY;
+    parse_program(compiler, apm);
+}
+
+void parse_program(Compiler *c, Program *apm)
+{
+    while (true)
+    {
+        if (PEEK(END_OF_FILE))
+            return;
+        else if (PEEK(KEYWORD_FN))
+            parse_function(c, apm);
+        else
+        {
+            raise_parse_error(c, EXPECTED_FUNCTION);
+
+            size_t depth = 0;
+            while (c->parse_status == PANIC)
+            {
+                if (PEEK(END_OF_FILE))
+                    return;
+
+                else if (PEEK(CURLY_L))
+                    depth++;
+
+                else if (PEEK(CURLY_R) && (depth == 0 || --depth == 0))
+                    c->parse_status = RECOVERED;
+
+                ADVANCE();
+            }
+        }
+    }
+}
+
+// NOTE: Can return with status OKAY or RECOVERED
+void parse_function(Compiler *c, Program *apm)
+{
+    size_t funct = add_function(&apm->function);
+
+    EAT(KEYWORD_FN);
+
+    substr identity = TOKEN_STRING();
+    FUNCTION(funct)->identity = identity;
+    EAT(IDENTITY);
+    assert(c->parse_status == OKAY);
+
+    EAT(PAREN_L);
+    EAT(PAREN_R);
+
+    attempt_to_recover_at_next_code_block(c);
+    size_t body = parse_code_block(c, apm, true);
+    FUNCTION(funct)->body = body;
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
@@ -288,7 +302,7 @@ size_t parse_statement(Compiler *c, Program *apm)
     else // INVALID_STATEMENT
     {
         STATEMENT(stmt)->kind = INVALID_STATEMENT;
-        RAISE_PARSE_ERROR(EXPECTED_STATEMENT);
+        raise_parse_error(c, EXPECTED_STATEMENT);
     }
 
 recover:
@@ -364,59 +378,62 @@ size_t parse_code_block(Compiler *c, Program *apm, bool allow_single)
     return code_block;
 }
 
-// NOTE: Can return with status OKAY or RECOVERED
-void parse_function(Compiler *c, Program *apm)
+// NOTE: Can return with status OKAY, RECOVERED, or PANIC
+size_t parse_expression(Compiler *c, Program *apm)
 {
-    size_t funct = add_function(&apm->function);
+    size_t expr = add_expression(&apm->expression);
 
-    EAT(KEYWORD_FN);
-
-    substr identity = TOKEN_STRING();
-    FUNCTION(funct)->identity = identity;
-    EAT(IDENTITY);
-    assert(c->parse_status == OKAY);
-
-    EAT(PAREN_L);
-    EAT(PAREN_R);
-
-    attempt_to_recover_at_next_code_block(c);
-    size_t body = parse_code_block(c, apm, true);
-    FUNCTION(funct)->body = body;
-}
-
-void parse_program(Compiler *c, Program *apm)
-{
-    while (true)
+    // Left-hand side of expression
+    if (PEEK(IDENTITY))
     {
-        if (PEEK(END_OF_FILE))
-            return;
-        else if (PEEK(KEYWORD_FN))
-            parse_function(c, apm);
-        else
-        {
-            RAISE_PARSE_ERROR(EXPECTED_FUNCTION);
-
-            size_t depth = 0;
-            while (c->parse_status == PANIC)
-            {
-                if (PEEK(END_OF_FILE))
-                    return;
-
-                else if (PEEK(CURLY_L))
-                    depth++;
-
-                else if (PEEK(CURLY_R) && (depth == 0 || --depth == 0))
-                    c->parse_status = RECOVERED;
-
-                ADVANCE();
-            }
-        }
+        EXPRESSION(expr)->kind = IDENTITY_LITERAL;
+        EXPRESSION(expr)->identity = TOKEN_STRING();
+        ADVANCE();
     }
-}
+    else if (PEEK(KEYWORD_TRUE))
+    {
+        EXPRESSION(expr)->kind = BOOLEAN_LITERAL;
+        EXPRESSION(expr)->bool_value = true;
+        ADVANCE();
+    }
+    else if (PEEK(KEYWORD_FALSE))
+    {
+        EXPRESSION(expr)->kind = BOOLEAN_LITERAL;
+        EXPRESSION(expr)->bool_value = false;
+        ADVANCE();
+    }
+    else if (PEEK(STRING) || PEEK(BROKEN_STRING))
+    {
+        substr str = TOKEN_STRING();
+        str.pos++;
+        str.len -= PEEK(STRING) ? 2 : 1;
 
-void parse(Compiler *compiler, Program *apm)
-{
-    compiler->next_token = 0;
-    compiler->parse_status = OKAY;
-    parse_program(compiler, apm);
+        EXPRESSION(expr)->kind = STRING_LITERAL;
+        EXPRESSION(expr)->string_value = str;
+        ADVANCE();
+    }
+    else
+    {
+        EXPRESSION(expr)->kind = INVALID_EXPRESSION;
+        raise_parse_error(c, EXPECTED_EXPRESSION);
+
+        // NOTE: parse_expression can put the parser in panic mode and then return.
+        //       This means anyone who calls parse_expression needs to be able to recover.
+        return expr;
+    }
+
+    // Function call
+    if (PEEK(PAREN_L))
+    {
+        size_t callee = expr;
+        expr = add_expression(&apm->expression);
+        EXPRESSION(expr)->kind = FUNCTION_CALL;
+        EXPRESSION(expr)->callee = callee;
+
+        ADVANCE();
+        EAT(PAREN_R);
+        recover_from_panic(c);
+    }
+
+    return expr;
 }
