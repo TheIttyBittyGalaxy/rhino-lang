@@ -148,7 +148,7 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         while (n < stmt->statements.count)
         {
             if (n == last)
-                LAST_ON_LINE(); // FIXME: This will only work when the last statement in the slice is not in a nested scope
+                LAST_ON_LINE();
 
             PRINT_STATEMENT(apm, stmt->statements.first + n, source_text);
             n = get_next_statement_in_code_block(apm, stmt, n);

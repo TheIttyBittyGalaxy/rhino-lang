@@ -1,5 +1,4 @@
 #include "compiler.h"
-#include <stdlib.h>
 
 // Compilation errors
 DEFINE_ENUM(LIST_COMPILATION_ERRORS, CompilationErrorCode, compilation_error_code)
