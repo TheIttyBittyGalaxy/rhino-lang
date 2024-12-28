@@ -38,17 +38,17 @@ void parse(Compiler *compiler, Program *apm);
 
 void raise_parse_error(Compiler *c, CompilationErrorCode code)
 {
-    if (c->parse_status != OKAY)
-        return;
-
-    size_t pos = 0;
-    if (c->next_token > 0)
+    if (c->parse_status == OKAY)
     {
-        Token t = c->tokens[c->next_token - 1];
-        pos = t.str.pos + t.str.len;
+        size_t pos = 0;
+        if (c->next_token > 0)
+        {
+            Token t = c->tokens[c->next_token - 1];
+            pos = t.str.pos + t.str.len;
+        }
+        raise_compilation_error(c, code, pos);
     }
 
-    raise_compilation_error(c, code, pos);
     c->parse_status = PANIC;
 }
 
@@ -415,5 +415,6 @@ void parse_program(Compiler *c, Program *apm)
 void parse(Compiler *compiler, Program *apm)
 {
     compiler->next_token = 0;
+    compiler->parse_status = OKAY;
     parse_program(compiler, apm);
 }
