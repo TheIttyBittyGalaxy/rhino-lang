@@ -1,1 +1,1 @@
-g++ -o main compiler/*.c compiler/data/*.c
+g++ -o main compiler/*.c compiler/data/*.c -g
