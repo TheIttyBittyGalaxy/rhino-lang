@@ -2,6 +2,7 @@
 #define SUBSTR_H
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 typedef struct
 {
@@ -11,5 +12,6 @@ typedef struct
 
 void printf_substr(const char *str, substr sub);
 bool substr_match(const char *str, substr a, substr b);
+bool substr_is(const char *str, substr a, const char *b);
 
 #endif
