@@ -42,9 +42,9 @@ bool is_word_or_digit(const char c)
         }                                                                 \
         break;
 
-#define IF_KEYWORD_ELSE(the_word, token_kind)                  \
-    if (strncmp(start, the_word, (sizeof(the_word) - 1)) == 0) \
-        kind = token_kind;                                     \
+#define IF_KEYWORD_ELSE(the_word, token_kind)            \
+    if (strncmp(start, the_word, strlen(the_word)) == 0) \
+        kind = token_kind;                               \
     else
 
 void tokenise(Compiler *const c)
