@@ -1,3 +1,4 @@
+#include "data/substr.h"
 #include "parse.h"
 
 // Parse utility

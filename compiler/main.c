@@ -1,7 +1,9 @@
 #include "data/compiler.h"
-#include "interpret.h"
-#include "parse.h"
+
 #include "tokenise.h"
+#include "parse.h"
+#include "interpret.h"
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,6 +46,7 @@ char *read_file(const char *path)
 }
 
 // MAIN //
+
 bool flag_token_dump = false;
 bool flag_parse_dump = false;
 bool flag_dump_tree = false;
