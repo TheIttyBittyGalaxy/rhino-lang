@@ -10,5 +10,6 @@ typedef struct
 } substr;
 
 void printf_substr(const char *str, substr sub);
+bool substr_match(const char *str, substr a, substr b);
 
 #endif
