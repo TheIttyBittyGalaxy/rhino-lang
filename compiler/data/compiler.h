@@ -29,6 +29,7 @@
     MACRO(EXPECTED_KEYWORD_TRUE)                                    \
     MACRO(EXPECTED_KEYWORD_FALSE)                                   \
     MACRO(EXPECTED_KEYWORD_ELSE)                                    \
+    MACRO(EXPECTED_KEYWORD_FN)                                      \
     MACRO(EXPECTED_KEYWORD_FOR)                                     \
     MACRO(EXPECTED_KEYWORD_IF)                                      \
     MACRO(EXPECTED_KEYWORD_LOOP)                                    \

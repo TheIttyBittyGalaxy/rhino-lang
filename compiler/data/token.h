@@ -28,6 +28,7 @@
     MACRO(KEYWORD_FALSE)   \
                            \
     MACRO(KEYWORD_ELSE)    \
+    MACRO(KEYWORD_FN)      \
     MACRO(KEYWORD_FOR)     \
     MACRO(KEYWORD_IF)      \
     MACRO(KEYWORD_LOOP)    \

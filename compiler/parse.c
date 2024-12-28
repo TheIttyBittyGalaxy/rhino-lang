@@ -369,6 +369,8 @@ void parse_function(Compiler *c, Program *apm)
 {
     size_t funct = add_function(&apm->function);
 
+    EAT(KEYWORD_FN);
+
     substr identity = TOKEN_STRING();
     FUNCTION(funct)->identity = identity;
     EAT(IDENTITY);
@@ -388,7 +390,7 @@ void parse_program(Compiler *c, Program *apm)
     {
         if (PEEK(END_OF_FILE))
             return;
-        else if (PEEK(IDENTITY))
+        else if (PEEK(KEYWORD_FN))
             parse_function(c, apm);
         else
         {
