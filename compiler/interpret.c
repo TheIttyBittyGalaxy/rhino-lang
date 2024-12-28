@@ -9,6 +9,8 @@ typedef struct
 
 typedef struct
 {
+    const char *source_text;
+
     StackLayer *stack_layer;
     size_t stack_layer_count;
     size_t stack_layer_capacity;
@@ -33,11 +35,11 @@ typedef struct
 } Value;
 
 // Interpret
-Value interpret_expression(Interpreter *interpreter, Program *apm, const char *source_text, size_t expr_index);
-void interpret_statement(Interpreter *interpreter, Program *apm, const char *source_text, size_t stmt_index);
-void interpret_function(Interpreter *interpreter, Program *apm, const char *source_text, size_t funct_index);
+Value interpret_expression(Interpreter *interpreter, Program *apm, size_t expr_index);
+void interpret_statement(Interpreter *interpreter, Program *apm, size_t stmt_index);
+void interpret_function(Interpreter *interpreter, Program *apm, size_t funct_index);
 
-Value interpret_expression(Interpreter *interpreter, Program *apm, const char *source_text, size_t expr_index)
+Value interpret_expression(Interpreter *interpreter, Program *apm, size_t expr_index)
 {
     Expression *expr = get_expression(apm->expression, expr_index);
     Value result;
@@ -65,9 +67,9 @@ Value interpret_expression(Interpreter *interpreter, Program *apm, const char *s
         for (size_t i = 0; i < apm->function.count; i++)
         {
             Function *funct = get_function(apm->function, i);
-            if (substr_match(source_text, callee->identity, funct->identity))
+            if (substr_match(interpreter->source_text, callee->identity, funct->identity))
             {
-                interpret_function(interpreter, apm, source_text, i);
+                interpret_function(interpreter, apm, i);
                 break;
             }
         }
@@ -82,7 +84,7 @@ Value interpret_expression(Interpreter *interpreter, Program *apm, const char *s
     return result;
 }
 
-void interpret_statement(Interpreter *interpreter, Program *apm, const char *source_text, size_t stmt_index)
+void interpret_statement(Interpreter *interpreter, Program *apm, size_t stmt_index)
 {
     Statement *stmt = get_statement(apm->statement, stmt_index);
 
@@ -103,7 +105,7 @@ void interpret_statement(Interpreter *interpreter, Program *apm, const char *sou
         size_t n = get_first_statement_in_code_block(apm, stmt);
         while (n < stmt->statements.count)
         {
-            interpret_statement(interpreter, apm, source_text, stmt->statements.first + n);
+            interpret_statement(interpreter, apm, stmt->statements.first + n);
             n = get_next_statement_in_code_block(apm, stmt, n);
         }
 
@@ -114,10 +116,10 @@ void interpret_statement(Interpreter *interpreter, Program *apm, const char *sou
     case IF_STATEMENT:
     {
         STACK_LAYER.executed_if_segment = false;
-        Value condition = interpret_expression(interpreter, apm, source_text, stmt->condition);
+        Value condition = interpret_expression(interpreter, apm, stmt->condition);
         if (condition.value)
         {
-            interpret_statement(interpreter, apm, source_text, stmt->body);
+            interpret_statement(interpreter, apm, stmt->body);
             STACK_LAYER.executed_if_segment = true;
         }
         break;
@@ -127,10 +129,10 @@ void interpret_statement(Interpreter *interpreter, Program *apm, const char *sou
     {
         if (!STACK_LAYER.executed_if_segment)
         {
-            Value condition = interpret_expression(interpreter, apm, source_text, stmt->condition);
+            Value condition = interpret_expression(interpreter, apm, stmt->condition);
             if (condition.value)
             {
-                interpret_statement(interpreter, apm, source_text, stmt->body);
+                interpret_statement(interpreter, apm, stmt->body);
                 STACK_LAYER.executed_if_segment = true;
             }
         }
@@ -141,7 +143,7 @@ void interpret_statement(Interpreter *interpreter, Program *apm, const char *sou
     {
         if (!STACK_LAYER.executed_if_segment)
         {
-            interpret_statement(interpreter, apm, source_text, stmt->body);
+            interpret_statement(interpreter, apm, stmt->body);
             STACK_LAYER.executed_if_segment = true;
         }
         break;
@@ -149,11 +151,11 @@ void interpret_statement(Interpreter *interpreter, Program *apm, const char *sou
 
     case OUTPUT_STATEMENT:
     {
-        Value result = interpret_expression(interpreter, apm, source_text, stmt->expression);
+        Value result = interpret_expression(interpreter, apm, stmt->expression);
         if (result.type == TYPE_STRING)
         {
             Expression *literal = get_expression(apm->expression, result.value);
-            printf_substr(source_text, literal->string_value);
+            printf_substr(interpreter->source_text, literal->string_value);
             printf("\n");
         }
         else if (result.type == TYPE_BOOLEAN)
@@ -170,7 +172,7 @@ void interpret_statement(Interpreter *interpreter, Program *apm, const char *sou
 
     case EXPRESSION_STMT:
     {
-        interpret_expression(interpreter, apm, source_text, stmt->expression);
+        interpret_expression(interpreter, apm, stmt->expression);
         break;
     }
 
@@ -180,21 +182,23 @@ void interpret_statement(Interpreter *interpreter, Program *apm, const char *sou
     }
 }
 
-void interpret_function(Interpreter *interpreter, Program *apm, const char *source_text, size_t funct_index)
+void interpret_function(Interpreter *interpreter, Program *apm, size_t funct_index)
 {
     Function *funct = get_function(apm->function, funct_index);
-    interpret_statement(interpreter, apm, source_text, funct->body);
+    interpret_statement(interpreter, apm, funct->body);
 }
 
 void interpret(Program *apm, const char *source_text)
 {
     Interpreter interpreter;
+    interpreter.source_text = source_text;
+
     interpreter.stack_layer_capacity = 1;
     interpreter.stack_layer_count = 0;
     interpreter.stack_layer = (StackLayer *)malloc(sizeof(StackLayer) * interpreter.stack_layer_capacity);
 
     // FIXME: Call main, not the first function
-    interpret_function(&interpreter, apm, source_text, 0);
+    interpret_function(&interpreter, apm, 0);
 
     free(interpreter.stack_layer);
 }
