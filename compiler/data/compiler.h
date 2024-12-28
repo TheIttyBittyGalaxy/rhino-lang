@@ -55,6 +55,14 @@ typedef struct
     size_t column;
 } CompilationError;
 
+// Parser status
+#define LIST_PARSE_STATUS(MACRO) \
+    MACRO(OKAY)                  \
+    MACRO(RECOVERED)             \
+    MACRO(PANIC)
+
+DECLARE_ENUM(LIST_PARSE_STATUS, ParseStatus, parse_status)
+
 // Compiler
 typedef struct
 {
@@ -70,6 +78,7 @@ typedef struct
 
     // Parse
     size_t next_token;
+    ParseStatus parse_status;
 
     // Errors
     CompilationError *errors;

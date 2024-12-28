@@ -46,6 +46,9 @@ void determine_error_positions(Compiler *c)
     }
 }
 
+// Parser status
+DEFINE_ENUM(LIST_PARSE_STATUS, ParseStatus, parse_status)
+
 // Compiler
 void init_compiler(Compiler *c)
 {
