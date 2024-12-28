@@ -50,25 +50,40 @@ substr token_string(Compiler *c)
 #define FUNCTION(index) get_function(apm->function, index)
 
 // Parse APM
+bool peek_expression(Compiler *c)
+{
+    return PEEK(IDENTITY) ||
+           PEEK(KEYWORD_TRUE) ||
+           PEEK(KEYWORD_FALSE) ||
+           PEEK(STRING) ||
+           PEEK(BROKEN_STRING);
+}
+
 size_t parse_expression(Compiler *c, Program *apm)
 {
-    if (PEEK(KEYWORD_TRUE))
+    size_t expr = add_expression(&apm->expression);
+
+    // Left-hand side of expression
+    if (PEEK(IDENTITY))
     {
-        size_t expr = add_expression(&apm->expression);
+        EXPRESSION(expr)->kind = IDENTITY_LITERAL;
+        EXPRESSION(expr)->identity = TOKEN_STRING();
+
+        ADVANCE();
+    }
+    else if (PEEK(KEYWORD_TRUE))
+    {
         EXPRESSION(expr)->kind = BOOLEAN_LITERAL;
         EXPRESSION(expr)->bool_value = true;
 
         ADVANCE();
-        return expr;
     }
     else if (PEEK(KEYWORD_FALSE))
     {
-        size_t expr = add_expression(&apm->expression);
         EXPRESSION(expr)->kind = BOOLEAN_LITERAL;
         EXPRESSION(expr)->bool_value = false;
 
         ADVANCE();
-        return expr;
     }
     else if (PEEK(STRING) || PEEK(BROKEN_STRING))
     {
@@ -76,20 +91,31 @@ size_t parse_expression(Compiler *c, Program *apm)
         str.pos++;
         str.len -= PEEK(STRING) ? 2 : 1;
 
-        size_t expr = add_expression(&apm->expression);
         EXPRESSION(expr)->kind = STRING_LITERAL;
         EXPRESSION(expr)->string_value = str;
 
         ADVANCE();
-        return expr;
+    }
+    else
+    {
+        EXPRESSION(expr)->kind = INVALID_EXPRESSION;
+        raise_compilation_error(c, EXPECTED_EXPRESSION, current_pos(c));
+        ADVANCE();
     }
 
-    size_t expr = add_expression(&apm->expression);
-    EXPRESSION(expr)->kind = INVALID_EXPRESSION;
+    // Function call
+    if (PEEK(PAREN_L))
+    {
+        size_t callee = expr;
+        expr = add_expression(&apm->expression);
 
-    raise_compilation_error(c, EXPECTED_EXPRESSION, current_pos(c));
+        EAT(PAREN_L);
+        EAT(PAREN_R);
 
-    ADVANCE();
+        EXPRESSION(expr)->kind = FUNCTION_CALL;
+        EXPRESSION(expr)->callee = callee;
+    }
+
     return expr;
 }
 
@@ -98,7 +124,8 @@ bool peek_statement(Compiler *c)
     return PEEK(CURLY_L) ||
            PEEK(COLON) ||
            PEEK(KEYWORD_IF) ||
-           PEEK(ARROW_R);
+           PEEK(ARROW_R) ||
+           peek_expression(c);
 }
 
 size_t parse_code_block(Compiler *c, Program *apm, bool allow_single);
@@ -156,7 +183,16 @@ size_t parse_statement(Compiler *c, Program *apm)
         EAT(SEMI_COLON);
 
         STATEMENT(stmt)->kind = OUTPUT_STATEMENT;
-        STATEMENT(stmt)->value = value;
+        STATEMENT(stmt)->expression = value;
+    }
+
+    else if (peek_expression(c)) // EXPRESSION STATEMENT
+    {
+        size_t value = parse_expression(c, apm);
+        EAT(SEMI_COLON);
+
+        STATEMENT(stmt)->kind = EXPRESSION_STMT;
+        STATEMENT(stmt)->expression = value;
     }
 
     else // INVALID_STATEMENT

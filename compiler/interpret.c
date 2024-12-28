@@ -33,13 +33,21 @@ typedef struct
 } Value;
 
 // Interpret
-Value interpret_expression(Interpreter *interpreter, Program *apm, size_t expr_index)
+Value interpret_expression(Interpreter *interpreter, Program *apm, const char *source_text, size_t expr_index);
+void interpret_statement(Interpreter *interpreter, Program *apm, const char *source_text, size_t stmt_index);
+void interpret_function(Interpreter *interpreter, Program *apm, const char *source_text, size_t funct_index);
+
+Value interpret_expression(Interpreter *interpreter, Program *apm, const char *source_text, size_t expr_index)
 {
     Expression *expr = get_expression(apm->expression, expr_index);
     Value result;
 
     switch (expr->kind)
     {
+    case IDENTITY_LITERAL:
+        // TODO: Implement
+        break;
+
     case BOOLEAN_LITERAL:
         result.type = TYPE_BOOLEAN;
         result.value = expr->bool_value ? 1 : 0;
@@ -49,6 +57,22 @@ Value interpret_expression(Interpreter *interpreter, Program *apm, size_t expr_i
         result.type = TYPE_STRING;
         result.value = expr_index;
         break;
+
+    case FUNCTION_CALL:
+    {
+        // TODO: The function reference should be resolved during analysis
+        Expression *callee = get_expression(apm->expression, expr->callee);
+        for (size_t i = 0; i < apm->function.count; i++)
+        {
+            Function *funct = get_function(apm->function, i);
+            if (substr_match(source_text, callee->identity, funct->identity))
+            {
+                interpret_function(interpreter, apm, source_text, i);
+                break;
+            }
+        }
+    }
+    break;
 
     default:
         // TODO: Error
@@ -90,7 +114,7 @@ void interpret_statement(Interpreter *interpreter, Program *apm, const char *sou
     case IF_STATEMENT:
     {
         STACK_LAYER.executed_if_segment = false;
-        Value condition = interpret_expression(interpreter, apm, stmt->condition);
+        Value condition = interpret_expression(interpreter, apm, source_text, stmt->condition);
         if (condition.value)
         {
             interpret_statement(interpreter, apm, source_text, stmt->body);
@@ -103,7 +127,7 @@ void interpret_statement(Interpreter *interpreter, Program *apm, const char *sou
     {
         if (!STACK_LAYER.executed_if_segment)
         {
-            Value condition = interpret_expression(interpreter, apm, stmt->condition);
+            Value condition = interpret_expression(interpreter, apm, source_text, stmt->condition);
             if (condition.value)
             {
                 interpret_statement(interpreter, apm, source_text, stmt->body);
@@ -125,7 +149,7 @@ void interpret_statement(Interpreter *interpreter, Program *apm, const char *sou
 
     case OUTPUT_STATEMENT:
     {
-        Value result = interpret_expression(interpreter, apm, stmt->value);
+        Value result = interpret_expression(interpreter, apm, source_text, stmt->expression);
         if (result.type == TYPE_STRING)
         {
             Expression *literal = get_expression(apm->expression, result.value);
@@ -141,6 +165,12 @@ void interpret_statement(Interpreter *interpreter, Program *apm, const char *sou
             // TODO: Error
         }
 
+        break;
+    }
+
+    case EXPRESSION_STMT:
+    {
+        interpret_expression(interpreter, apm, source_text, stmt->expression);
         break;
     }
 

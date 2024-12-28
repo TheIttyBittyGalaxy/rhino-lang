@@ -10,8 +10,11 @@
 #define LIST_EXPRESSIONS(MACRO) \
     MACRO(INVALID_EXPRESSION)   \
                                 \
+    MACRO(IDENTITY_LITERAL)     \
     MACRO(BOOLEAN_LITERAL)      \
-    MACRO(STRING_LITERAL)
+    MACRO(STRING_LITERAL)       \
+                                \
+    MACRO(FUNCTION_CALL)
 
 DECLARE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 
@@ -23,12 +26,20 @@ typedef struct
     union
     {
         struct
+        { // IDENTITY_LITERAL
+            substr identity;
+        };
+        struct
         { // BOOLEAN_LITERAL
             bool bool_value;
         };
         struct
         { // STRING_LITERAL
             substr string_value;
+        };
+        struct // FUNCTION_CALL
+        {
+            size_t callee; // Expression
         };
     };
 } Expression;
@@ -45,7 +56,9 @@ DECLARE_LIST_TYPE(Expression, expression)
     MACRO(IF_STATEMENT)        \
     MACRO(ELSE_IF_STATEMENT)   \
     MACRO(ELSE_STATEMENT)      \
-    MACRO(OUTPUT_STATEMENT)
+    MACRO(OUTPUT_STATEMENT)    \
+                               \
+    MACRO(EXPRESSION_STMT)
 
 DECLARE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
 
@@ -65,9 +78,9 @@ typedef struct
             size_t condition; // Expression
             size_t body;      // Statement
         };
-        struct // OUTPUT_STATEMENT
+        struct // OUTPUT_STATEMENT / EXPRESSION_STMT
         {
-            size_t value; // Expression
+            size_t expression; // Expression
         };
     };
 } Statement;

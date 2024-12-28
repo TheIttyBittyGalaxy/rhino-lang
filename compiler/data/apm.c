@@ -87,6 +87,10 @@ void print_expression(Program *apm, size_t expr_index, const char *source_text)
         PRINT("<INVALID_EXPR>");
         break;
 
+    case IDENTITY_LITERAL:
+        PRINT_SUBSTR(expr->identity);
+        break;
+
     case BOOLEAN_LITERAL:
         PRINT(expr->bool_value ? "true" : "false");
         break;
@@ -94,12 +98,30 @@ void print_expression(Program *apm, size_t expr_index, const char *source_text)
     case STRING_LITERAL:
         PRINT_SUBSTR(expr->string_value);
         break;
+
+    case FUNCTION_CALL:
+        PRINT("FUNCTION_CALL");
+        INDENT();
+        NEWLINE();
+
+        LAST_ON_LINE();
+        PRINT("callee: ");
+        print_expression(apm, expr->callee, source_text);
+        NEWLINE();
+
+        UNINDENT();
+        NEWLINE();
+
+        break;
     }
 }
 
 void print_statement(Program *apm, size_t stmt_index, const char *source_text)
 {
     Statement *stmt = get_statement(apm->statement, stmt_index);
+
+    if (stmt->kind == EXPRESSION_STMT)
+        return print_expression(apm, stmt->expression, source_text);
 
     PRINT("%s", statement_kind_string(stmt->kind));
     INDENT();
@@ -141,7 +163,7 @@ void print_statement(Program *apm, size_t stmt_index, const char *source_text)
 
     case OUTPUT_STATEMENT:
         LAST_ON_LINE();
-        print_expression(apm, stmt->value, source_text);
+        print_expression(apm, stmt->expression, source_text);
 
         NEWLINE();
         break;
@@ -222,7 +244,8 @@ void dump_apm(Program *apm, const char *source_text)
             break;
 
         case OUTPUT_STATEMENT:
-            printf("value %02d", stmt->value);
+        case EXPRESSION_STMT:
+            printf("expression %02d", stmt->expression);
             break;
         }
         printf("\n");
@@ -236,12 +259,20 @@ void dump_apm(Program *apm, const char *source_text)
         printf("%02d\t%s\t", i, expression_kind_string(expr->kind));
         switch (expr->kind)
         {
+        case IDENTITY_LITERAL:
+            printf_substr(source_text, expr->identity);
+            break;
+
         case BOOLEAN_LITERAL:
             printf(expr->bool_value ? "true" : "false");
             break;
 
         case STRING_LITERAL:
             printf_substr(source_text, expr->string_value);
+            break;
+
+        case FUNCTION_CALL:
+            printf("callee %02d", expr->callee);
             break;
         }
         printf("\n");
