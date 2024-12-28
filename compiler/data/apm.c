@@ -36,29 +36,29 @@ enum LineStatus
 #define UNINDENT() current_indent--
 #define LAST_ON_LINE() line_status[current_indent - 1] = LAST
 
-#define BEFORE_PRINT()                                                              \
-    {                                                                               \
-        if (newlines_left >= 2)                                                     \
-        {                                                                           \
-            printf("\n");                                                           \
-            for (size_t i = 0; i < current_indent; ++i)                             \
-                printf(line_status[i] > NONE ? "│   " : "    ");                    \
-        }                                                                           \
-                                                                                    \
-        if (newlines_left >= 1)                                                     \
-        {                                                                           \
-            printf("\n");                                                           \
-            if (current_indent > 0)                                                 \
-            {                                                                       \
-                for (size_t i = 0; i < current_indent - 1; ++i)                     \
-                    printf(line_status[i] > NONE ? "│   " : "    ");                \
-                printf(line_status[current_indent - 1] == ACTIVE ? "├──" : "└───"); \
-            }                                                                       \
-        }                                                                           \
-                                                                                    \
-        newlines_left = 0;                                                          \
-        if (line_status[current_indent - 1] == LAST)                                \
-            line_status[current_indent - 1] = NONE;                                 \
+#define BEFORE_PRINT()                                                               \
+    {                                                                                \
+        if (newlines_left >= 2)                                                      \
+        {                                                                            \
+            printf("\n");                                                            \
+            for (size_t i = 0; i < current_indent; ++i)                              \
+                printf(line_status[i] > NONE ? "│   " : "    ");                     \
+        }                                                                            \
+                                                                                     \
+        if (newlines_left >= 1)                                                      \
+        {                                                                            \
+            printf("\n");                                                            \
+            if (current_indent > 0)                                                  \
+            {                                                                        \
+                for (size_t i = 0; i < current_indent - 1; ++i)                      \
+                    printf(line_status[i] > NONE ? "│   " : "    ");                 \
+                printf(line_status[current_indent - 1] == ACTIVE ? "├───" : "└───"); \
+            }                                                                        \
+        }                                                                            \
+                                                                                     \
+        newlines_left = 0;                                                           \
+        if (line_status[current_indent - 1] == LAST)                                 \
+            line_status[current_indent - 1] = NONE;                                  \
     }
 
 #define PRINT(...)           \
