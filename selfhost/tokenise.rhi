@@ -1,0 +1,117 @@
+struct Token [
+    enum Kind {
+        NULL,
+        SEMI_COLON, COLON, 
+        PAREN_L, PAREN_R, 
+        CURLY_L, CURLY_R, 
+        ARROW_L, ARROW_R, 
+        ARROW_L_EQUAL, ARROW_R_EQUAL, 
+        KEYWORD_TRUE, KEYWORD_FALSE, 
+        KEYWORD_ELSE, KEYWORD_FOR, KEYWORD_IF, KEYWORD_LOOP, KEYWORD_WHILE, 
+        IDENTITY, NUMBER, STRING, BROKEN_STRING, 
+        END_OF_FILE
+    }
+    
+    Kind kind;
+    amt pos;
+    amt len;
+]
+
+object Compiler [
+    Token[] tokens;
+    str source_text;
+]
+
+fn tokenise(Compiler c) {
+    c.tokens = [];
+    amt pos = 0;
+
+    loop {
+        amt start = pos;
+        Token.Kind token_kind = INVALID_TOKEN;
+
+        fn one_char(Token.Kind kind) {
+            token_kind = kind;
+            pos++;
+        }
+
+        fn one_or_two_char(Token.Kind first_kind, char second_char, Token.Kind second_kind) {
+            token_kind = first_kind;                                                
+            pos++;                                                      
+            if c.source_text[pos] == second_char {                                                                 
+                token_kind = second_kind;                                           
+                pos++;                                                  
+            }                                                                 
+        }
+
+        match c.source_text[pos] {
+            ";": one_char(SEMI_COLON)
+            ":": one_char(COLON)
+            "(": one_char(PAREN_L)
+            ")": one_char(PAREN_R)
+            "{": one_char(CURLY_L)
+            "}": one_char(CURLY_R)
+            "<": one_or_two_char(ARROW_L, "=", ARROW_L_EQUAL)
+            ">": one_or_two_char(ARROW_R, "=", ARROW_R_EQUAL)
+            
+            "\0" {
+                kind = END_OF_FILE;
+                break;
+            }
+
+            { " ", "\t", "\n", "\r" } {
+                pos++;
+                continue; // Do not emit a token
+            }
+
+            "0".."9" {
+                token_kind = NUMBER;
+                while c.source_text[pos] in "0".."9":
+                    pos++;
+            }
+
+            { "a".."z", "A".."Z", "_" } {
+                while c.source_text[pos] in { "a".."z", "A".."Z", "_", "0".."9" }:
+                    pos++;
+
+                token_kind = match c.source_text[start, pos] {
+                    "true"  : KEYWORD_TRUE
+                    "false" : KEYWORD_FALSE
+                    "else"  : KEYWORD_ELSE
+                    "for"   : KEYWORD_FOR
+                    "if"    : KEYWORD_IF
+                    "loop"  : KEYWORD_LOOP
+                    "while" : KEYWORD_WHILE
+                    else    : IDENTITY
+                }
+            }
+
+            "\"" {
+                token_kind = STRING;
+                loop {
+                    pos++;
+                    if c.source_text[pos] == "\"" {
+                        pos++;
+                        break;
+                    }
+
+                    if c.source_text[pos] in { "\0", "\n", "\r" } {
+                        token_kind = BROKEN_STRING;
+                        break;
+                    }
+                }
+            }
+
+            else: pos++; // Proceed with invalid token
+        }
+
+        c.tokens.push([
+            kind: token_kind,
+            pos: start,
+            len: pos - start
+        ]);
+
+        if token_kind == END_OF_FILE:
+            break;
+    }
+}
