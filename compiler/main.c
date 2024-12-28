@@ -2,6 +2,7 @@
 
 #include "tokenise.h"
 #include "parse.h"
+#include "analyse.h"
 #include "interpret.h"
 
 #include <stdbool.h>
@@ -49,6 +50,7 @@ char *read_file(const char *path)
 
 bool flag_token_dump = false;
 bool flag_parse_dump = false;
+bool flag_analyse_dump = false;
 bool flag_dump_tree = false;
 
 bool process_arguments(int argc, char *argv[])
@@ -62,6 +64,8 @@ bool process_arguments(int argc, char *argv[])
             flag_token_dump = true;
         else if ((strcmp(argv[i], "-p") == 0) || strcmp(argv[i], "-parse") == 0)
             flag_parse_dump = true;
+        else if ((strcmp(argv[i], "-a") == 0) || strcmp(argv[i], "-analyse") == 0)
+            flag_analyse_dump = true;
         else if ((strcmp(argv[i], "-n") == 0) || strcmp(argv[i], "-nice") == 0)
             flag_dump_tree = true;
         else
@@ -77,7 +81,7 @@ int main(int argc, char *argv[])
     bool valid_arguments = process_arguments(argc, argv);
     if (!valid_arguments)
     {
-        fprintf(stderr, "Usage: %s <file_path> [-token] [-parse] [-nice]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <file_path> [-token] [-parse] [-analyse] [-nice]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
@@ -117,15 +121,15 @@ int main(int argc, char *argv[])
             dump_apm(&apm, compiler.source_text);
     }
 
-    // HEADING("Resolve");
-    // resolve(apm);
-    // if (flag_debug)
-    //     print_apm(apm);
-
-    // HEADING("Check");
-    // resolve(apm);
-    // if (flag_debug)
-    //     print_apm(apm);
+    HEADING("Analyse");
+    analyse(&compiler, &apm);
+    if (flag_analyse_dump)
+    {
+        if (flag_dump_tree)
+            print_apm(&apm, compiler.source_text);
+        else
+            dump_apm(&apm, compiler.source_text);
+    }
 
     // Report errors
     if (compiler.error_count > 0)

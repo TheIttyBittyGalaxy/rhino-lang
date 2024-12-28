@@ -104,6 +104,8 @@ typedef struct
     FunctionList function;
     StatementList statement;
     ExpressionList expression;
+
+    size_t main;
 } Program;
 
 void init_program(Program *apm);

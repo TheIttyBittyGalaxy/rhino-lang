@@ -197,8 +197,7 @@ void interpret(Program *apm, const char *source_text)
     interpreter.stack_layer_count = 0;
     interpreter.stack_layer = (StackLayer *)malloc(sizeof(StackLayer) * interpreter.stack_layer_capacity);
 
-    // FIXME: Call main, not the first function
-    interpret_function(&interpreter, apm, 0);
+    interpret_function(&interpreter, apm, apm->main);
 
     free(interpreter.stack_layer);
 }
