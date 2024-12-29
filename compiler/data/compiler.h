@@ -2,6 +2,7 @@
 #define COMPILER_H
 
 #include "macro.h"
+#include "substr.h"
 #include "token.h"
 #include <stdlib.h>
 
@@ -51,7 +52,7 @@ DECLARE_ENUM(LIST_COMPILATION_ERRORS, CompilationErrorCode, compilation_error_co
 typedef struct
 {
     CompilationErrorCode code;
-    size_t pos;
+    substr str;
     size_t line;
     size_t column;
 } CompilationError;
@@ -89,7 +90,7 @@ typedef struct
 
 void init_compiler(Compiler *c);
 
-void raise_compilation_error(Compiler *c, CompilationErrorCode code, size_t pos);
+void raise_compilation_error(Compiler *c, CompilationErrorCode code, substr str);
 void determine_error_positions(Compiler *c);
 
 #endif

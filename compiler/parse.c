@@ -88,13 +88,7 @@ void raise_parse_error(Compiler *c, CompilationErrorCode code)
 {
     if (c->parse_status == OKAY)
     {
-        size_t pos = 0;
-        if (c->next_token > 0)
-        {
-            Token t = c->tokens[c->next_token - 1];
-            pos = t.str.pos + t.str.len;
-        }
-        raise_compilation_error(c, code, pos);
+        raise_compilation_error(c, code, c->tokens[c->next_token].str);
     }
 
     c->parse_status = PANIC;

@@ -140,6 +140,8 @@ int main(int argc, char *argv[])
         {
             CompilationError error = compiler.errors[i];
             printf("%s:%d:%d\t%s\n", compiler.source_path, error.line, error.column, compilation_error_code_string(error.code));
+            if (error.str.len > 0)
+                printf("%.*s\n\n", error.str.len, compiler.source_text + error.str.pos);
         }
         return EXIT_FAILURE;
     }

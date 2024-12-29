@@ -3,7 +3,7 @@
 // Compilation errors
 DEFINE_ENUM(LIST_COMPILATION_ERRORS, CompilationErrorCode, compilation_error_code)
 
-void raise_compilation_error(Compiler *c, CompilationErrorCode code, size_t pos)
+void raise_compilation_error(Compiler *c, CompilationErrorCode code, substr str)
 {
     if (c->error_count == c->error_capacity)
     {
@@ -12,7 +12,8 @@ void raise_compilation_error(Compiler *c, CompilationErrorCode code, size_t pos)
     }
 
     c->errors[c->error_count].code = code;
-    c->errors[c->error_count].pos = pos;
+    c->errors[c->error_count].str.pos = str.pos;
+    c->errors[c->error_count].str.len = str.len;
     c->error_count++;
 }
 
@@ -22,10 +23,13 @@ void determine_error_positions(Compiler *c)
     size_t column = 1;
     size_t pos = 0;
 
+    // TODO: Sort errors by position, both for usability, and so that
+    //       the loop below will work correctly!
+
     CompilationError *error = c->errors;
     for (size_t i = 0; i < c->error_count; pos++)
     {
-        while (pos == error->pos)
+        while (pos == error->str.pos)
         {
             error->line = line;
             error->column = column;

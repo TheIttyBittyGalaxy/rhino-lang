@@ -15,7 +15,10 @@ void determine_main_function(Compiler *c, Program *apm)
         }
     }
 
-    raise_compilation_error(c, NO_MAIN_FUNCTION, strlen(c->source_text));
+    substr str;
+    str.pos = 0;
+    str.len = 0;
+    raise_compilation_error(c, NO_MAIN_FUNCTION, str);
 }
 
 void resolve_function_calls(Compiler *c, Program *apm)
@@ -29,7 +32,7 @@ void resolve_function_calls(Compiler *c, Program *apm)
 
             if (callee_expr->kind != IDENTITY_LITERAL)
             {
-                raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, expr->span.pos);
+                raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, expr->span);
                 continue;
             }
 
@@ -48,7 +51,7 @@ void resolve_function_calls(Compiler *c, Program *apm)
 
             if (!funct_exists)
             {
-                raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, expr->span.pos);
+                raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, expr->span);
             }
         }
     }
