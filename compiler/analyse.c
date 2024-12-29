@@ -29,7 +29,7 @@ void resolve_function_calls(Compiler *c, Program *apm)
 
             if (callee_expr->kind != IDENTITY_LITERAL)
             {
-                raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, 0); // FIXME: Provide a proper position
+                raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, expr->span.pos);
                 continue;
             }
 
@@ -48,7 +48,7 @@ void resolve_function_calls(Compiler *c, Program *apm)
 
             if (!funct_exists)
             {
-                raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, 0); // FIXME: Provide a proper position
+                raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, expr->span.pos);
             }
         }
     }

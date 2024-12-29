@@ -33,7 +33,7 @@ void dump_apm(Program *apm, const char *source_text)
     for (size_t i = 0; i < apm->function.count; i++)
     {
         Function *funct = get_function(apm->function, i);
-        printf("%02d\t", i);
+        printf("%02d\t%03d %02d\t", i, funct->span.pos, funct->span.len);
         printf_substr(source_text, funct->identity);
         printf("\t%02d\t", funct->body);
         printf("\n");
@@ -44,7 +44,7 @@ void dump_apm(Program *apm, const char *source_text)
     for (size_t i = 0; i < apm->statement.count; i++)
     {
         Statement *stmt = get_statement(apm->statement, i);
-        printf("%02d\t%-21s\t", i, statement_kind_string(stmt->kind));
+        printf("%02d\t%03d %02d\t%-21s\t", i, stmt->span.pos, stmt->span.len, statement_kind_string(stmt->kind));
         switch (stmt->kind)
         {
         case CODE_BLOCK:
@@ -74,7 +74,7 @@ void dump_apm(Program *apm, const char *source_text)
     for (size_t i = 0; i < apm->expression.count; i++)
     {
         Expression *expr = get_expression(apm->expression, i);
-        printf("%02d\t%s\t", i, expression_kind_string(expr->kind));
+        printf("%02d\t%03d %02d\t%s\t", i, expr->span.pos, expr->span.len, expression_kind_string(expr->kind));
         switch (expr->kind)
         {
         case IDENTITY_LITERAL:

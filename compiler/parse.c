@@ -39,6 +39,9 @@ size_t parse_expression(Compiler *c, Program *apm);
 #define STATEMENT(index) get_statement(apm->statement, index)
 #define EXPRESSION(index) get_expression(apm->expression, index)
 
+#define START_SPAN(node_ptr) node_ptr->span.pos = token_string(c).pos;
+#define END_SPAN(node_ptr) node_ptr->span.len = token_string(c).pos - node_ptr->span.pos;
+
 // TOKEN CONSUMPTION //
 
 bool peek(Compiler *c, TokenKind token_kind)
@@ -200,6 +203,7 @@ void parse_program(Compiler *c, Program *apm)
 void parse_function(Compiler *c, Program *apm)
 {
     size_t funct = add_function(&apm->function);
+    START_SPAN(FUNCTION(funct));
 
     EAT(KEYWORD_FN);
 
@@ -214,6 +218,8 @@ void parse_function(Compiler *c, Program *apm)
     attempt_to_recover_at_next_code_block(c);
     size_t body = parse_code_block(c, apm, true);
     FUNCTION(funct)->body = body;
+
+    END_SPAN(FUNCTION(funct));
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
@@ -225,6 +231,7 @@ size_t parse_statement(Compiler *c, Program *apm)
     }
 
     size_t stmt = add_statement(&apm->statement);
+    START_SPAN(STATEMENT(stmt));
 
     if (PEEK(KEYWORD_IF)) // IF_STATEMENT
     {
@@ -243,8 +250,10 @@ size_t parse_statement(Compiler *c, Program *apm)
 
         while (PEEK(KEYWORD_ELSE))
         {
-            EAT(KEYWORD_ELSE);
             size_t segment_stmt = add_statement(&apm->statement);
+            START_SPAN(STATEMENT(segment_stmt));
+
+            EAT(KEYWORD_ELSE);
 
             if (PEEK(KEYWORD_IF))
             {
@@ -261,6 +270,8 @@ size_t parse_statement(Compiler *c, Program *apm)
 
                 size_t body = parse_code_block(c, apm, true);
                 STATEMENT(segment_stmt)->body = body;
+
+                END_SPAN(STATEMENT(segment_stmt));
             }
             else
             {
@@ -269,6 +280,7 @@ size_t parse_statement(Compiler *c, Program *apm)
                 size_t body = parse_code_block(c, apm, true);
                 STATEMENT(segment_stmt)->body = body;
 
+                END_SPAN(STATEMENT(segment_stmt));
                 break;
             }
         }
@@ -304,6 +316,8 @@ size_t parse_statement(Compiler *c, Program *apm)
         STATEMENT(stmt)->kind = INVALID_STATEMENT;
         raise_parse_error(c, EXPECTED_STATEMENT);
     }
+
+    END_SPAN(STATEMENT(stmt));
 
 recover:
     while (c->parse_status == PANIC)
@@ -350,6 +364,7 @@ size_t parse_code_block(Compiler *c, Program *apm, bool allow_single)
 {
     size_t code_block = add_statement(&apm->statement);
     STATEMENT(code_block)->kind = CODE_BLOCK;
+    START_SPAN(STATEMENT(code_block));
 
     size_t first_statement = apm->statement.count;
     STATEMENT(code_block)->statements.first = first_statement;
@@ -375,6 +390,7 @@ size_t parse_code_block(Compiler *c, Program *apm, bool allow_single)
     size_t statement_count = apm->statement.count - first_statement;
     STATEMENT(code_block)->statements.count = statement_count;
 
+    END_SPAN(STATEMENT(code_block));
     return code_block;
 }
 
@@ -382,6 +398,7 @@ size_t parse_code_block(Compiler *c, Program *apm, bool allow_single)
 size_t parse_expression(Compiler *c, Program *apm)
 {
     size_t expr = add_expression(&apm->expression);
+    START_SPAN(EXPRESSION(expr));
 
     // Left-hand side of expression
     if (PEEK(IDENTITY))
@@ -422,16 +439,22 @@ size_t parse_expression(Compiler *c, Program *apm)
         return expr;
     }
 
+    END_SPAN(EXPRESSION(expr));
+
     // Function call
     if (PEEK(PAREN_L))
     {
         size_t callee = expr;
         expr = add_expression(&apm->expression);
+        EXPRESSION(expr)->span.pos = EXPRESSION(callee)->span.pos;
+
         EXPRESSION(expr)->kind = FUNCTION_CALL;
         EXPRESSION(expr)->callee = callee;
 
         ADVANCE();
         EAT(PAREN_R);
+        END_SPAN(EXPRESSION(expr));
+
         recover_from_panic(c);
     }
 

@@ -23,6 +23,7 @@ DECLARE_SLICE_TYPE(Expression, expression)
 typedef struct
 {
     ExpressionKind kind;
+    substr span;
     union
     {
         struct
@@ -67,6 +68,7 @@ DECLARE_SLICE_TYPE(Statement, statement)
 typedef struct
 {
     StatementKind kind;
+    substr span;
     union
     {
         struct // CODE_BLOCK / SINGLE_BLOCK
@@ -92,6 +94,7 @@ DECLARE_SLICE_TYPE(Function, function)
 
 typedef struct
 {
+    substr span;
     substr identity;
     size_t body;
 } Function;
