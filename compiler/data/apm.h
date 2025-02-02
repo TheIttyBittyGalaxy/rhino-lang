@@ -54,9 +54,10 @@ DECLARE_LIST_TYPE(Expression, expression)
     MACRO(CODE_BLOCK)          \
     MACRO(SINGLE_BLOCK)        \
                                \
-    MACRO(IF_STATEMENT)        \
-    MACRO(ELSE_IF_STATEMENT)   \
-    MACRO(ELSE_STATEMENT)      \
+    MACRO(IF_SEGMENT)          \
+    MACRO(ELSE_IF_SEGMENT)     \
+    MACRO(ELSE_SEGMENT)        \
+                               \
     MACRO(OUTPUT_STATEMENT)    \
                                \
     MACRO(EXPRESSION_STMT)
@@ -75,7 +76,7 @@ typedef struct
         {
             StatementSlice statements;
         };
-        struct // IF_STATEMENT / ELSE_SEGMENT
+        struct // IF_SEGMENT / ELSE_IF_SEGMENT / ELSE_SEGMENT
         {
             size_t condition; // Expression
             size_t body;      // Statement

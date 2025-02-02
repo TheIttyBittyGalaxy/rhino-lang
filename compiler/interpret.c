@@ -5,7 +5,7 @@
 // Interpreter
 typedef struct
 {
-    bool executed_if_segment;
+    bool already_executed_if_segment;
 } StackLayer;
 
 typedef struct
@@ -88,7 +88,7 @@ void interpret_statement(Interpreter *interpreter, Program *apm, size_t stmt_ind
             interpreter->stack_layer = (StackLayer *)realloc(interpreter->stack_layer, sizeof(StackLayer) * interpreter->stack_layer_capacity);
         }
 
-        STACK_LAYER.executed_if_segment = false;
+        STACK_LAYER.already_executed_if_segment = false;
         interpreter->stack_layer_count++;
 
         size_t n = get_first_statement_in_code_block(apm, stmt);
@@ -102,39 +102,39 @@ void interpret_statement(Interpreter *interpreter, Program *apm, size_t stmt_ind
         break;
     }
 
-    case IF_STATEMENT:
+    case IF_SEGMENT:
     {
-        STACK_LAYER.executed_if_segment = false;
+        STACK_LAYER.already_executed_if_segment = false;
         Value condition = interpret_expression(interpreter, apm, stmt->condition);
         if (condition.value)
         {
             interpret_statement(interpreter, apm, stmt->body);
-            STACK_LAYER.executed_if_segment = true;
+            STACK_LAYER.already_executed_if_segment = true;
         }
         break;
     }
 
-    case ELSE_IF_STATEMENT:
+    case ELSE_IF_SEGMENT:
     {
-        if (!STACK_LAYER.executed_if_segment)
-        {
-            Value condition = interpret_expression(interpreter, apm, stmt->condition);
-            if (condition.value)
-            {
-                interpret_statement(interpreter, apm, stmt->body);
-                STACK_LAYER.executed_if_segment = true;
-            }
-        }
-        break;
-    }
+        if (STACK_LAYER.already_executed_if_segment)
+            break;
 
-    case ELSE_STATEMENT:
-    {
-        if (!STACK_LAYER.executed_if_segment)
+        Value condition = interpret_expression(interpreter, apm, stmt->condition);
+        if (condition.value)
         {
             interpret_statement(interpreter, apm, stmt->body);
-            STACK_LAYER.executed_if_segment = true;
+            STACK_LAYER.already_executed_if_segment = true;
         }
+        break;
+    }
+
+    case ELSE_SEGMENT:
+    {
+        if (STACK_LAYER.already_executed_if_segment)
+            break;
+
+        interpret_statement(interpreter, apm, stmt->body);
+        STACK_LAYER.already_executed_if_segment = true;
         break;
     }
 

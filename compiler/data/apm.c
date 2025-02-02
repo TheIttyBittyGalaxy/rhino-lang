@@ -52,12 +52,12 @@ void dump_apm(Program *apm, const char *source_text)
             printf("first %02d\tlast %02d", stmt->statements.first, stmt->statements.first + stmt->statements.count - 1);
             break;
 
-        case IF_STATEMENT:
-        case ELSE_IF_STATEMENT:
+        case IF_SEGMENT:
+        case ELSE_IF_SEGMENT:
             printf("condition %02d\tbody %02d", stmt->condition, stmt->body);
             break;
 
-        case ELSE_STATEMENT:
+        case ELSE_SEGMENT:
             printf("body %02d", stmt->body);
             break;
 
@@ -117,7 +117,7 @@ size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, siz
 
     if (child->kind == CODE_BLOCK || child->kind == SINGLE_BLOCK)
         return n + child->statements.count;
-    else if (child->kind == IF_STATEMENT || child->kind == ELSE_IF_STATEMENT || child->kind == ELSE_STATEMENT)
+    else if (child->kind == IF_SEGMENT || child->kind == ELSE_IF_SEGMENT || child->kind == ELSE_SEGMENT)
         return n + get_statement(apm->statement, child->body)->statements.count + 1;
 
     return n;

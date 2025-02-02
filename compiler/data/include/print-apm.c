@@ -158,13 +158,13 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         break;
     }
 
-    case IF_STATEMENT:
-    case ELSE_IF_STATEMENT:
+    case IF_SEGMENT:
+    case ELSE_IF_SEGMENT:
         PRINT("condition: ");
         PRINT_EXPRESSION(apm, stmt->condition, source_text);
         NEWLINE();
 
-    case ELSE_STATEMENT:
+    case ELSE_SEGMENT:
         LAST_ON_LINE();
         PRINT("body: ");
         PRINT_STATEMENT(apm, stmt->body, source_text);
