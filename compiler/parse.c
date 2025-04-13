@@ -7,7 +7,6 @@
 bool peek(Compiler *c, TokenKind token_kind);
 void advance(Compiler *c);
 void eat(Compiler *c, TokenKind token_kind);
-void peek_and_eat(Compiler *c, TokenKind token_kind);
 substr token_string(Compiler *c);
 
 // Error and recovery
@@ -32,7 +31,6 @@ size_t parse_expression(Compiler *c, Program *apm);
 #define PEEK(token_kind) peek(c, token_kind)
 #define ADVANCE() advance(c)
 #define EAT(token_kind) eat(c, token_kind)
-#define PEEK_AND_EAT(token_kind) peek_and_eat(c, token_kind)
 #define TOKEN_STRING() token_string(c)
 
 #define FUNCTION(index) get_function(apm->function, index)
@@ -65,15 +63,6 @@ void eat(Compiler *c, TokenKind token_kind)
     else
     {
         raise_parse_error(c, (CompilationErrorCode)((int)EXPECTED_INVALID_TOKEN + (int)token_kind));
-    }
-}
-
-void peek_and_eat(Compiler *c, TokenKind token_kind)
-{
-    if (peek(c, token_kind))
-    {
-        c->parse_status = OKAY;
-        advance(c);
     }
 }
 
