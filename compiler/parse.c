@@ -5,6 +5,7 @@
 
 // Token consumption
 bool peek(Compiler *c, TokenKind token_kind);
+bool peek_next(Compiler *c, TokenKind token_kind);
 void advance(Compiler *c);
 void eat(Compiler *c, TokenKind token_kind);
 substr token_string(Compiler *c);
@@ -29,6 +30,7 @@ size_t parse_expression(Compiler *c, Program *apm);
 // MACROS //
 
 #define PEEK(token_kind) peek(c, token_kind)
+#define PEEK_NEXT(token_kind) peek_next(c, token_kind)
 #define ADVANCE() advance(c)
 #define EAT(token_kind) eat(c, token_kind)
 #define TOKEN_STRING() token_string(c)
@@ -45,6 +47,13 @@ size_t parse_expression(Compiler *c, Program *apm);
 bool peek(Compiler *c, TokenKind token_kind)
 {
     return c->tokens[c->next_token].kind == token_kind;
+}
+
+bool peek_next(Compiler *c, TokenKind token_kind)
+{
+    if (peek(c, END_OF_FILE))
+        return token_kind == END_OF_FILE;
+    return c->tokens[c->next_token + 1].kind == token_kind;
 }
 
 void advance(Compiler *c)
@@ -224,7 +233,8 @@ size_t parse_statement(Compiler *c, Program *apm)
     size_t stmt = add_statement(&apm->statement);
     START_SPAN(STATEMENT(stmt));
 
-    if (PEEK(KEYWORD_IF)) // IF_STATEMENT
+    // IF_STATEMENT
+    if (PEEK(KEYWORD_IF))
     {
         STATEMENT(stmt)->kind = IF_SEGMENT;
 
@@ -275,9 +285,12 @@ size_t parse_statement(Compiler *c, Program *apm)
                 break;
             }
         }
+
+        goto finish;
     }
 
-    else if (PEEK(ARROW_R)) // OUTPUT_STATEMENT
+    // OUTPUT_STATEMENT
+    if (PEEK(ARROW_R))
     {
         STATEMENT(stmt)->kind = OUTPUT_STATEMENT;
 
@@ -288,26 +301,42 @@ size_t parse_statement(Compiler *c, Program *apm)
             goto recover;
 
         EAT(SEMI_COLON);
+        goto finish;
     }
 
-    else if (peek_expression(c)) // EXPRESSION STATEMENT
+    // EXPRESSION_STMT / ASSIGNMENT_STATEMENT
+    else if (peek_expression(c))
     {
         STATEMENT(stmt)->kind = EXPRESSION_STMT;
 
         size_t value = parse_expression(c, apm);
         STATEMENT(stmt)->expression = value;
+
         if (c->parse_status == PANIC)
             goto recover;
 
+        if (PEEK(EQUAL))
+        {
+            STATEMENT(stmt)->kind = ASSIGNMENT_STATEMENT;
+            STATEMENT(stmt)->assignment_lhs = value;
+
+            EAT(EQUAL);
+
+            size_t rhs = parse_expression(c, apm);
+            STATEMENT(stmt)->assignment_rhs = rhs;
+            if (c->parse_status == PANIC)
+                goto recover;
+        }
+
         EAT(SEMI_COLON);
+        goto finish;
     }
 
-    else // INVALID_STATEMENT
-    {
-        STATEMENT(stmt)->kind = INVALID_STATEMENT;
-        raise_parse_error(c, EXPECTED_STATEMENT);
-    }
+    // INVALID_STATEMENT
+    STATEMENT(stmt)->kind = INVALID_STATEMENT;
+    raise_parse_error(c, EXPECTED_STATEMENT);
 
+finish:
     END_SPAN(STATEMENT(stmt));
 
 recover:

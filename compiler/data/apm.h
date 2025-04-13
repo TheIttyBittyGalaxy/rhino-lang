@@ -53,18 +53,19 @@ typedef struct
 DECLARE_LIST_TYPE(Expression, expression)
 
 // Statement
-#define LIST_STATEMENTS(MACRO) \
-    MACRO(INVALID_STATEMENT)   \
-                               \
-    MACRO(CODE_BLOCK)          \
-    MACRO(SINGLE_BLOCK)        \
-                               \
-    MACRO(IF_SEGMENT)          \
-    MACRO(ELSE_IF_SEGMENT)     \
-    MACRO(ELSE_SEGMENT)        \
-                               \
-    MACRO(OUTPUT_STATEMENT)    \
-                               \
+#define LIST_STATEMENTS(MACRO)  \
+    MACRO(INVALID_STATEMENT)    \
+                                \
+    MACRO(CODE_BLOCK)           \
+    MACRO(SINGLE_BLOCK)         \
+                                \
+    MACRO(IF_SEGMENT)           \
+    MACRO(ELSE_IF_SEGMENT)      \
+    MACRO(ELSE_SEGMENT)         \
+                                \
+    MACRO(ASSIGNMENT_STATEMENT) \
+                                \
+    MACRO(OUTPUT_STATEMENT)     \
     MACRO(EXPRESSION_STMT)
 
 DECLARE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
@@ -85,6 +86,11 @@ typedef struct
         {
             size_t condition; // Expression
             size_t body;      // Statement
+        };
+        struct // ASSIGNMENT_STATEMENT
+        {
+            size_t assignment_lhs; // Expression
+            size_t assignment_rhs; // Expression
         };
         struct // OUTPUT_STATEMENT / EXPRESSION_STMT
         {

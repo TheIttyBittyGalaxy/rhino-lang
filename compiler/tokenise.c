@@ -66,6 +66,7 @@ void tokenise(Compiler *const c)
             ONE_CHAR(')', PAREN_R)
             ONE_CHAR('{', CURLY_L)
             ONE_CHAR('}', CURLY_R)
+            ONE_CHAR('=', EQUAL)
             ONE_OR_TWO_CHAR('<', ARROW_L, '=', ARROW_L_EQUAL)
             ONE_OR_TWO_CHAR('>', ARROW_R, '=', ARROW_R_EQUAL)
 

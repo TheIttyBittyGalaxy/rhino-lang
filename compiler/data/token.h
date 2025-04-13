@@ -19,6 +19,8 @@
     MACRO(CURLY_L)         \
     MACRO(CURLY_R)         \
                            \
+    MACRO(EQUAL)           \
+                           \
     MACRO(ARROW_L)         \
     MACRO(ARROW_R)         \
     MACRO(ARROW_L_EQUAL)   \
