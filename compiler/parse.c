@@ -149,6 +149,7 @@ bool peek_statement(Compiler *c)
     return PEEK(CURLY_L) ||
            PEEK(COLON) ||
            PEEK(KEYWORD_IF) ||
+           PEEK(KEYWORD_VAR) ||
            PEEK(ARROW_R) ||
            peek_expression(c);
 }
@@ -290,6 +291,21 @@ size_t parse_statement(Compiler *c, Program *apm)
         goto finish;
     }
 
+    // VARIABLE_DECLARATION
+    if (PEEK(KEYWORD_VAR))
+    {
+        STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
+
+        EAT(KEYWORD_VAR);
+
+        substr identity = TOKEN_STRING();
+        STATEMENT(stmt)->variable_identity = identity;
+        EAT(IDENTITY);
+
+        EAT(SEMI_COLON);
+        goto finish;
+    }
+
     // OUTPUT_STATEMENT
     if (PEEK(ARROW_R))
     {
@@ -312,7 +328,6 @@ size_t parse_statement(Compiler *c, Program *apm)
 
         size_t value = parse_expression(c, apm);
         STATEMENT(stmt)->expression = value;
-
         if (c->parse_status == PANIC)
             goto recover;
 

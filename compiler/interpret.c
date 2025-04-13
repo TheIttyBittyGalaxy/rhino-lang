@@ -50,7 +50,6 @@ Value interpret_expression(Interpreter *interpreter, Program *apm, size_t expr_i
     {
         // TODO: Implement
         // case IDENTITY_LITERAL:
-        //     break;
 
     case BOOLEAN_LITERAL:
         result.type = TYPE_BOOLEAN;
@@ -143,6 +142,13 @@ void interpret_statement(Interpreter *interpreter, Program *apm, size_t stmt_ind
         STACK_LAYER.already_executed_if_segment = true;
         break;
     }
+
+        // TODO: Implement
+        // case ASSIGNMENT_STATEMENT:
+
+    case VARIABLE_DECLARATION:
+        // Nothing needs to happen
+        break;
 
     case OUTPUT_STATEMENT:
     {

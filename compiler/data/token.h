@@ -34,6 +34,7 @@
     MACRO(KEYWORD_FOR)     \
     MACRO(KEYWORD_IF)      \
     MACRO(KEYWORD_LOOP)    \
+    MACRO(KEYWORD_VAR)     \
     MACRO(KEYWORD_WHILE)   \
                            \
     MACRO(IDENTITY)        \

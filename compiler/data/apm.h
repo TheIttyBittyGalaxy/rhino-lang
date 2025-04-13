@@ -64,6 +64,7 @@ DECLARE_LIST_TYPE(Expression, expression)
     MACRO(ELSE_SEGMENT)         \
                                 \
     MACRO(ASSIGNMENT_STATEMENT) \
+    MACRO(VARIABLE_DECLARATION) \
                                 \
     MACRO(OUTPUT_STATEMENT)     \
     MACRO(EXPRESSION_STMT)
@@ -91,6 +92,10 @@ typedef struct
         {
             size_t assignment_lhs; // Expression
             size_t assignment_rhs; // Expression
+        };
+        struct // VARIABLE_DECLARATION
+        {
+            substr variable_identity;
         };
         struct // OUTPUT_STATEMENT / EXPRESSION_STMT
         {

@@ -194,6 +194,14 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
 
         break;
 
+    case VARIABLE_DECLARATION:
+        LAST_ON_LINE();
+        PRINT("variable_identity: ");
+        PRINT_SUBSTR(stmt->variable_identity);
+        NEWLINE();
+
+        break;
+
     case OUTPUT_STATEMENT:
         LAST_ON_LINE();
         PRINT_EXPRESSION(apm, stmt->expression, source_text);
