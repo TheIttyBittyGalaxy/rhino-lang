@@ -180,6 +180,8 @@ void parse_program(Compiler *c, Program *apm)
             {
                 if (PEEK(END_OF_FILE))
                     return;
+
+                // FIXME: This method of tracking the depth works for multi statement `{}` blocks, but not for single statement `:` blocks
                 else if (PEEK(CURLY_L))
                     depth++;
                 else if (PEEK(CURLY_R) && depth > 0)
@@ -208,6 +210,8 @@ void parse_function(Compiler *c, Program *apm)
     substr identity = TOKEN_STRING();
     FUNCTION(funct)->identity = identity;
     EAT(IDENTITY);
+
+    // TODO: Handle this scenario correctly
     assert(c->parse_status == OKAY);
 
     EAT(PAREN_L);
