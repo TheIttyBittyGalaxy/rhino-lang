@@ -92,5 +92,6 @@ void init_compiler(Compiler *c);
 
 void raise_compilation_error(Compiler *c, CompilationErrorCode code, substr str);
 void determine_error_positions(Compiler *c);
+void printf_compilation_error(Compiler *c, size_t index);
 
 #endif

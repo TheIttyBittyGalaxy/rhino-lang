@@ -137,12 +137,7 @@ int main(int argc, char *argv[])
         HEADING("Errors");
         determine_error_positions(&compiler);
         for (size_t i = 0; i < compiler.error_count; i++)
-        {
-            CompilationError error = compiler.errors[i];
-            printf("%s:%d:%d\t%s\n", compiler.source_path, error.line, error.column, compilation_error_code_string(error.code));
-            if (error.str.len > 0)
-                printf("%.*s\n\n", error.str.len, compiler.source_text + error.str.pos);
-        }
+            printf_compilation_error(&compiler, i);
         return EXIT_FAILURE;
     }
 
