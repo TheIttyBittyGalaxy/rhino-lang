@@ -24,7 +24,7 @@ void parse(Compiler *compiler, Program *apm);
 void parse_program(Compiler *c, Program *apm);
 void parse_function(Compiler *c, Program *apm);
 size_t parse_statement(Compiler *c, Program *apm);
-size_t parse_code_block(Compiler *c, Program *apm, bool allow_single);
+size_t parse_code_block(Compiler *c, Program *apm);
 size_t parse_expression(Compiler *c, Program *apm);
 
 // MACROS //
@@ -214,7 +214,7 @@ void parse_function(Compiler *c, Program *apm)
     EAT(PAREN_R);
 
     attempt_to_recover_at_next_code_block(c);
-    size_t body = parse_code_block(c, apm, true);
+    size_t body = parse_code_block(c, apm);
     FUNCTION(funct)->body = body;
 
     END_SPAN(FUNCTION(funct));
@@ -223,9 +223,9 @@ void parse_function(Compiler *c, Program *apm)
 // NOTE: Can return with status OKAY or RECOVERED
 size_t parse_statement(Compiler *c, Program *apm)
 {
-    if (PEEK(CURLY_L) || PEEK(COLON))
+    if (PEEK(CURLY_L))
     {
-        return parse_code_block(c, apm, false); // Can return with status OKAY or RECOVERED
+        return parse_code_block(c, apm); // Can return with status OKAY or RECOVERED
     }
 
     size_t stmt = add_statement(&apm->statement);
@@ -243,7 +243,7 @@ size_t parse_statement(Compiler *c, Program *apm)
         if (c->parse_status == PANIC)
             goto recover;
 
-        size_t body = parse_code_block(c, apm, true);
+        size_t body = parse_code_block(c, apm);
         STATEMENT(stmt)->body = body;
 
         while (PEEK(KEYWORD_ELSE))
@@ -266,7 +266,7 @@ size_t parse_statement(Compiler *c, Program *apm)
                 if (c->parse_status == PANIC)
                     goto recover;
 
-                size_t body = parse_code_block(c, apm, true);
+                size_t body = parse_code_block(c, apm);
                 STATEMENT(segment_stmt)->body = body;
 
                 END_SPAN(STATEMENT(segment_stmt));
@@ -275,7 +275,7 @@ size_t parse_statement(Compiler *c, Program *apm)
             {
                 STATEMENT(segment_stmt)->kind = ELSE_SEGMENT;
 
-                size_t body = parse_code_block(c, apm, true);
+                size_t body = parse_code_block(c, apm);
                 STATEMENT(segment_stmt)->body = body;
 
                 END_SPAN(STATEMENT(segment_stmt));
@@ -358,7 +358,7 @@ recover:
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
-size_t parse_code_block(Compiler *c, Program *apm, bool allow_single)
+size_t parse_code_block(Compiler *c, Program *apm)
 {
     size_t code_block = add_statement(&apm->statement);
     STATEMENT(code_block)->kind = CODE_BLOCK;
