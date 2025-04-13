@@ -180,14 +180,18 @@ void parse_program(Compiler *c, Program *apm)
             {
                 if (PEEK(END_OF_FILE))
                     return;
-
                 else if (PEEK(CURLY_L))
                     depth++;
+                else if (PEEK(CURLY_R) && depth > 0)
+                    depth--;
 
-                else if (PEEK(CURLY_R) && (depth == 0 || --depth == 0))
+                if (PEEK(CURLY_R) && depth == 0)
                     c->parse_status = RECOVERED;
 
                 ADVANCE();
+
+                if (PEEK(KEYWORD_FN))
+                    c->parse_status = RECOVERED;
             }
         }
     }
