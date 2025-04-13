@@ -183,11 +183,11 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         break;
 
     case ASSIGNMENT_STATEMENT:
-        LAST_ON_LINE();
         PRINT("lhs: ");
         PRINT_EXPRESSION(apm, stmt->assignment_lhs, source_text);
         NEWLINE();
 
+        LAST_ON_LINE();
         PRINT("rhs: ");
         PRINT_EXPRESSION(apm, stmt->assignment_rhs, source_text);
         NEWLINE();
