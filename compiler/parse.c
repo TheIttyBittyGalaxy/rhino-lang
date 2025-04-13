@@ -410,6 +410,17 @@ size_t parse_expression(Compiler *c, Program *apm)
         EXPRESSION(expr)->bool_value = false;
         ADVANCE();
     }
+    else if (PEEK(NUMBER))
+    {
+        substr str = TOKEN_STRING();
+        int num = 0;
+        for (size_t i = str.pos; i < str.pos + str.len; i++)
+            num = num * 10 + (c->source_text[i] - 48);
+
+        EXPRESSION(expr)->kind = NUMBER_LITERAL;
+        EXPRESSION(expr)->number_value = num;
+        ADVANCE();
+    }
     else if (PEEK(STRING) || PEEK(BROKEN_STRING))
     {
         substr str = TOKEN_STRING();

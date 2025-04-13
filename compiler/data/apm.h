@@ -11,6 +11,7 @@
     MACRO(INVALID_EXPRESSION)   \
                                 \
     MACRO(IDENTITY_LITERAL)     \
+    MACRO(NUMBER_LITERAL)       \
     MACRO(BOOLEAN_LITERAL)      \
     MACRO(STRING_LITERAL)       \
                                 \
@@ -33,6 +34,10 @@ typedef struct
         struct
         { // BOOLEAN_LITERAL
             bool bool_value;
+        };
+        struct
+        { // NUMBER_LITERAL
+            int number_value;
         };
         struct
         { // STRING_LITERAL

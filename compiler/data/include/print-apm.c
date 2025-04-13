@@ -52,6 +52,12 @@ enum LineStatus
         printf(__VA_ARGS__); \
     }
 
+#define PRINT_INT(x)     \
+    {                    \
+        BEFORE_PRINT();  \
+        printf("%d", x); \
+    }
+
 #define PRINT_SUBSTR(str)                \
     {                                    \
         BEFORE_PRINT();                  \
@@ -92,6 +98,10 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
 
     case IDENTITY_LITERAL:
         PRINT_SUBSTR(expr->identity);
+        break;
+
+    case NUMBER_LITERAL:
+        PRINT_INT(expr->number_value);
         break;
 
     case BOOLEAN_LITERAL:

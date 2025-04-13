@@ -24,7 +24,8 @@ typedef struct
     MACRO(INVALID_VALUE_TYPE)   \
                                 \
     MACRO(TYPE_STRING)          \
-    MACRO(TYPE_BOOLEAN)
+    MACRO(TYPE_BOOLEAN)         \
+    MACRO(TYPE_NUMBER)
 
 DECLARE_ENUM(LIST_VALUE_TYPES, ValueType, value_type)
 DEFINE_ENUM(LIST_VALUE_TYPES, ValueType, value_type)
@@ -54,6 +55,11 @@ Value interpret_expression(Interpreter *interpreter, Program *apm, size_t expr_i
     case BOOLEAN_LITERAL:
         result.type = TYPE_BOOLEAN;
         result.value = expr->bool_value ? 1 : 0;
+        break;
+
+    case NUMBER_LITERAL:
+        result.type = TYPE_NUMBER;
+        result.value = expr->number_value;
         break;
 
     case STRING_LITERAL:
@@ -146,6 +152,10 @@ void interpret_statement(Interpreter *interpreter, Program *apm, size_t stmt_ind
             Expression *literal = get_expression(apm->expression, result.value);
             printf_substr(interpreter->source_text, literal->string_value);
             printf("\n");
+        }
+        else if (result.type == TYPE_NUMBER)
+        {
+            printf("%d\n", result.value);
         }
         else if (result.type == TYPE_BOOLEAN)
         {
