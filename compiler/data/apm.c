@@ -11,10 +11,12 @@ DEFINE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
 DEFINE_LIST_TYPE(Expression, expression)
 DEFINE_LIST_TYPE(Statement, statement)
 DEFINE_LIST_TYPE(Function, function)
+DEFINE_LIST_TYPE(Variable, variable)
 
 DEFINE_SLICE_TYPE(Expression, expression)
 DEFINE_SLICE_TYPE(Statement, statement)
 DEFINE_SLICE_TYPE(Function, function)
+DEFINE_SLICE_TYPE(Variable, variable)
 
 // INIT APM //
 
@@ -23,6 +25,7 @@ void init_program(Program *apm)
     init_function_list(&apm->function);
     init_statement_list(&apm->statement);
     init_expression_list(&apm->expression);
+    init_variable_list(&apm->variable);
 }
 
 // DUMP PROGRAM //
@@ -89,10 +92,24 @@ void dump_apm(Program *apm, const char *source_text)
             printf_substr(source_text, expr->string_value);
             break;
 
+        case VARIABLE_REFERENCE:
+            printf("variable %02d", expr->variable);
+            break;
+
         case FUNCTION_CALL:
             printf("callee %02d", expr->callee);
             break;
         }
+        printf("\n");
+    }
+    printf("\n");
+
+    printf("VARIABLES\n");
+    for (size_t i = 0; i < apm->variable.count; i++)
+    {
+        Variable *var = get_variable(apm->variable, i);
+        printf("%02d\t", i);
+        printf_substr(source_text, var->identity);
         printf("\n");
     }
 }

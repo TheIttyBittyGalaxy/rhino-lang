@@ -2,23 +2,6 @@
 #include "fatal_error.h"
 #include <stdio.h>
 
-// Interpreter
-typedef struct
-{
-    bool already_executed_if_segment;
-} StackLayer;
-
-typedef struct
-{
-    const char *source_text;
-
-    StackLayer *stack_layer;
-    size_t stack_layer_count;
-    size_t stack_layer_capacity;
-} Interpreter;
-
-#define STACK_LAYER interpreter->stack_layer[interpreter->stack_layer_count]
-
 // Values
 #define LIST_VALUE_TYPES(MACRO) \
     MACRO(INVALID_VALUE_TYPE)   \
@@ -36,6 +19,26 @@ typedef struct
     int value;
 } Value;
 
+// Interpreter
+typedef struct
+{
+    bool already_executed_if_segment;
+} StackLayer;
+
+typedef struct
+{
+    const char *source_text;
+
+    // TODO: Variables should be tied to block scope, not to a global array
+    Value *variable_values;
+
+    StackLayer *stack_layer;
+    size_t stack_layer_count;
+    size_t stack_layer_capacity;
+} Interpreter;
+
+#define STACK_LAYER interpreter->stack_layer[interpreter->stack_layer_count]
+
 // Interpret
 Value interpret_expression(Interpreter *interpreter, Program *apm, size_t expr_index);
 void interpret_statement(Interpreter *interpreter, Program *apm, size_t stmt_index);
@@ -48,7 +51,8 @@ Value interpret_expression(Interpreter *interpreter, Program *apm, size_t expr_i
 
     switch (expr->kind)
     {
-        // TODO: Implement
+        // NOTE: It does not really make sense to interpret an IDENTITY_LITERAL
+        //       Any IDENTITY_LITERAL should be converted to a VARIABLE_REFERENCE during analysis
         // case IDENTITY_LITERAL:
 
     case BOOLEAN_LITERAL:
@@ -64,6 +68,10 @@ Value interpret_expression(Interpreter *interpreter, Program *apm, size_t expr_i
     case STRING_LITERAL:
         result.type = TYPE_STRING;
         result.value = expr_index;
+        break;
+
+    case VARIABLE_REFERENCE:
+        result = interpreter->variable_values[expr->variable];
         break;
 
     case FUNCTION_CALL:
@@ -143,12 +151,26 @@ void interpret_statement(Interpreter *interpreter, Program *apm, size_t stmt_ind
         break;
     }
 
-        // TODO: Implement
-        // case ASSIGNMENT_STATEMENT:
+    case ASSIGNMENT_STATEMENT:
+    {
+        Expression *lhs = get_expression(apm->expression, stmt->assignment_lhs);
+        if (lhs->kind != VARIABLE_REFERENCE)
+        {
+            fatal_error("Could not interpret ASSIGNMENT_STATEMENT as LHS is a %s expression, not a VARIABLE_REFERENCE.", expression_kind_string(lhs->kind));
+        }
+
+        size_t var = lhs->variable;
+        interpreter->variable_values[var] = interpret_expression(interpreter, apm, stmt->assignment_rhs);
+        break;
+    }
 
     case VARIABLE_DECLARATION:
-        // Nothing needs to happen
+    {
+        size_t var = stmt->variable;
+        interpreter->variable_values[var].type = TYPE_NUMBER;
+        interpreter->variable_values[var].value = 0;
         break;
+    }
 
     case OUTPUT_STATEMENT:
     {
@@ -197,6 +219,8 @@ void interpret(Program *apm, const char *source_text)
 {
     Interpreter interpreter;
     interpreter.source_text = source_text;
+
+    interpreter.variable_values = (Value *)malloc(sizeof(Value) * apm->variable.count);
 
     interpreter.stack_layer_capacity = 1;
     interpreter.stack_layer_count = 0;

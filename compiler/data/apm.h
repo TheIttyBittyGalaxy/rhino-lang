@@ -6,6 +6,16 @@
 #include "substr.h"
 #include <stdbool.h>
 
+// Variable
+DECLARE_SLICE_TYPE(Variable, variable)
+
+typedef struct
+{
+    substr identity;
+} Variable;
+
+DECLARE_LIST_TYPE(Variable, variable)
+
 // Expression
 #define LIST_EXPRESSIONS(MACRO) \
     MACRO(INVALID_EXPRESSION)   \
@@ -15,6 +25,7 @@
     MACRO(BOOLEAN_LITERAL)      \
     MACRO(STRING_LITERAL)       \
                                 \
+    MACRO(VARIABLE_REFERENCE)   \
     MACRO(FUNCTION_CALL)
 
 DECLARE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
@@ -42,6 +53,10 @@ typedef struct
         struct
         { // STRING_LITERAL
             substr string_value;
+        };
+        struct // VARIABLE_REFERENCE
+        {
+            size_t variable;
         };
         struct // FUNCTION_CALL
         {
@@ -95,7 +110,7 @@ typedef struct
         };
         struct // VARIABLE_DECLARATION
         {
-            substr variable_identity;
+            size_t variable; // Variable
         };
         struct // OUTPUT_STATEMENT / EXPRESSION_STMT
         {
@@ -124,6 +139,7 @@ typedef struct
     FunctionList function;
     StatementList statement;
     ExpressionList expression;
+    VariableList variable;
 
     size_t main;
 } Program;

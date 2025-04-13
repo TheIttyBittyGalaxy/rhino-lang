@@ -74,15 +74,27 @@ enum LineStatus
 #define PRINT_EXPRESSION print_parsed_expression
 #define PRINT_STATEMENT print_parsed_statement
 #define PRINT_FUNCTION print_parsed_function
+#define PRINT_VARIABLE print_parsed_variable
 #define PRINT_APM print_parsed_apm
 #endif
 
 #ifdef PRINT_ANALYSED
 #define PRINT_EXPRESSION print_analysed_expression
 #define PRINT_STATEMENT print_analysed_statement
-#define PRINT_FUNCTION print_analysed_function
+#define PRINT_VARIABLE print_analysed_variable
 #define PRINT_APM print_analysed_apm
 #endif
+
+// PRINT VARIABLE //
+
+void PRINT_VARIABLE(Program *apm, size_t var_index, const char *source_text)
+{
+    Variable *var = get_variable(apm->variable, var_index);
+
+    // PRINT("VARIABLE ");
+    PRINT_SUBSTR(var->identity);
+    NEWLINE();
+}
 
 // PRINT EXPRESSION //
 
@@ -110,6 +122,10 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
 
     case STRING_LITERAL:
         PRINT_SUBSTR(expr->string_value);
+        break;
+
+    case VARIABLE_REFERENCE:
+        PRINT("v%02d", expr->variable);
         break;
 
     case FUNCTION_CALL:
@@ -196,8 +212,7 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
 
     case VARIABLE_DECLARATION:
         LAST_ON_LINE();
-        PRINT("variable_identity: ");
-        PRINT_SUBSTR(stmt->variable_identity);
+        PRINT("variable: %02d", stmt->variable);
         NEWLINE();
 
         break;
@@ -278,6 +293,7 @@ void PRINT_APM(Program *apm, const char *source_text)
 #undef PRINT_EXPRESSION
 #undef PRINT_STATEMENT
 #undef PRINT_FUNCTION
+#undef PRINT_VARIABLE
 #undef PRINT_APM
 
 #undef PRINT_PARSED

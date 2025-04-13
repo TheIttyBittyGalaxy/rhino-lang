@@ -38,6 +38,7 @@ size_t parse_expression(Compiler *c, Program *apm);
 #define FUNCTION(index) get_function(apm->function, index)
 #define STATEMENT(index) get_statement(apm->statement, index)
 #define EXPRESSION(index) get_expression(apm->expression, index)
+#define VARIABLE(index) get_variable(apm->variable, index)
 
 #define START_SPAN(node_ptr) node_ptr->span.pos = token_string(c).pos;
 #define END_SPAN(node_ptr) node_ptr->span.len = token_string(c).pos - node_ptr->span.pos;
@@ -294,12 +295,15 @@ size_t parse_statement(Compiler *c, Program *apm)
     // VARIABLE_DECLARATION
     if (PEEK(KEYWORD_VAR))
     {
+        size_t var = add_variable(&apm->variable);
+
         STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
+        STATEMENT(stmt)->variable = var;
 
         EAT(KEYWORD_VAR);
 
         substr identity = TOKEN_STRING();
-        STATEMENT(stmt)->variable_identity = identity;
+        VARIABLE(var)->identity = identity;
         EAT(IDENTITY);
 
         EAT(SEMI_COLON);
