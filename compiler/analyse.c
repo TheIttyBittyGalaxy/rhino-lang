@@ -51,9 +51,7 @@ void resolve_function_calls_and_variable_references(Compiler *c, Program *apm)
             }
 
             if (!funct_exists)
-            {
                 raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, expr->span);
-            }
         }
 
         else if (expr->kind == IDENTITY_LITERAL)
@@ -74,9 +72,7 @@ void resolve_function_calls_and_variable_references(Compiler *c, Program *apm)
             }
 
             if (!var_exists)
-            {
                 raise_compilation_error(c, VARIABLE_DOES_NOT_EXIST, expr->span);
-            }
         }
     }
 }
