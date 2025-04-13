@@ -139,6 +139,7 @@ bool peek_expression(Compiler *c)
     return PEEK(IDENTITY) ||
            PEEK(KEYWORD_TRUE) ||
            PEEK(KEYWORD_FALSE) ||
+           PEEK(NUMBER) ||
            PEEK(STRING) ||
            PEEK(BROKEN_STRING);
 }
