@@ -1,6 +1,19 @@
 #include "analyse.h"
 #include <string.h>
 
+// UTILITY METHODS //
+
+bool is_expression_boolean(Program *apm, size_t expr_index)
+{
+    Expression *expr = get_expression(apm->expression, expr_index);
+    if (expr->kind == BOOLEAN_LITERAL)
+    {
+        return true;
+    }
+
+    return false;
+}
+
 // ANALYSIS STAGES //
 
 void determine_main_function(Compiler *c, Program *apm)
@@ -77,10 +90,28 @@ void resolve_function_calls_and_variable_references(Compiler *c, Program *apm)
     }
 }
 
+void check_conditions_are_booleans(Compiler *c, Program *apm)
+{
+    for (size_t i = 0; i < apm->statement.count; i++)
+    {
+        Statement *stmt = get_statement(apm->statement, i);
+
+        if (stmt->kind == IF_SEGMENT || stmt->kind == ELSE_IF_SEGMENT)
+        {
+            if (!is_expression_boolean(apm, stmt->condition))
+            {
+                Expression *condition = get_expression(apm->expression, stmt->condition);
+                raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, condition->span);
+            }
+        }
+    }
+}
+
 // ANALYSE //
 
 void analyse(Compiler *c, Program *apm)
 {
     determine_main_function(c, apm);
     resolve_function_calls_and_variable_references(c, apm);
+    check_conditions_are_booleans(c, apm);
 }

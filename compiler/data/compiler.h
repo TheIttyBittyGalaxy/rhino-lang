@@ -45,7 +45,8 @@
     MACRO(NO_MAIN_FUNCTION)                                         \
     MACRO(EXPRESSION_IS_NOT_A_FUNCTION)                             \
     MACRO(FUNCTION_DOES_NOT_EXIST)                                  \
-    MACRO(VARIABLE_DOES_NOT_EXIST)
+    MACRO(VARIABLE_DOES_NOT_EXIST)                                  \
+    MACRO(CONDITION_IS_NOT_BOOLEAN)
 
 DECLARE_ENUM(LIST_COMPILATION_ERRORS, CompilationErrorCode, compilation_error_code)
 
