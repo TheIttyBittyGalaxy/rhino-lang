@@ -70,6 +70,12 @@ DECLARE_ENUM(LIST_PARSE_STATUS, ParseStatus, parse_status)
 // Compiler
 typedef struct
 {
+    substr identity;
+    size_t index;
+} VariableData;
+
+typedef struct
+{
     // Source
     const char *source_path;
     const char *source_text;
@@ -83,6 +89,10 @@ typedef struct
     // Parse
     size_t next_token;
     ParseStatus parse_status;
+
+    VariableData *in_scope_vars;
+    size_t in_scope_var_count;
+    size_t in_scope_var_capacity;
 
     // Errors
     CompilationError *errors;

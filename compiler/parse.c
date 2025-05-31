@@ -307,6 +307,17 @@ size_t parse_statement(Compiler *c, Program *apm)
         EAT(IDENTITY);
 
         EAT(SEMI_COLON);
+
+        if (c->in_scope_var_count == c->in_scope_var_capacity)
+        {
+            c->in_scope_var_capacity = c->in_scope_var_capacity * 2;
+            c->in_scope_vars = (VariableData *)realloc(c->in_scope_vars, sizeof(VariableData) * c->in_scope_var_capacity);
+        }
+
+        c->in_scope_vars[c->in_scope_var_count].identity = identity;
+        c->in_scope_vars[c->in_scope_var_count].index = var;
+        c->in_scope_var_count++;
+
         goto finish;
     }
 
@@ -409,6 +420,8 @@ size_t parse_code_block(Compiler *c, Program *apm)
     size_t first_statement = apm->statement.count;
     STATEMENT(code_block)->statements.first = first_statement;
 
+    size_t in_scope_var_count = c->in_scope_var_count;
+
     if (PEEK(COLON))
     {
         EAT(COLON);
@@ -427,6 +440,8 @@ size_t parse_code_block(Compiler *c, Program *apm)
         recover_from_panic(c);
     }
 
+    c->in_scope_var_count = in_scope_var_count; // Discard variables that were declared in nested scopes
+
     size_t statement_count = apm->statement.count - first_statement;
     STATEMENT(code_block)->statements.count = statement_count;
 
@@ -443,8 +458,25 @@ size_t parse_expression(Compiler *c, Program *apm)
     // Left-hand side of expression
     if (PEEK(IDENTITY))
     {
-        EXPRESSION(expr)->kind = IDENTITY_LITERAL;
-        EXPRESSION(expr)->identity = TOKEN_STRING();
+        size_t is_unknown_literal = true;
+        for (size_t i = 0; i < c->in_scope_var_count; i++)
+        {
+            size_t j = c->in_scope_var_count - 1 - i; // Start from the end of the array so that nested variables are checked first
+            if (substr_match(c->source_text, TOKEN_STRING(), c->in_scope_vars[j].identity))
+            {
+                EXPRESSION(expr)->kind = VARIABLE_REFERENCE;
+                EXPRESSION(expr)->variable = c->in_scope_vars[j].index;
+                is_unknown_literal = false;
+                break;
+            }
+        }
+
+        if (is_unknown_literal)
+        {
+            EXPRESSION(expr)->kind = IDENTITY_LITERAL;
+            EXPRESSION(expr)->identity = TOKEN_STRING();
+        }
+
         ADVANCE();
     }
     else if (PEEK(KEYWORD_TRUE))

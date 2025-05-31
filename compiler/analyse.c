@@ -34,7 +34,7 @@ void determine_main_function(Compiler *c, Program *apm)
     raise_compilation_error(c, NO_MAIN_FUNCTION, str);
 }
 
-void resolve_function_calls_and_variable_references(Compiler *c, Program *apm)
+void resolve_identity_literals(Compiler *c, Program *apm)
 {
     for (size_t i = 0; i < apm->expression.count; i++)
     {
@@ -69,23 +69,7 @@ void resolve_function_calls_and_variable_references(Compiler *c, Program *apm)
 
         else if (expr->kind == IDENTITY_LITERAL)
         {
-            // TODO: Only allow an IDENTITY_LITEREAL to be resolved to a variable that is in scope
-            substr identity = expr->identity;
-            bool var_exists = false;
-            for (size_t i = 0; i < apm->variable.count; i++)
-            {
-                Variable *var = get_variable(apm->variable, i);
-                if (substr_match(c->source_text, var->identity, identity))
-                {
-                    expr->kind = VARIABLE_REFERENCE;
-                    expr->variable = i;
-                    var_exists = true;
-                    break;
-                }
-            }
-
-            if (!var_exists)
-                raise_compilation_error(c, VARIABLE_DOES_NOT_EXIST, expr->span);
+            raise_compilation_error(c, VARIABLE_DOES_NOT_EXIST, expr->span);
         }
     }
 }
@@ -112,6 +96,6 @@ void check_conditions_are_booleans(Compiler *c, Program *apm)
 void analyse(Compiler *c, Program *apm)
 {
     determine_main_function(c, apm);
-    resolve_function_calls_and_variable_references(c, apm);
+    resolve_identity_literals(c, apm);
     check_conditions_are_booleans(c, apm);
 }
