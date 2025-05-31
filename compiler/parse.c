@@ -475,6 +475,7 @@ size_t parse_expression(Compiler *c, Program *apm)
         {
             EXPRESSION(expr)->kind = IDENTITY_LITERAL;
             EXPRESSION(expr)->identity = TOKEN_STRING();
+            EXPRESSION(expr)->identity_resolved = false;
         }
 
         ADVANCE();

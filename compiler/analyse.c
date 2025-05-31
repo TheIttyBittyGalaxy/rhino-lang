@@ -34,43 +34,56 @@ void determine_main_function(Compiler *c, Program *apm)
     raise_compilation_error(c, NO_MAIN_FUNCTION, str);
 }
 
+void resolve_function_calls(Compiler *c, Program *apm)
+{
+    for (size_t i = 0; i < apm->expression.count; i++)
+    {
+        Expression *funct_call = get_expression(apm->expression, i);
+
+        if (funct_call->kind != FUNCTION_CALL)
+            continue;
+
+        Expression *callee_expr = get_expression(apm->expression, funct_call->callee);
+
+        if (callee_expr->kind != IDENTITY_LITERAL)
+        {
+            raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, funct_call->span);
+            continue;
+        }
+
+        callee_expr->identity_resolved = true;
+
+        substr identity = callee_expr->identity;
+        bool funct_exists = false;
+        for (size_t i = 0; i < apm->function.count; i++)
+        {
+            Function *funct = get_function(apm->function, i);
+            if (substr_match(c->source_text, funct->identity, identity))
+            {
+                funct_call->callee = i;
+                funct_exists = true;
+                break;
+            }
+        }
+
+        if (!funct_exists)
+            raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, funct_call->span);
+    }
+}
+
 void resolve_identity_literals(Compiler *c, Program *apm)
 {
     for (size_t i = 0; i < apm->expression.count; i++)
     {
-        Expression *expr = get_expression(apm->expression, i);
+        Expression *identity_literal = get_expression(apm->expression, i);
 
-        if (expr->kind == FUNCTION_CALL)
-        {
-            Expression *callee_expr = get_expression(apm->expression, expr->callee);
+        if (identity_literal->kind != IDENTITY_LITERAL)
+            continue;
 
-            if (callee_expr->kind != IDENTITY_LITERAL)
-            {
-                raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, expr->span);
-                continue;
-            }
+        if (identity_literal->identity_resolved)
+            continue;
 
-            substr identity = callee_expr->identity;
-            bool funct_exists = false;
-            for (size_t i = 0; i < apm->function.count; i++)
-            {
-                Function *funct = get_function(apm->function, i);
-                if (substr_match(c->source_text, funct->identity, identity))
-                {
-                    expr->callee = i;
-                    funct_exists = true;
-                    break;
-                }
-            }
-
-            if (!funct_exists)
-                raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, expr->span);
-        }
-
-        else if (expr->kind == IDENTITY_LITERAL)
-        {
-            raise_compilation_error(c, VARIABLE_DOES_NOT_EXIST, expr->span);
-        }
+        raise_compilation_error(c, VARIABLE_DOES_NOT_EXIST, identity_literal->span);
     }
 }
 
@@ -96,6 +109,7 @@ void check_conditions_are_booleans(Compiler *c, Program *apm)
 void analyse(Compiler *c, Program *apm)
 {
     determine_main_function(c, apm);
+    resolve_function_calls(c, apm);
     resolve_identity_literals(c, apm);
     check_conditions_are_booleans(c, apm);
 }

@@ -41,6 +41,7 @@ typedef struct
         struct
         { // IDENTITY_LITERAL
             substr identity;
+            bool identity_resolved;
         };
         struct
         { // BOOLEAN_LITERAL
