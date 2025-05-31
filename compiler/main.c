@@ -48,6 +48,7 @@ char *read_file(const char *path)
 
 // MAIN //
 
+bool flag_test_mode = false;
 bool flag_token_dump = false;
 bool flag_parse_dump = false;
 bool flag_analyse_dump = false;
@@ -60,7 +61,9 @@ bool process_arguments(int argc, char *argv[])
 
     for (int i = 2; i < argc; i++)
     {
-        if ((strcmp(argv[i], "-t") == 0) || strcmp(argv[i], "-token") == 0)
+        if ((strcmp(argv[i], "-T") == 0) || strcmp(argv[i], "-TEST") == 0)
+            flag_test_mode = true;
+        else if ((strcmp(argv[i], "-t") == 0) || strcmp(argv[i], "-token") == 0)
             flag_token_dump = true;
         else if ((strcmp(argv[i], "-p") == 0) || strcmp(argv[i], "-parse") == 0)
             flag_parse_dump = true;
@@ -81,8 +84,35 @@ int main(int argc, char *argv[])
     bool valid_arguments = process_arguments(argc, argv);
     if (!valid_arguments)
     {
-        fprintf(stderr, "Usage: %s <file_path> [-token] [-parse] [-analyse] [-nice]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <file_path> [-TEST] [-token] [-parse] [-analyse] [-nice]\n", argv[0]);
         return EXIT_FAILURE;
+    }
+
+    // Test mode
+    if (flag_test_mode)
+    {
+        Compiler compiler;
+        init_compiler(&compiler);
+
+        compiler.source_path = argv[1];
+        compiler.source_text = read_file(compiler.source_path);
+        if (compiler.source_text == NULL)
+            return EXIT_FAILURE;
+
+        tokenise(&compiler);
+
+        Program apm;
+        init_program(&apm);
+        parse(&compiler, &apm);
+        analyse(&compiler, &apm);
+
+        if (compiler.error_count > 0)
+        {
+            return EXIT_FAILURE;
+        }
+
+        interpret(&apm, compiler.source_text);
+        return EXIT_SUCCESS;
     }
 
     // Compile
