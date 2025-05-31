@@ -58,6 +58,15 @@ void tokenise(Compiler *const c)
         const char *const start = character;
         TokenKind kind = INVALID_TOKEN;
 
+        // Skip single line comments
+        if (*character == '/' && *(character + 1) == '/')
+        {
+            while (*character != '\n' && *character != '\0')
+                character++;
+            continue;
+        }
+
+        // Parse character
         switch (*character)
         {
             ONE_CHAR(';', SEMI_COLON)
