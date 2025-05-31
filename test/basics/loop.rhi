@@ -1,4 +1,4 @@
-main() {
+fn main() {
     var i = 1
     loop {
         > i;

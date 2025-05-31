@@ -1,8 +1,8 @@
-main() {
+fn main() {
     greet();
 }
 
-greet() {
+fn greet() {
     > "Howdy!";
 }
 
