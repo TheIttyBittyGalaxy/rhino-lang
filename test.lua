@@ -47,34 +47,19 @@ file:write([[<!DOCTYPE html>
 
         table {
             border-collapse: collapse;
+            background-color: #EBEBEB;
         }
 
-        table,
-        th,
-        td {
-            border: 1px solid black;
+        tr { border: 3px solid white; }
+        th, td { padding: 0.3em; }
+
+        tr:first-child {
+            background-color: #373F51;
+            color: white;
         }
 
-        th,
-        td {
-            padding: 0.25em;
-        }
-
-        .result {
-            text-align: center;
-        }
-
-        tr {
-            .result-pass { background-color: #8f8; }
-            .result-fail { background-color: #f88; }
-        }
-
-        tr:nth-child(2n+1) {
-            background-color: #ddd;
-            .result-pass { background-color: #6f6; }
-            .result-fail { background-color: #f66; }
-        }
-
+        .result { text-align: center; }
+        .result-fail { background-color: #DE1A1A; }
     </style>
 </head>
 
