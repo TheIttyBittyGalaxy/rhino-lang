@@ -1,0 +1,32 @@
+fn main() {
+    // Constant with declared type
+    float e: 2.71;
+
+    // Constant with inferred type
+    pi: 3.14;
+
+    // Variable with declared type and value
+    int x = 1;
+    x = 2;
+
+    // Variable with declared type and no value
+    int y;
+    y = 3;
+
+    // Variable with inferred type
+    def z = 4;
+    z = 5;
+
+    > pi;
+    > e;
+    > x;
+    > y;
+    > z;
+}
+
+// RESULTS
+// 2.71
+// 3.14
+// 2
+// 3
+// 5
