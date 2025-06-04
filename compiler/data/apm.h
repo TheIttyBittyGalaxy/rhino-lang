@@ -111,7 +111,11 @@ typedef struct
         };
         struct // VARIABLE_DECLARATION
         {
-            size_t variable; // Variable
+            size_t variable;      // Variable
+            size_t initial_value; // Expression
+            size_t type_name;     // Expression / Type
+            bool has_initial_value;
+            bool has_type_name;
         };
         struct // OUTPUT_STATEMENT / EXPRESSION_STMT
         {

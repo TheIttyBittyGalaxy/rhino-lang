@@ -34,6 +34,34 @@ void determine_main_function(Compiler *c, Program *apm)
     raise_compilation_error(c, NO_MAIN_FUNCTION, str);
 }
 
+void resolve_types(Compiler *c, Program *apm)
+{
+    for (size_t i = 0; i < apm->statement.count; i++)
+    {
+        Statement *stmt = get_statement(apm->statement, i);
+
+        // TODO: Correctly resolve the type of each variable declaration
+        if (stmt->kind == VARIABLE_DECLARATION)
+        {
+            if (stmt->has_type_name)
+            {
+                Expression *type_name = get_expression(apm->expression, stmt->type_name);
+                if (type_name->kind == IDENTITY_LITERAL)
+                {
+                    type_name->identity_resolved = true;
+                }
+                else
+                {
+                    // TODO: Error
+                }
+            }
+
+            // TODO: Resolve to an actual type
+            stmt->type_name = 0;
+        }
+    }
+}
+
 void resolve_function_calls(Compiler *c, Program *apm)
 {
     for (size_t i = 0; i < apm->expression.count; i++)
@@ -109,7 +137,10 @@ void check_conditions_are_booleans(Compiler *c, Program *apm)
 void analyse(Compiler *c, Program *apm)
 {
     determine_main_function(c, apm);
+
+    resolve_types(c, apm);
     resolve_function_calls(c, apm);
     resolve_identity_literals(c, apm);
+
     check_conditions_are_booleans(c, apm);
 }

@@ -299,12 +299,16 @@ size_t parse_statement(Compiler *c, Program *apm)
 
         STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
         STATEMENT(stmt)->variable = var;
+        STATEMENT(stmt)->has_initial_value = false;
+        STATEMENT(stmt)->has_type_name = false;
 
         EAT(KEYWORD_DEF);
 
         substr identity = TOKEN_STRING();
         VARIABLE(var)->identity = identity;
         EAT(IDENTITY);
+
+        // TODO: Parse assignment. Assignment must be present, as declaration begun with `def`, and thus the type must be inferred
 
         EAT(SEMI_COLON);
 
@@ -346,7 +350,33 @@ size_t parse_statement(Compiler *c, Program *apm)
         if (c->parse_status == PANIC)
             goto recover;
 
-        if (PEEK(EQUAL))
+        if (peek_expression(c))
+        {
+            size_t var = add_variable(&apm->variable);
+
+            STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
+            STATEMENT(stmt)->variable = var;
+            STATEMENT(stmt)->type_name = value;
+            STATEMENT(stmt)->has_type_name = true;
+            STATEMENT(stmt)->has_initial_value = false;
+
+            substr identity = TOKEN_STRING();
+            VARIABLE(var)->identity = identity;
+            EAT(IDENTITY);
+
+            // TODO: Parse assignment
+
+            if (c->in_scope_var_count == c->in_scope_var_capacity)
+            {
+                c->in_scope_var_capacity = c->in_scope_var_capacity * 2;
+                c->in_scope_vars = (VariableData *)realloc(c->in_scope_vars, sizeof(VariableData) * c->in_scope_var_capacity);
+            }
+
+            c->in_scope_vars[c->in_scope_var_count].identity = identity;
+            c->in_scope_vars[c->in_scope_var_count].index = var;
+            c->in_scope_var_count++;
+        }
+        else if (PEEK(EQUAL))
         {
             STATEMENT(stmt)->kind = ASSIGNMENT_STATEMENT;
             STATEMENT(stmt)->assignment_lhs = value;

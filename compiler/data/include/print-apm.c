@@ -211,9 +211,29 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         break;
 
     case VARIABLE_DECLARATION:
-        LAST_ON_LINE();
+        if (!stmt->has_type_name && !stmt->has_initial_value)
+            LAST_ON_LINE();
+
         PRINT("variable: %02d", stmt->variable);
         NEWLINE();
+
+        if (stmt->has_type_name)
+        {
+            if (!stmt->type_name)
+                LAST_ON_LINE();
+
+            PRINT("type_name: ");
+            PRINT_EXPRESSION(apm, stmt->type_name, source_text);
+            NEWLINE();
+        }
+
+        if (stmt->has_initial_value)
+        {
+            LAST_ON_LINE();
+            PRINT("initial_value: ");
+            PRINT_EXPRESSION(apm, stmt->initial_value, source_text);
+            NEWLINE();
+        }
 
         break;
 
