@@ -150,7 +150,7 @@ bool peek_statement(Compiler *c)
     return PEEK(CURLY_L) ||
            PEEK(COLON) ||
            PEEK(KEYWORD_IF) ||
-           PEEK(KEYWORD_VAR) ||
+           PEEK(KEYWORD_DEF) ||
            PEEK(ARROW_R) ||
            peek_expression(c);
 }
@@ -293,14 +293,14 @@ size_t parse_statement(Compiler *c, Program *apm)
     }
 
     // VARIABLE_DECLARATION
-    if (PEEK(KEYWORD_VAR))
+    if (PEEK(KEYWORD_DEF))
     {
         size_t var = add_variable(&apm->variable);
 
         STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
         STATEMENT(stmt)->variable = var;
 
-        EAT(KEYWORD_VAR);
+        EAT(KEYWORD_DEF);
 
         substr identity = TOKEN_STRING();
         VARIABLE(var)->identity = identity;
