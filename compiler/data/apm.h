@@ -9,10 +9,10 @@
 // Types
 
 #define LIST_RHINO_TYPES(MACRO) \
-    MACRO(INVALID)              \
-    MACRO(INT)                  \
-    MACRO(NUM)                  \
-    MACRO(STR)
+    MACRO(INVALID_RHINO_TYPE)   \
+    MACRO(RHINO_INT)            \
+    MACRO(RHINO_NUM)            \
+    MACRO(RHINO_STR)
 
 DECLARE_ENUM(LIST_RHINO_TYPES, RhinoType, rhino_type)
 

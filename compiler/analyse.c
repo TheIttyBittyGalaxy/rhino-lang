@@ -46,13 +46,25 @@ void resolve_types(Compiler *c, Program *apm)
             if (stmt->has_type_expression)
             {
                 Expression *type_expression = get_expression(apm->expression, stmt->type_expression);
-                if (type_expression->kind == IDENTITY_LITERAL)
+                if (type_expression->kind != IDENTITY_LITERAL)
                 {
-                    type_expression->identity_resolved = true;
+                    // FIXME: Really the error here should be something like "invalid type expression"
+                    raise_compilation_error(c, VARIABLE_DECLARED_WITH_INVALID_TYPE, type_expression->span);
                 }
+
+                type_expression->identity_resolved = true;
+
+                Variable *var = get_variable(apm->variable, stmt->variable);
+                if (substr_is(c->source_text, type_expression->identity, "int"))
+                    var->type = RHINO_INT;
+                else if (substr_is(c->source_text, type_expression->identity, "num"))
+                    var->type = RHINO_NUM;
+                else if (substr_is(c->source_text, type_expression->identity, "str"))
+                    var->type = RHINO_STR;
                 else
                 {
-                    // TODO: Error
+                    var->type = INVALID_RHINO_TYPE;
+                    raise_compilation_error(c, VARIABLE_DECLARED_WITH_INVALID_TYPE, type_expression->span);
                 }
             }
 
