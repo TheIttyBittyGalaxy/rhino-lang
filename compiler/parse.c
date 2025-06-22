@@ -296,6 +296,7 @@ size_t parse_statement(Compiler *c, Program *apm)
     if (PEEK(KEYWORD_DEF))
     {
         size_t var = add_variable(&apm->variable);
+        VARIABLE(var)->type = INVALID_RHINO_TYPE;
 
         STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
         STATEMENT(stmt)->variable = var;
@@ -368,6 +369,7 @@ size_t parse_statement(Compiler *c, Program *apm)
         if (peek_expression(c) && EXPRESSION(value)->kind == IDENTITY_LITERAL) // Typed VARIABLE_DECLARATION
         {
             size_t var = add_variable(&apm->variable);
+            VARIABLE(var)->type = INVALID_RHINO_TYPE;
 
             STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
             STATEMENT(stmt)->variable = var;
