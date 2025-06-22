@@ -219,7 +219,7 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
 
         if (stmt->has_type_name)
         {
-            if (!stmt->type_name)
+            if (!stmt->has_initial_value)
                 LAST_ON_LINE();
 
             PRINT("type_name: ");
