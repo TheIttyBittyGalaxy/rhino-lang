@@ -67,9 +67,6 @@ void resolve_types(Compiler *c, Program *apm)
                     raise_compilation_error(c, VARIABLE_DECLARED_WITH_INVALID_TYPE, type_expression->span);
                 }
             }
-
-            // TODO: Resolve to an actual type
-            stmt->type_expression = 0;
         }
     }
 }
