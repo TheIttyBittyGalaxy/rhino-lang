@@ -3,19 +3,9 @@
 #include <stdio.h>
 
 // Values
-#define LIST_VALUE_TYPES(MACRO) \
-    MACRO(INVALID_VALUE_TYPE)   \
-                                \
-    MACRO(TYPE_STRING)          \
-    MACRO(TYPE_BOOLEAN)         \
-    MACRO(TYPE_NUMBER)
-
-DECLARE_ENUM(LIST_VALUE_TYPES, ValueType, value_type)
-DEFINE_ENUM(LIST_VALUE_TYPES, ValueType, value_type)
-
 typedef struct
 {
-    ValueType type;
+    RhinoType type;
     int value;
 } Value;
 
@@ -56,17 +46,17 @@ Value interpret_expression(Interpreter *interpreter, Program *apm, size_t expr_i
         // case IDENTITY_LITERAL:
 
     case BOOLEAN_LITERAL:
-        result.type = TYPE_BOOLEAN;
+        result.type = RHINO_BOOL;
         result.value = expr->bool_value ? 1 : 0;
         break;
 
     case NUMBER_LITERAL:
-        result.type = TYPE_NUMBER;
+        result.type = RHINO_INT;
         result.value = expr->number_value;
         break;
 
     case STRING_LITERAL:
-        result.type = TYPE_STRING;
+        result.type = RHINO_STR;
         result.value = expr_index;
         break;
 
@@ -167,31 +157,38 @@ void interpret_statement(Interpreter *interpreter, Program *apm, size_t stmt_ind
     case VARIABLE_DECLARATION:
     {
         size_t var = stmt->variable;
-        interpreter->variable_values[var].type = TYPE_NUMBER;
-        interpreter->variable_values[var].value = 0;
+        if (stmt->has_initial_value)
+        {
+            interpreter->variable_values[var] = interpret_expression(interpreter, apm, stmt->initial_value);
+        }
+        else
+        {
+            interpreter->variable_values[var].type = get_variable(apm->variable, var)->type;
+            interpreter->variable_values[var].value = 0;
+        }
         break;
     }
 
     case OUTPUT_STATEMENT:
     {
         Value result = interpret_expression(interpreter, apm, stmt->expression);
-        if (result.type == TYPE_STRING)
+        if (result.type == RHINO_STR)
         {
             Expression *literal = get_expression(apm->expression, result.value);
             printf_substr(interpreter->source_text, literal->string_value);
             printf("\n");
         }
-        else if (result.type == TYPE_NUMBER)
+        else if (result.type == RHINO_INT)
         {
             printf("%d\n", result.value);
         }
-        else if (result.type == TYPE_BOOLEAN)
+        else if (result.type == RHINO_BOOL)
         {
             printf("%s\n", result.value ? "true" : "false");
         }
         else
         {
-            fatal_error("Could not interpret %s statement with %s expression.", statement_kind_string(stmt->kind), value_type_string(result.type));
+            fatal_error("Could not interpret %s statement with %s expression.", statement_kind_string(stmt->kind), rhino_type_string(result.type));
         }
 
         break;
