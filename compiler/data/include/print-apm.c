@@ -120,7 +120,9 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
         break;
 
     case STRING_LITERAL:
+        PRINT("\"");
         PRINT_SUBSTR(expr->string_value);
+        PRINT("\"");
         break;
 
     case VARIABLE_REFERENCE:
