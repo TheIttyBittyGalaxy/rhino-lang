@@ -292,7 +292,7 @@ size_t parse_statement(Compiler *c, Program *apm)
         goto finish;
     }
 
-    // VARIABLE_DECLARATION
+    // Inferred VARIABLE_DECLARATION
     if (PEEK(KEYWORD_DEF))
     {
         size_t var = add_variable(&apm->variable);
@@ -340,17 +340,18 @@ size_t parse_statement(Compiler *c, Program *apm)
         goto finish;
     }
 
-    // EXPRESSION_STMT / ASSIGNMENT_STATEMENT
+    // EXPRESSION_STMT / ASSIGNMENT_STATEMENT / Typed VARIABLE_DECLARATION
     else if (peek_expression(c))
     {
         STATEMENT(stmt)->kind = EXPRESSION_STMT;
 
+        // EXPRESSION_STMT
         size_t value = parse_expression(c, apm);
         STATEMENT(stmt)->expression = value;
         if (c->parse_status == PANIC)
             goto recover;
 
-        if (peek_expression(c))
+        if (peek_expression(c) && EXPRESSION(value)->kind == IDENTITY_LITERAL) // Typed VARIABLE_DECLARATION
         {
             size_t var = add_variable(&apm->variable);
 
@@ -376,7 +377,7 @@ size_t parse_statement(Compiler *c, Program *apm)
             c->in_scope_vars[c->in_scope_var_count].index = var;
             c->in_scope_var_count++;
         }
-        else if (PEEK(EQUAL))
+        else if (PEEK(EQUAL)) // ASSIGNMENT_STATEMENT
         {
             STATEMENT(stmt)->kind = ASSIGNMENT_STATEMENT;
             STATEMENT(stmt)->assignment_lhs = value;
