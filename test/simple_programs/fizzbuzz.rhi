@@ -1,0 +1,15 @@
+fn main() {
+    for i in 1..30 {
+        def fizz = i % 3 == 0;
+        def buzz = i % 5 == 0;
+
+        if fizz and buzz:
+            > "FizzBuzz";
+        else if fizz:
+            > "Fizz";
+        else if buzz:
+            > "Buzz;
+        else:
+            > i;
+    }
+}
