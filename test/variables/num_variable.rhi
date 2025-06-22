@@ -1,0 +1,8 @@
+fn main() {
+    num x;
+    x = 3.14;
+    > x;
+}
+
+// RESULTS
+// 3.14

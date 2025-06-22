@@ -1,0 +1,8 @@
+fn main() {
+    def x;
+    x = "Howdy World!";
+    > x;
+}
+
+// RESULTS
+// Howdy World!
