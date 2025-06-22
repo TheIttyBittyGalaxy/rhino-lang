@@ -91,9 +91,8 @@ void PRINT_VARIABLE(Program *apm, size_t var_index, const char *source_text)
 {
     Variable *var = get_variable(apm->variable, var_index);
 
-    // PRINT("VARIABLE ");
     PRINT_SUBSTR(var->identity);
-    NEWLINE();
+    PRINT(" v%02d (%s)", var_index, rhino_type_string(var->type));
 }
 
 // PRINT EXPRESSION //
@@ -211,19 +210,20 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         break;
 
     case VARIABLE_DECLARATION:
-        if (!stmt->has_type_name && !stmt->has_initial_value)
+        if (!stmt->has_type_expression && !stmt->has_initial_value)
             LAST_ON_LINE();
 
-        PRINT("variable: %02d", stmt->variable);
+        PRINT("variable: ");
+        PRINT_VARIABLE(apm, stmt->variable, source_text);
         NEWLINE();
 
-        if (stmt->has_type_name)
+        if (stmt->has_type_expression)
         {
             if (!stmt->has_initial_value)
                 LAST_ON_LINE();
 
-            PRINT("type_name: ");
-            PRINT_EXPRESSION(apm, stmt->type_name, source_text);
+            PRINT("type_expression: ");
+            PRINT_EXPRESSION(apm, stmt->type_expression, source_text);
             NEWLINE();
         }
 

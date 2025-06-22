@@ -300,7 +300,7 @@ size_t parse_statement(Compiler *c, Program *apm)
         STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
         STATEMENT(stmt)->variable = var;
         STATEMENT(stmt)->has_initial_value = false;
-        STATEMENT(stmt)->has_type_name = false;
+        STATEMENT(stmt)->has_type_expression = false;
 
         EAT(KEYWORD_DEF);
 
@@ -357,8 +357,8 @@ size_t parse_statement(Compiler *c, Program *apm)
 
             STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
             STATEMENT(stmt)->variable = var;
-            STATEMENT(stmt)->type_name = value;
-            STATEMENT(stmt)->has_type_name = true;
+            STATEMENT(stmt)->type_expression = value;
+            STATEMENT(stmt)->has_type_expression = true;
             STATEMENT(stmt)->has_initial_value = false;
 
             substr identity = TOKEN_STRING();

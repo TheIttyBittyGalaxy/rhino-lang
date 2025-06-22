@@ -3,6 +3,7 @@
 
 // ENUMS //
 
+DEFINE_ENUM(LIST_RHINO_TYPES, RhinoType, rhino_type)
 DEFINE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 DEFINE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
 

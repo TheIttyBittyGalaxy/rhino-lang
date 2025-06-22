@@ -6,12 +6,23 @@
 #include "substr.h"
 #include <stdbool.h>
 
+// Types
+
+#define LIST_RHINO_TYPES(MACRO) \
+    MACRO(INVALID)              \
+    MACRO(INT)                  \
+    MACRO(NUM)                  \
+    MACRO(STR)
+
+DECLARE_ENUM(LIST_RHINO_TYPES, RhinoType, rhino_type)
+
 // Variable
 DECLARE_SLICE_TYPE(Variable, variable)
 
 typedef struct
 {
     substr identity;
+    RhinoType type;
 } Variable;
 
 DECLARE_LIST_TYPE(Variable, variable)
@@ -111,11 +122,11 @@ typedef struct
         };
         struct // VARIABLE_DECLARATION
         {
-            size_t variable;      // Variable
-            size_t initial_value; // Expression
-            size_t type_name;     // Expression / Type
+            size_t variable;        // Variable
+            size_t initial_value;   // Expression
+            size_t type_expression; // Expression
             bool has_initial_value;
-            bool has_type_name;
+            bool has_type_expression;
         };
         struct // OUTPUT_STATEMENT / EXPRESSION_STMT
         {

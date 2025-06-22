@@ -43,12 +43,12 @@ void resolve_types(Compiler *c, Program *apm)
         // TODO: Correctly resolve the type of each variable declaration
         if (stmt->kind == VARIABLE_DECLARATION)
         {
-            if (stmt->has_type_name)
+            if (stmt->has_type_expression)
             {
-                Expression *type_name = get_expression(apm->expression, stmt->type_name);
-                if (type_name->kind == IDENTITY_LITERAL)
+                Expression *type_expression = get_expression(apm->expression, stmt->type_expression);
+                if (type_expression->kind == IDENTITY_LITERAL)
                 {
-                    type_name->identity_resolved = true;
+                    type_expression->identity_resolved = true;
                 }
                 else
                 {
@@ -57,7 +57,7 @@ void resolve_types(Compiler *c, Program *apm)
             }
 
             // TODO: Resolve to an actual type
-            stmt->type_name = 0;
+            stmt->type_expression = 0;
         }
     }
 }
