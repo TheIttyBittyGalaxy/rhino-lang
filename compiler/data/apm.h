@@ -10,6 +10,7 @@
 
 #define LIST_RHINO_TYPES(MACRO) \
     MACRO(INVALID_RHINO_TYPE)   \
+    MACRO(RHINO_BOOL)           \
     MACRO(RHINO_INT)            \
     MACRO(RHINO_NUM)            \
     MACRO(RHINO_STR)

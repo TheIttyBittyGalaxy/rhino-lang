@@ -3,15 +3,28 @@
 
 // UTILITY METHODS //
 
-bool is_expression_boolean(Program *apm, size_t expr_index)
+RhinoType get_expression_type(Program *apm, size_t expr_index)
 {
     Expression *expr = get_expression(apm->expression, expr_index);
     if (expr->kind == BOOLEAN_LITERAL)
     {
-        return true;
+        return RHINO_BOOL;
+    }
+    else if (expr->kind == STRING_LITERAL)
+    {
+        return RHINO_STR;
+    }
+    else if (expr->kind == NUMBER_LITERAL)
+    {
+        return RHINO_INT;
     }
 
-    return false;
+    return INVALID_RHINO_TYPE;
+}
+
+bool is_expression_boolean(Program *apm, size_t expr_index)
+{
+    return get_expression_type(apm, expr_index) == RHINO_BOOL;
 }
 
 // ANALYSIS STAGES //
@@ -40,9 +53,10 @@ void resolve_types(Compiler *c, Program *apm)
     {
         Statement *stmt = get_statement(apm->statement, i);
 
-        // TODO: Correctly resolve the type of each variable declaration
         if (stmt->kind == VARIABLE_DECLARATION)
         {
+            Variable *var = get_variable(apm->variable, stmt->variable);
+
             if (stmt->has_type_expression)
             {
                 Expression *type_expression = get_expression(apm->expression, stmt->type_expression);
@@ -54,7 +68,6 @@ void resolve_types(Compiler *c, Program *apm)
 
                 type_expression->identity_resolved = true;
 
-                Variable *var = get_variable(apm->variable, stmt->variable);
                 if (substr_is(c->source_text, type_expression->identity, "int"))
                     var->type = RHINO_INT;
                 else if (substr_is(c->source_text, type_expression->identity, "num"))
@@ -66,6 +79,15 @@ void resolve_types(Compiler *c, Program *apm)
                     var->type = INVALID_RHINO_TYPE;
                     raise_compilation_error(c, VARIABLE_DECLARED_WITH_INVALID_TYPE, type_expression->span);
                 }
+            }
+            else if (stmt->has_initial_value)
+            {
+                var->type = get_expression_type(apm, stmt->initial_value);
+            }
+            else
+            {
+                // TODO: What should we do here? Presumably we can only reach this state if the parser
+                //       found an inferred variable declaration defined without an initial value?
             }
         }
     }
