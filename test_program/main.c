@@ -4,6 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+// TODO: For each test program, scrape the comments for the expectation
+//       and then compare the results with the expectation to determine
+//       if the test has passed.
+
+// TODO: Output an overview of the test results in a markdown file.
+
 char active_path[512];
 
 char cmd[512];
