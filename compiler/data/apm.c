@@ -39,7 +39,7 @@ void dump_apm(Program *apm, const char *source_text)
         Function *funct = get_function(apm->function, i);
         printf("%02d\t%03d %02d\t", i, funct->span.pos, funct->span.len);
         printf_substr(source_text, funct->identity);
-        printf("\t%02d\n", funct->body);
+        printf("\tbody %02d\n", funct->body);
     }
     printf("\n");
 
