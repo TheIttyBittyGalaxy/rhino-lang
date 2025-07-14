@@ -10,6 +10,9 @@ typedef struct
 {
     FILE *output;
     const char *source_text;
+
+    bool newline_pending;
+    size_t indent;
 } Transpiler;
 
 // FORWARD DECLARATIONS //
@@ -25,6 +28,14 @@ void transpile_program(Transpiler *t, Program *apm);
 
 void emit(Transpiler *t, const char *str, ...)
 {
+    if (t->newline_pending)
+    {
+        fprintf(t->output, "\n");
+        for (size_t i = 0; i < t->indent; i++)
+            fprintf(t->output, "\t");
+        t->newline_pending = false;
+    }
+
     va_list args;
     va_start(args, str);
     vfprintf(t->output, str, args);
@@ -34,7 +45,9 @@ void emit(Transpiler *t, const char *str, ...)
 // NOTE: Will escape any "%" with "%%" - allows us to emit printf format strings
 void emit_escaped(Transpiler *t, const char *str)
 {
-    // TODO: Improve this implementation
+    // TODO: Check if C already implements this?
+    // TODO: Check that this is escaping all the characters that it should
+    // TODO: Avoid buffer overflow
 
     char buffer[1024];
     size_t i = 0; // buffer index
@@ -62,27 +75,37 @@ void emit_substr(Transpiler *t, substr sub)
     emit(t, "%.*s", sub.len, t->source_text + sub.pos);
 }
 
+void emit_line(Transpiler *t, const char *str, ...)
+{
+    va_list args;
+    va_start(args, str);
+    emit(t, str, args);
+    va_end(args);
+
+    t->newline_pending = true;
+}
+
 void emit_open_brace(Transpiler *t)
 {
-    emit(t, "{\n");
+    t->newline_pending = true;
+    emit_line(t, "{");
+    t->indent++;
 }
 
 void emit_close_brace(Transpiler *t)
 {
-    emit(t, "}");
-}
-
-void emit_newline(Transpiler *t)
-{
-    emit(t, "\n");
+    t->newline_pending = true;
+    t->indent--;
+    emit_line(t, "}");
 }
 
 #define EMIT(...) emit(t, __VA_ARGS__)
 #define EMIT_ESCAPED(str) emit_escaped(t, str)
 #define EMIT_SUBSTR(sub) emit_substr(t, sub)
+#define EMIT_LINE(...) emit_line(t, __VA_ARGS__)
+#define EMIT_NEWLINE(str) emit_line(t, "")
 #define EMIT_OPEN_BRACE() emit_open_brace(t)
 #define EMIT_CLOSE_BRACE() emit_close_brace(t)
-#define EMIT_NEWLINE() emit_newline(t)
 
 // TRANSPILE //
 
@@ -175,8 +198,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         EMIT(" = ");
         transpile_expression(t, apm, stmt->assignment_rhs);
 
-        EMIT(";");
-        EMIT_NEWLINE();
+        EMIT_LINE(";");
         break;
     }
 
@@ -206,8 +228,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         else if (var->type == RHINO_INT)
             EMIT("0");
 
-        EMIT(";");
-        EMIT_NEWLINE();
+        EMIT_LINE(";");
         break;
     }
 
@@ -243,8 +264,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
             fatal_error("Unable to generate output statement for expression with type %s.", rhino_type_string(expr_type));
         }
 
-        EMIT(");");
-        EMIT_NEWLINE();
+        EMIT_LINE(");");
         break;
     }
 
@@ -273,8 +293,7 @@ void transpile_function(Transpiler *t, Program *apm, size_t funct_index)
 
 void transpile_program(Transpiler *t, Program *apm)
 {
-    EMIT("#include <stdbool.h>");
-    EMIT_NEWLINE();
+    EMIT_LINE("#include <stdbool.h>");
     EMIT_NEWLINE();
 
     transpile_function(t, apm, apm->main);
@@ -292,6 +311,9 @@ void transpile(Compiler *compiler, Program *apm)
     Transpiler transpiler;
     transpiler.output = handle;
     transpiler.source_text = compiler->source_text;
+
+    transpiler.newline_pending = false;
+    transpiler.indent = 0;
 
     transpile_program(&transpiler, apm);
 
