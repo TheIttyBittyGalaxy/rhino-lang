@@ -105,12 +105,12 @@ int main(int argc, char *argv[])
         init_program(&apm);
         parse(&compiler, &apm);
         analyse(&compiler, &apm);
-        transpile(&compiler, &apm);
-
-        // TODO: Compile and run the C output
 
         if (compiler.error_count > 0)
             return EXIT_FAILURE;
+
+        transpile(&compiler, &apm);
+        // TODO: Compile and run the C output
 
         return EXIT_SUCCESS;
     }
@@ -161,10 +161,6 @@ int main(int argc, char *argv[])
             dump_apm(&apm, compiler.source_text);
     }
 
-    // Transpile
-    HEADING("Transpile");
-    transpile(&compiler, &apm);
-
     // Report errors
     if (compiler.error_count > 0)
     {
@@ -174,6 +170,10 @@ int main(int argc, char *argv[])
             printf_compilation_error(&compiler, i);
         return EXIT_FAILURE;
     }
+
+    // Transpile
+    HEADING("Transpile");
+    transpile(&compiler, &apm);
 
     HEADING("Complete");
     return EXIT_SUCCESS;
