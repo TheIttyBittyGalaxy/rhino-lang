@@ -168,9 +168,13 @@ void dump_apm(Program *apm, const char *source_text);
 void print_parsed_apm(Program *apm, const char *source_text);
 void print_analysed_apm(Program *apm, const char *source_text);
 
-// APM utility methods
+// Access methods
 size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, size_t n);
 size_t get_first_statement_in_code_block(Program *apm, Statement *code_block);
 size_t get_last_statement_in_code_block(Program *apm, Statement *code_block);
+
+// Type analysis methods
+RhinoType get_expression_type(Program *apm, size_t expr_index);
+bool is_expression_boolean(Program *apm, size_t expr_index);
 
 #endif

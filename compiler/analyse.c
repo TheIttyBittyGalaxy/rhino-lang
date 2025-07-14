@@ -1,32 +1,6 @@
 #include "analyse.h"
 #include <string.h>
 
-// UTILITY METHODS //
-
-RhinoType get_expression_type(Program *apm, size_t expr_index)
-{
-    Expression *expr = get_expression(apm->expression, expr_index);
-    if (expr->kind == BOOLEAN_LITERAL)
-    {
-        return RHINO_BOOL;
-    }
-    else if (expr->kind == STRING_LITERAL)
-    {
-        return RHINO_STR;
-    }
-    else if (expr->kind == NUMBER_LITERAL)
-    {
-        return RHINO_INT;
-    }
-
-    return INVALID_RHINO_TYPE;
-}
-
-bool is_expression_boolean(Program *apm, size_t expr_index)
-{
-    return get_expression_type(apm, expr_index) == RHINO_BOOL;
-}
-
 // ANALYSIS STAGES //
 
 void determine_main_function(Compiler *c, Program *apm)

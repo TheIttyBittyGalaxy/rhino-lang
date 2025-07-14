@@ -122,7 +122,7 @@ void dump_apm(Program *apm, const char *source_text)
 #define PRINT_ANALYSED
 #include "include/print-apm.c"
 
-// APM UTILITY METHODS //
+// ACCESS METHODS //
 
 size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, size_t n)
 {
@@ -158,4 +158,32 @@ size_t get_last_statement_in_code_block(Program *apm, Statement *code_block)
             return n;
         n = next;
     }
+}
+
+// TYPE ANALYSIS METHODS //
+
+// UTILITY METHODS //
+
+RhinoType get_expression_type(Program *apm, size_t expr_index)
+{
+    Expression *expr = get_expression(apm->expression, expr_index);
+
+    // Literals
+    if (expr->kind == BOOLEAN_LITERAL)
+        return RHINO_BOOL;
+    if (expr->kind == STRING_LITERAL)
+        return RHINO_STR;
+    if (expr->kind == NUMBER_LITERAL)
+        return RHINO_INT;
+
+    // Variables
+    if (expr->kind == VARIABLE_REFERENCE)
+        return get_variable(apm->variable, expr->variable)->type;
+
+    return INVALID_RHINO_TYPE;
+}
+
+bool is_expression_boolean(Program *apm, size_t expr_index)
+{
+    return get_expression_type(apm, expr_index) == RHINO_BOOL;
 }
