@@ -1,1 +1,1 @@
-g++ -o main compiler/*.c compiler/data/*.c -g
+g++ -o rhino compiler/*.c compiler/data/*.c -g

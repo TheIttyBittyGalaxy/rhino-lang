@@ -1,0 +1,1 @@
+chcp 65001 && rhino local.rhi -p -a %* && g++ -o _out.exe _out.c

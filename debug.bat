@@ -1,1 +1,1 @@
-gdb --args main local.rhi %*
+gdb --args rhino local.rhi %*

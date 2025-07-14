@@ -1,1 +1,1 @@
-chcp 65001 && main local.rhi -p -a %*
+_out
