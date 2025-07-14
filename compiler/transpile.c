@@ -241,7 +241,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
         if (expr_type == RHINO_BOOL)
         {
-            EMIT_ESCAPED("\"%s\", (");
+            EMIT_ESCAPED("\"%s\\n\", (");
             transpile_expression(t, apm, expr_index);
             EMIT(") ? \"true\" : \"false\"");
         }
@@ -249,14 +249,21 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         {
             Expression *expr = get_expression(apm->expression, expr_index);
 
-            if (expr->kind != STRING_LITERAL)
-                EMIT_ESCAPED("\"%s\", ");
-
-            transpile_expression(t, apm, expr_index);
+            if (expr->kind == STRING_LITERAL)
+            {
+                EMIT("\"");
+                EMIT_SUBSTR(expr->string_value);
+                EMIT("\\n\"");
+            }
+            else
+            {
+                EMIT_ESCAPED("\"%s\\n\", ");
+                transpile_expression(t, apm, expr_index);
+            }
         }
         else if (expr_type == RHINO_INT)
         {
-            EMIT_ESCAPED("\"%d\", ");
+            EMIT_ESCAPED("\"%d\\n\", ");
             transpile_expression(t, apm, expr_index);
         }
         else
@@ -271,6 +278,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
     case EXPRESSION_STMT:
     {
         transpile_expression(t, apm, stmt->expression);
+        EMIT_LINE(";");
         break;
     }
 
@@ -280,23 +288,56 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
     }
 }
 
-void transpile_function(Transpiler *t, Program *apm, size_t funct_index)
+void transpile_function_signature(Transpiler *t, Program *apm, size_t funct_index)
 {
     Function *funct = get_function(apm->function, funct_index);
 
     EMIT("void ");
     EMIT_SUBSTR(funct->identity);
     EMIT("()");
-    EMIT_NEWLINE();
+}
+
+void transpile_function(Transpiler *t, Program *apm, size_t funct_index)
+{
+    Function *funct = get_function(apm->function, funct_index);
+
+    transpile_function_signature(t, apm, funct_index);
     transpile_statement(t, apm, funct->body);
 }
 
 void transpile_program(Transpiler *t, Program *apm)
 {
+    // Includes
     EMIT_LINE("#include <stdbool.h>");
+    EMIT_LINE("#include <stdio.h>");
     EMIT_NEWLINE();
 
-    transpile_function(t, apm, apm->main);
+    // Function declarations
+    for (size_t i = 0; i < apm->function.count; i++)
+    {
+        if (i == apm->main)
+            continue;
+        transpile_function_signature(t, apm, i);
+        EMIT_LINE(";");
+    }
+    EMIT_NEWLINE();
+
+    // Function definitions
+    for (size_t i = 0; i < apm->function.count; i++)
+    {
+        if (i == apm->main)
+            continue;
+        transpile_function(t, apm, i);
+        EMIT_NEWLINE();
+    }
+
+    // Main
+    Function *main_funct = get_function(apm->function, apm->main);
+
+    EMIT_LINE("int main(int argc, char *argv[])");
+    EMIT_OPEN_BRACE();
+    transpile_statement(t, apm, main_funct->body);
+    EMIT_CLOSE_BRACE();
 }
 
 void transpile(Compiler *compiler, Program *apm)
