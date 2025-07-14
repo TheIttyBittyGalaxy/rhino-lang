@@ -1,0 +1,299 @@
+#include "fatal_error.h"
+#include "transpile.h"
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdio.h>
+
+// TRANSPILER //
+
+typedef struct
+{
+    FILE *output;
+    const char *source_text;
+} Transpiler;
+
+// FORWARD DECLARATIONS //
+
+void transpile_expression(Transpiler *t, Program *apm, size_t expr_index);
+void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index);
+void transpile_function(Transpiler *t, Program *apm, size_t funct_index);
+void transpile_program(Transpiler *t, Program *apm);
+
+// EMIT //
+
+// TODO: Improve these implementations so that the output is formatted nicely
+
+void emit(Transpiler *t, const char *str, ...)
+{
+    va_list args;
+    va_start(args, str);
+    vfprintf(t->output, str, args);
+    va_end(args);
+}
+
+// NOTE: Will escape any "%" with "%%" - allows us to emit printf format strings
+void emit_escaped(Transpiler *t, const char *str)
+{
+    // TODO: Improve this implementation
+
+    char buffer[1024];
+    size_t i = 0; // buffer index
+    size_t j = 0; // str index
+    while (str[j] != '\0')
+    {
+        if (str[j] == '%')
+        {
+            buffer[i++] = '%';
+            buffer[i++] = '%';
+            j++;
+        }
+        else
+        {
+            buffer[i++] = str[j++];
+        }
+    }
+    buffer[i] = '\0';
+
+    emit(t, buffer);
+}
+
+void emit_substr(Transpiler *t, substr sub)
+{
+    emit(t, "%.*s", sub.len, t->source_text + sub.pos);
+}
+
+void emit_open_brace(Transpiler *t)
+{
+    emit(t, "{\n");
+}
+
+void emit_close_brace(Transpiler *t)
+{
+    emit(t, "}");
+}
+
+void emit_newline(Transpiler *t)
+{
+    emit(t, "\n");
+}
+
+#define EMIT(...) emit(t, __VA_ARGS__)
+#define EMIT_ESCAPED(str) emit_escaped(t, str)
+#define EMIT_SUBSTR(sub) emit_substr(t, sub)
+#define EMIT_OPEN_BRACE() emit_open_brace(t)
+#define EMIT_CLOSE_BRACE() emit_close_brace(t)
+#define EMIT_NEWLINE() emit_newline(t)
+
+// TRANSPILE //
+
+void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
+{
+    Expression *expr = get_expression(apm->expression, expr_index);
+
+    switch (expr->kind)
+    {
+    case IDENTITY_LITERAL:
+        fatal_error("Attempt to transpile an IDENTITY_LITERAL expression. By this pass we would have expected this to become a VARIABLE_REFERENCE.");
+        break;
+
+    case BOOLEAN_LITERAL:
+        EMIT(expr->bool_value ? "true" : "false");
+        break;
+
+    case NUMBER_LITERAL:
+        EMIT("%d", expr->number_value);
+        break;
+
+    case STRING_LITERAL:
+        EMIT("\"");
+        EMIT_SUBSTR(expr->string_value);
+        EMIT("\"");
+        break;
+
+    case VARIABLE_REFERENCE:
+    {
+        Variable *var = get_variable(apm->variable, expr->variable);
+        EMIT_SUBSTR(var->identity);
+        break;
+    }
+
+    case FUNCTION_CALL:
+    {
+        Function *callee = get_function(apm->function, expr->callee);
+        EMIT_SUBSTR(callee->identity);
+        EMIT("()");
+        break;
+    }
+
+    default:
+        fatal_error("Could not transpile %s expression.", expression_kind_string(expr->kind));
+        break;
+    }
+}
+
+void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
+{
+    Statement *stmt = get_statement(apm->statement, stmt_index);
+
+    switch (stmt->kind)
+    {
+    case CODE_BLOCK:
+    case SINGLE_BLOCK:
+    {
+        EMIT_OPEN_BRACE();
+
+        size_t n = get_first_statement_in_code_block(apm, stmt);
+        while (n < stmt->statements.count)
+        {
+            transpile_statement(t, apm, stmt->statements.first + n);
+            n = get_next_statement_in_code_block(apm, stmt, n);
+        }
+
+        EMIT_CLOSE_BRACE();
+        break;
+    }
+
+    case ELSE_IF_SEGMENT:
+        EMIT("else ");
+    case IF_SEGMENT:
+        EMIT("if (");
+        transpile_expression(t, apm, stmt->condition);
+        EMIT(")");
+        transpile_statement(t, apm, stmt->body);
+        break;
+
+    case ELSE_SEGMENT:
+    {
+        EMIT("else ");
+        transpile_statement(t, apm, stmt->body);
+        break;
+    }
+
+    case ASSIGNMENT_STATEMENT:
+    {
+        transpile_expression(t, apm, stmt->assignment_lhs);
+        EMIT(" = ");
+        transpile_expression(t, apm, stmt->assignment_rhs);
+
+        EMIT(";");
+        EMIT_NEWLINE();
+        break;
+    }
+
+    case VARIABLE_DECLARATION:
+    {
+        Variable *var = get_variable(apm->variable, stmt->variable);
+
+        // TODO: Factor out into "transpile type"
+        if (var->type == RHINO_BOOL)
+            EMIT("bool ");
+        else if (var->type == RHINO_STR)
+            EMIT("char* ");
+        else if (var->type == RHINO_INT)
+            EMIT("int ");
+        else
+            fatal_error("Unable to generate variable declaration for variable with type %s.", rhino_type_string(var->type));
+
+        EMIT_SUBSTR(var->identity);
+        EMIT(" = ");
+
+        if (stmt->has_initial_value)
+            transpile_expression(t, apm, stmt->initial_value);
+        else if (var->type == RHINO_BOOL)
+            EMIT("false");
+        else if (var->type == RHINO_STR)
+            EMIT("\"\"");
+        else if (var->type == RHINO_INT)
+            EMIT("0");
+
+        EMIT(";");
+        EMIT_NEWLINE();
+        break;
+    }
+
+    case OUTPUT_STATEMENT:
+    {
+        size_t expr_index = stmt->expression;
+        RhinoType expr_type = get_expression_type(apm, expr_index);
+
+        EMIT("printf(");
+
+        if (expr_type == RHINO_BOOL)
+        {
+            EMIT_ESCAPED("\"%s\", (");
+            transpile_expression(t, apm, expr_index);
+            EMIT(") ? \"true\" : \"false\"");
+        }
+        else if (expr_type == RHINO_STR)
+        {
+            Expression *expr = get_expression(apm->expression, expr_index);
+
+            if (expr->kind != STRING_LITERAL)
+                EMIT_ESCAPED("\"%s\", ");
+
+            transpile_expression(t, apm, expr_index);
+        }
+        else if (expr_type == RHINO_INT)
+        {
+            EMIT_ESCAPED("\"%d\", ");
+            transpile_expression(t, apm, expr_index);
+        }
+        else
+        {
+            fatal_error("Unable to generate output statement for expression with type %s.", rhino_type_string(expr_type));
+        }
+
+        EMIT(");");
+        EMIT_NEWLINE();
+        break;
+    }
+
+    case EXPRESSION_STMT:
+    {
+        transpile_expression(t, apm, stmt->expression);
+        break;
+    }
+
+    default:
+        fatal_error("Could not interpret %s statement.", statement_kind_string(stmt->kind));
+        break;
+    }
+}
+
+void transpile_function(Transpiler *t, Program *apm, size_t funct_index)
+{
+    Function *funct = get_function(apm->function, funct_index);
+
+    EMIT("void ");
+    EMIT_SUBSTR(funct->identity);
+    EMIT("()");
+    EMIT_NEWLINE();
+    transpile_statement(t, apm, funct->body);
+}
+
+void transpile_program(Transpiler *t, Program *apm)
+{
+    EMIT("#include <stdbool.h>");
+    EMIT_NEWLINE();
+    EMIT_NEWLINE();
+
+    transpile_function(t, apm, apm->main);
+}
+
+void transpile(Compiler *compiler, Program *apm)
+{
+    FILE *handle = fopen("_out.c", "w");
+    if (handle == NULL)
+    {
+        fatal_error("Could not open _out.c for writing");
+        return;
+    }
+
+    Transpiler transpiler;
+    transpiler.output = handle;
+    transpiler.source_text = compiler->source_text;
+
+    transpile_program(&transpiler, apm);
+
+    fclose(handle);
+}

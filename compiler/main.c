@@ -3,7 +3,7 @@
 #include "tokenise.h"
 #include "parse.h"
 #include "analyse.h"
-#include "interpret.h"
+#include "transpile.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -105,13 +105,13 @@ int main(int argc, char *argv[])
         init_program(&apm);
         parse(&compiler, &apm);
         analyse(&compiler, &apm);
+        transpile(&compiler, &apm);
+
+        // TODO: Compile and run the C output
 
         if (compiler.error_count > 0)
-        {
             return EXIT_FAILURE;
-        }
 
-        interpret(&apm, compiler.source_text);
         return EXIT_SUCCESS;
     }
 
@@ -161,6 +161,10 @@ int main(int argc, char *argv[])
             dump_apm(&apm, compiler.source_text);
     }
 
+    // Transpile
+    HEADING("Transpile");
+    transpile(&compiler, &apm);
+
     // Report errors
     if (compiler.error_count > 0)
     {
@@ -170,10 +174,6 @@ int main(int argc, char *argv[])
             printf_compilation_error(&compiler, i);
         return EXIT_FAILURE;
     }
-
-    // Interpret
-    HEADING("Running program");
-    interpret(&apm, compiler.source_text);
 
     HEADING("Complete");
     return EXIT_SUCCESS;
