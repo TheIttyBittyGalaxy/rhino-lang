@@ -61,7 +61,7 @@ bool process_arguments(int argc, char *argv[])
 
     for (int i = 2; i < argc; i++)
     {
-        if ((strcmp(argv[i], "-T") == 0) || strcmp(argv[i], "-TEST") == 0)
+        if (strcmp(argv[i], "-test") == 0)
             flag_test_mode = true;
         else if ((strcmp(argv[i], "-t") == 0) || strcmp(argv[i], "-token") == 0)
             flag_token_dump = true;
@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
     bool valid_arguments = process_arguments(argc, argv);
     if (!valid_arguments)
     {
-        fprintf(stderr, "Usage: %s <file_path> [-TEST] [-token] [-parse] [-analyse] [-nice]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <file_path> [-test] [-token] [-parse] [-analyse] [-nice]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
