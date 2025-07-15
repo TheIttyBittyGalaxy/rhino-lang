@@ -199,6 +199,26 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
 
         break;
 
+    case FOR_LOOP:
+        PRINT("iterator: ");
+        PRINT_VARIABLE(apm, stmt->iterator, source_text);
+        NEWLINE();
+
+        PRINT("first: ");
+        PRINT_EXPRESSION(apm, stmt->first, source_text);
+        NEWLINE();
+
+        PRINT("last: ");
+        PRINT_EXPRESSION(apm, stmt->last, source_text);
+        NEWLINE();
+
+        LAST_ON_LINE();
+        PRINT("body: ");
+        PRINT_STATEMENT(apm, stmt->body, source_text);
+        NEWLINE();
+
+        break;
+
     case ASSIGNMENT_STATEMENT:
         PRINT("lhs: ");
         PRINT_EXPRESSION(apm, stmt->assignment_lhs, source_text);
