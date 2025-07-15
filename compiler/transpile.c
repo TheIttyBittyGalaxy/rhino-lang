@@ -75,6 +75,7 @@ void emit_substr(Transpiler *t, substr sub)
     emit(t, "%.*s", sub.len, t->source_text + sub.pos);
 }
 
+// TODO: Prevent multiple consecutive blank lines
 void emit_line(Transpiler *t, const char *str, ...)
 {
     va_list args;
@@ -165,6 +166,9 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
     {
         EMIT_OPEN_BRACE();
 
+        // TODO: At the moment we are walking the APM as a tree. However, it is probably possible
+        //       and also faster to just walk it as a list, where we create a "{" whenever we
+        //       encounter a code block, and use a stack to track where we should insert the "}".
         size_t n = get_first_statement_in_code_block(apm, stmt);
         while (n < stmt->statements.count)
         {
@@ -188,6 +192,28 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
     case ELSE_SEGMENT:
     {
         EMIT("else ");
+        transpile_statement(t, apm, stmt->body);
+        break;
+    }
+
+    case FOR_LOOP:
+    {
+        Variable *iterator = get_variable(apm->variable, stmt->iterator);
+
+        EMIT("for (int ");
+        EMIT_SUBSTR(iterator->identity);
+        EMIT(" = ");
+        transpile_expression(t, apm, stmt->first);
+        EMIT("; ");
+
+        EMIT_SUBSTR(iterator->identity);
+        EMIT(" <= ");
+        transpile_expression(t, apm, stmt->last);
+        EMIT("; ++", stmt->last);
+
+        EMIT_SUBSTR(iterator->identity);
+        EMIT(")");
+
         transpile_statement(t, apm, stmt->body);
         break;
     }
@@ -283,7 +309,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
     }
 
     default:
-        fatal_error("Could not interpret %s statement.", statement_kind_string(stmt->kind));
+        fatal_error("Could not transpile %s statement.", statement_kind_string(stmt->kind));
         break;
     }
 }
@@ -312,7 +338,7 @@ void transpile_program(Transpiler *t, Program *apm)
     EMIT_LINE("#include <stdio.h>");
     EMIT_NEWLINE();
 
-    // Function declarations
+    // Forward function declarations
     for (size_t i = 0; i < apm->function.count; i++)
     {
         if (i == apm->main)

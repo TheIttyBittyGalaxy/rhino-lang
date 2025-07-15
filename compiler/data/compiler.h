@@ -19,21 +19,26 @@
     MACRO(EXPECTED_INVALID_TOKEN)                                   \
     MACRO(EXPECTED_SEMI_COLON)                                      \
     MACRO(EXPECTED_COLON)                                           \
+    MACRO(EXPECTED_DOT)                                             \
+    MACRO(EXPECTED_TWO_DOT)                                         \
     MACRO(EXPECTED_PAREN_L)                                         \
     MACRO(EXPECTED_PAREN_R)                                         \
     MACRO(EXPECTED_CURLY_L)                                         \
     MACRO(EXPECTED_CURLY_R)                                         \
+    MACRO(EXPECTED_EQUAL)                                           \
     MACRO(EXPECTED_ARROW_L)                                         \
     MACRO(EXPECTED_ARROW_R)                                         \
     MACRO(EXPECTED_ARROW_L_EQUAL)                                   \
     MACRO(EXPECTED_ARROW_R_EQUAL)                                   \
-    MACRO(EXPECTED_KEYWORD_TRUE)                                    \
-    MACRO(EXPECTED_KEYWORD_FALSE)                                   \
+    MACRO(EXPECTED_KEYWORD_DEF)                                     \
     MACRO(EXPECTED_KEYWORD_ELSE)                                    \
+    MACRO(EXPECTED_KEYWORD_FALSE)                                   \
     MACRO(EXPECTED_KEYWORD_FN)                                      \
     MACRO(EXPECTED_KEYWORD_FOR)                                     \
     MACRO(EXPECTED_KEYWORD_IF)                                      \
+    MACRO(EXPECTED_KEYWORD_IN)                                      \
     MACRO(EXPECTED_KEYWORD_LOOP)                                    \
+    MACRO(EXPECTED_KEYWORD_TRUE)                                    \
     MACRO(EXPECTED_KEYWORD_WHILE)                                   \
     MACRO(EXPECTED_IDENTITY)                                        \
     MACRO(EXPECTED_NUMBER)                                          \

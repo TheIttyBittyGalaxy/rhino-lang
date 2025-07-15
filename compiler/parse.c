@@ -150,6 +150,7 @@ bool peek_statement(Compiler *c)
     return PEEK(CURLY_L) ||
            PEEK(COLON) ||
            PEEK(KEYWORD_IF) ||
+           PEEK(KEYWORD_FOR) ||
            PEEK(KEYWORD_DEF) ||
            PEEK(ARROW_R) ||
            peek_expression(c);
@@ -288,6 +289,52 @@ size_t parse_statement(Compiler *c, Program *apm)
                 break;
             }
         }
+
+        goto finish;
+    }
+
+    // FOR_STATEMENT
+    if (PEEK(KEYWORD_FOR))
+    {
+        STATEMENT(stmt)->kind = FOR_LOOP;
+
+        // For variable
+        EAT(KEYWORD_FOR);
+
+        size_t iterator = add_variable(&apm->variable);
+        VARIABLE(iterator)->type = RHINO_INT;
+        STATEMENT(stmt)->iterator = iterator;
+
+        substr identity = TOKEN_STRING();
+        VARIABLE(iterator)->identity = identity;
+        EAT(IDENTITY);
+
+        if (c->in_scope_var_count == c->in_scope_var_capacity)
+        {
+            c->in_scope_var_capacity = c->in_scope_var_capacity * 2;
+            c->in_scope_vars = (VariableData *)realloc(c->in_scope_vars, sizeof(VariableData) * c->in_scope_var_capacity);
+        }
+
+        c->in_scope_vars[c->in_scope_var_count].identity = identity;
+        c->in_scope_vars[c->in_scope_var_count].index = iterator;
+        c->in_scope_var_count++;
+
+        // In range
+        EAT(KEYWORD_IN);
+
+        size_t first = parse_expression(c, apm);
+        STATEMENT(stmt)->first = first;
+        EAT(TWO_DOT);
+        size_t last = parse_expression(c, apm);
+        STATEMENT(stmt)->last = last;
+
+        // Body
+        attempt_to_recover_at_next_code_block(c);
+        if (c->parse_status == PANIC)
+            goto recover;
+
+        size_t body = parse_code_block(c, apm);
+        STATEMENT(stmt)->body = body;
 
         goto finish;
     }

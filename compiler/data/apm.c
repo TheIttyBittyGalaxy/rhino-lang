@@ -57,7 +57,11 @@ void dump_apm(Program *apm, const char *source_text)
 
         case IF_SEGMENT:
         case ELSE_IF_SEGMENT:
-            printf("condition %02d\tbody %02d", stmt->condition, stmt->body);
+            printf("body %02d\tcondition %02d", stmt->body, stmt->condition);
+            break;
+
+        case FOR_LOOP:
+            printf("body %02d\titerator %02d\tfirst %02d\tlast %02d", stmt->body, stmt->iterator, stmt->first, stmt->last);
             break;
 
         case ELSE_SEGMENT:
@@ -134,7 +138,7 @@ size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, siz
 
     if (child->kind == CODE_BLOCK || child->kind == SINGLE_BLOCK)
         return n + child->statements.count;
-    else if (child->kind == IF_SEGMENT || child->kind == ELSE_IF_SEGMENT || child->kind == ELSE_SEGMENT)
+    else if (child->kind == IF_SEGMENT || child->kind == ELSE_IF_SEGMENT || child->kind == ELSE_SEGMENT || child->kind == FOR_LOOP)
         return n + get_statement(apm->statement, child->body)->statements.count + 1;
 
     return n;

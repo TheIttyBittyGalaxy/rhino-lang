@@ -78,6 +78,7 @@ void tokenise(Compiler *const c)
             ONE_CHAR('=', EQUAL)
             ONE_OR_TWO_CHAR('<', ARROW_L, '=', ARROW_L_EQUAL)
             ONE_OR_TWO_CHAR('>', ARROW_R, '=', ARROW_R_EQUAL)
+            ONE_OR_TWO_CHAR('.', DOT, '.', TWO_DOT)
 
         case '\0':
             kind = END_OF_FILE;
@@ -105,14 +106,15 @@ void tokenise(Compiler *const c)
                     character++;
 
                 size_t len = character - start;
-                IF_KEYWORD_ELSE("true", KEYWORD_TRUE)
-                IF_KEYWORD_ELSE("false", KEYWORD_FALSE)
-                IF_KEYWORD_ELSE("else", KEYWORD_ELSE)
                 IF_KEYWORD_ELSE("def", KEYWORD_DEF)
+                IF_KEYWORD_ELSE("else", KEYWORD_ELSE)
+                IF_KEYWORD_ELSE("false", KEYWORD_FALSE)
                 IF_KEYWORD_ELSE("fn", KEYWORD_FN)
                 IF_KEYWORD_ELSE("for", KEYWORD_FOR)
                 IF_KEYWORD_ELSE("if", KEYWORD_IF)
+                IF_KEYWORD_ELSE("in", KEYWORD_IN)
                 IF_KEYWORD_ELSE("loop", KEYWORD_LOOP)
+                IF_KEYWORD_ELSE("true", KEYWORD_TRUE)
                 IF_KEYWORD_ELSE("while", KEYWORD_WHILE)
                 kind = IDENTITY; // This is under the "else" of the above macro
             }

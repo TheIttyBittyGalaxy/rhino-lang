@@ -91,6 +91,8 @@ DECLARE_LIST_TYPE(Expression, expression)
     MACRO(ELSE_IF_SEGMENT)      \
     MACRO(ELSE_SEGMENT)         \
                                 \
+    MACRO(FOR_LOOP)             \
+                                \
     MACRO(ASSIGNMENT_STATEMENT) \
     MACRO(VARIABLE_DECLARATION) \
                                 \
@@ -113,8 +115,17 @@ typedef struct
         };
         struct // IF_SEGMENT / ELSE_IF_SEGMENT / ELSE_SEGMENT
         {
-            size_t condition; // Expression
             size_t body;      // Statement
+            size_t condition; // Expression
+        };
+        struct // FOR_LOOP
+        {
+            size_t __for_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
+            size_t iterator;   // Variable
+
+            // TODO: Rather than storing a first and last point, we should store the thing being iterated on as an expression
+            size_t first; // Expression
+            size_t last;  // Expression
         };
         struct // ASSIGNMENT_STATEMENT
         {
