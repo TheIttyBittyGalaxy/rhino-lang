@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.drop": "plaintext",
+        "stdio.h": "c"
+    }
+}
