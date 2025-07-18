@@ -149,6 +149,8 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
         break;
     }
 
+    // FIXME: Rhino and C may treat precedence differently. Ensure we insert extra ()s where required
+    //        so that the C code produces the correct Rhino semantics.
 #define CASE_BINARY(expr_kind, symbol)           \
     case expr_kind:                              \
     {                                            \
@@ -170,6 +172,8 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
         CASE_BINARY(BINARY_NOT_EQUAL, "!=")
         CASE_BINARY(BINARY_LOGICAL_AND, "&&")
         CASE_BINARY(BINARY_LOGICAL_OR, "||")
+
+#undef CASE_BINARY
 
     default:
         fatal_error("Could not transpile %s expression.", expression_kind_string(expr->kind));
