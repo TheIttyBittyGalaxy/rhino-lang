@@ -20,12 +20,26 @@ void raise_compilation_error(Compiler *c, CompilationErrorCode code, substr str)
 
 void determine_error_positions(Compiler *c)
 {
+    // Sort errors by position
+    // This is done both for usability and so that the loop below will work correctly
+    for (size_t i = 0; i < c->error_count; i++)
+    {
+        for (size_t j = i + 1; j < c->error_count; j++)
+        {
+            CompilationError a = c->errors[i];
+            CompilationError b = c->errors[j];
+            if (b.str.pos < a.str.pos)
+            {
+                c->errors[i] = b;
+                c->errors[j] = a;
+            }
+        }
+    }
+
+    // Determine positions
     size_t line = 1;
     size_t column = 1;
     size_t pos = 0;
-
-    // TODO: Sort errors by position, both for usability, and so that
-    //       the loop below will work correctly!
 
     CompilationError *error = c->errors;
     for (size_t i = 0; i < c->error_count; pos++)
