@@ -33,6 +33,7 @@
     MACRO(EXPECTED_ARROW_L)                                         \
     MACRO(EXPECTED_ARROW_R)                                         \
     MACRO(EXPECTED_EXCLAIM)                                         \
+    MACRO(EXPECTED_PERCENTAGE)                                      \
     MACRO(EXPECTED_TWO_EQUAL)                                       \
     MACRO(EXPECTED_ARROW_L_EQUAL)                                   \
     MACRO(EXPECTED_ARROW_R_EQUAL)                                   \

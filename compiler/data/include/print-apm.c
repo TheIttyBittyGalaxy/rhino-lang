@@ -152,6 +152,7 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
 
     case BINARY_MULTIPLY:
     case BINARY_DIVIDE:
+    case BINARY_REMAINDER:
     case BINARY_ADD:
     case BINARY_SUBTRACT:
     case BINARY_LESS_THAN:

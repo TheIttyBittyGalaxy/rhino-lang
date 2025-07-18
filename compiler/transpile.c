@@ -162,6 +162,7 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
 
         CASE_BINARY(BINARY_MULTIPLY, "*")
         CASE_BINARY(BINARY_DIVIDE, "/")
+        CASE_BINARY(BINARY_REMAINDER, "%%")
         CASE_BINARY(BINARY_ADD, "+")
         CASE_BINARY(BINARY_SUBTRACT, "-")
         CASE_BINARY(BINARY_LESS_THAN, "<")

@@ -28,6 +28,7 @@
     MACRO(ARROW_L)         \
     MACRO(ARROW_R)         \
     MACRO(EXCLAIM)         \
+    MACRO(PERCENTAGE)      \
                            \
     MACRO(TWO_EQUAL)       \
     MACRO(ARROW_L_EQUAL)   \

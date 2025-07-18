@@ -56,6 +56,7 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
                                      \
     MACRO(BINARY_MULTIPLY)           \
     MACRO(BINARY_DIVIDE)             \
+    MACRO(BINARY_REMAINDER)          \
     MACRO(BINARY_ADD)                \
     MACRO(BINARY_SUBTRACT)           \
     MACRO(BINARY_LESS_THAN)          \

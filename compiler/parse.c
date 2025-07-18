@@ -661,9 +661,10 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
             EAT(PAREN_R);
         }
 
-        // Factor (multiplication and division)
+        // Factor (multiplication, division, remainder)
         PARSE_BINARY_OPERATION(STAR, BINARY_MULTIPLY)
         PARSE_BINARY_OPERATION(SLASH, BINARY_DIVIDE)
+        PARSE_BINARY_OPERATION(PERCENTAGE, BINARY_REMAINDER)
 
         // Term (addition and subtraction)
         PARSE_BINARY_OPERATION(PLUS, BINARY_ADD)

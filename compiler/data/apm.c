@@ -192,6 +192,7 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
         return RHINO_NUM;
 
     case BINARY_MULTIPLY:
+    case BINARY_REMAINDER:
     case BINARY_ADD:
     case BINARY_SUBTRACT:
     {
@@ -244,6 +245,7 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
 
     case BINARY_MULTIPLY:
     case BINARY_DIVIDE:
+    case BINARY_REMAINDER:
         return PRECEDENCE_FACTOR;
 
     case BINARY_ADD:
