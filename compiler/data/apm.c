@@ -186,6 +186,24 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
     // Variables
     case VARIABLE_REFERENCE:
         return get_variable(apm->variable, expr->variable)->type;
+
+    // Numerical operations
+    case BINARY_MULTIPLY:
+    case BINARY_DIVIDE:
+    case BINARY_ADD:
+    case BINARY_SUBTRACT:
+        return RHINO_NUM;
+
+    // Logical operations
+    case BINARY_LESS_THAN:
+    case BINARY_GREATER_THAN:
+    case BINARY_LESS_THAN_EQUAL:
+    case BINARY_GREATER_THAN_EQUAL:
+    case BINARY_EQUAL:
+    case BINARY_NOT_EQUAL:
+    case BINARY_LOGICAL_AND:
+    case BINARY_LOGICAL_OR:
+        return RHINO_BOOL;
     }
 
     return INVALID_RHINO_TYPE;
