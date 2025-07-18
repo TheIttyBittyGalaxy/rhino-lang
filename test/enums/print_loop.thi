@@ -1,0 +1,6 @@
+enum Thing { foo, bar, boo, far }
+
+fn main() {
+    for thing in Thing:
+        > thing;
+}

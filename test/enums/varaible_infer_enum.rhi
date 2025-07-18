@@ -1,0 +1,6 @@
+enum Thing { foo, bar, boo, far }
+
+fn main() {
+    Thing x = foo;
+    > x;
+}

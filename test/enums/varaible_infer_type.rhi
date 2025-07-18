@@ -1,0 +1,6 @@
+enum Thing { foo, bar, boo, far }
+
+fn main() {
+    def x = Thing.foo;
+    > x;
+}
