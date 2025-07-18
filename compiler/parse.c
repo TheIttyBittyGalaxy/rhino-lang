@@ -481,7 +481,17 @@ size_t parse_statement(Compiler *c, Program *apm)
             VARIABLE(var)->identity = identity;
             EAT(IDENTITY);
 
-            // TODO: Parse assignment
+            if (PEEK(EQUAL))
+            {
+                EAT(EQUAL);
+
+                size_t initial_value = parse_expression(c, apm);
+                STATEMENT(stmt)->initial_value = initial_value;
+                if (c->parse_status == PANIC)
+                    goto recover;
+
+                STATEMENT(stmt)->has_initial_value = true;
+            }
 
             if (c->in_scope_var_count == c->in_scope_var_capacity)
             {
