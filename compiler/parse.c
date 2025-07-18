@@ -555,16 +555,16 @@ size_t parse_expression(Compiler *c, Program *apm)
 #define LEFT_ASSOCIATIVE_OPERATOR_BINDS(operator_precedence, caller_precedence) operator_precedence > caller_precedence
 #define RIGHT_ASSOCIATIVE_OPERATOR_BINDS(operator_precedence, caller_precedence) operator_precedence >= caller_precedence
 
-#define PARSE_BINARY_OPERATION(token_kind, expr_kind, precedence)                                \
-    else if (PEEK(token_kind) && LEFT_ASSOCIATIVE_OPERATOR_BINDS(precedence, caller_precedence)) \
-    {                                                                                            \
-        EXPRESSION(expr)->kind = expr_kind;                                                      \
-                                                                                                 \
-        ADVANCE();                                                                               \
-                                                                                                 \
-        EXPRESSION(expr)->lhs = lhs;                                                             \
-        size_t rhs = parse_expression_with_precedence(c, apm, precedence);                       \
-        EXPRESSION(expr)->rhs = rhs;                                                             \
+#define PARSE_BINARY_OPERATION(token_kind, expr_kind)                                                          \
+    else if (PEEK(token_kind) && LEFT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(expr_kind), caller_precedence)) \
+    {                                                                                                          \
+        EXPRESSION(expr)->kind = expr_kind;                                                                    \
+                                                                                                               \
+        ADVANCE();                                                                                             \
+                                                                                                               \
+        EXPRESSION(expr)->lhs = lhs;                                                                           \
+        size_t rhs = parse_expression_with_precedence(c, apm, precedence_of(expr_kind));                       \
+        EXPRESSION(expr)->rhs = rhs;                                                                           \
     }
 
 size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedence caller_precedence)
@@ -650,7 +650,7 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
         EXPRESSION(expr)->span.pos = EXPRESSION(lhs)->span.pos;
 
         // Function call
-        if (PEEK(PAREN_L) && LEFT_ASSOCIATIVE_OPERATOR_BINDS(PRECEDENCE_CALL, caller_precedence))
+        if (PEEK(PAREN_L) && LEFT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(FUNCTION_CALL), caller_precedence))
         {
             EXPRESSION(expr)->kind = FUNCTION_CALL;
 
@@ -662,28 +662,28 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
         }
 
         // Factor (multiplication and division)
-        PARSE_BINARY_OPERATION(STAR, BINARY_MULTIPLY, PRECEDENCE_FACTOR)
-        PARSE_BINARY_OPERATION(SLASH, BINARY_DIVIDE, PRECEDENCE_FACTOR)
+        PARSE_BINARY_OPERATION(STAR, BINARY_MULTIPLY)
+        PARSE_BINARY_OPERATION(SLASH, BINARY_DIVIDE)
 
         // Term (addition and subtraction)
-        PARSE_BINARY_OPERATION(PLUS, BINARY_ADD, PRECEDENCE_TERM)
-        PARSE_BINARY_OPERATION(MINUS, BINARY_SUBTRACT, PRECEDENCE_TERM)
+        PARSE_BINARY_OPERATION(PLUS, BINARY_ADD)
+        PARSE_BINARY_OPERATION(MINUS, BINARY_SUBTRACT)
 
         // Compare relative (greater than, less than, etc)
-        PARSE_BINARY_OPERATION(ARROW_L, BINARY_LESS_THAN, PRECEDENCE_COMPARE_RELATIVE)
-        PARSE_BINARY_OPERATION(ARROW_R, BINARY_GREATER_THAN, PRECEDENCE_COMPARE_RELATIVE)
-        PARSE_BINARY_OPERATION(ARROW_L_EQUAL, BINARY_LESS_THAN_EQUAL, PRECEDENCE_COMPARE_RELATIVE)
-        PARSE_BINARY_OPERATION(ARROW_R_EQUAL, BINARY_GREATER_THAN_EQUAL, PRECEDENCE_COMPARE_RELATIVE)
+        PARSE_BINARY_OPERATION(ARROW_L, BINARY_LESS_THAN)
+        PARSE_BINARY_OPERATION(ARROW_R, BINARY_GREATER_THAN)
+        PARSE_BINARY_OPERATION(ARROW_L_EQUAL, BINARY_LESS_THAN_EQUAL)
+        PARSE_BINARY_OPERATION(ARROW_R_EQUAL, BINARY_GREATER_THAN_EQUAL)
 
         // Compare equal (equal to, not equal to)
-        PARSE_BINARY_OPERATION(TWO_EQUAL, BINARY_EQUAL, PRECEDENCE_COMPARE_EQUAL)
-        PARSE_BINARY_OPERATION(EXCLAIM_EQUAL, BINARY_NOT_EQUAL, PRECEDENCE_COMPARE_EQUAL)
+        PARSE_BINARY_OPERATION(TWO_EQUAL, BINARY_EQUAL)
+        PARSE_BINARY_OPERATION(EXCLAIM_EQUAL, BINARY_NOT_EQUAL)
 
         // Logical and
-        PARSE_BINARY_OPERATION(KEYWORD_AND, BINARY_LOGICAL_AND, PRECEDENCE_LOGICAL_AND)
+        PARSE_BINARY_OPERATION(KEYWORD_AND, BINARY_LOGICAL_AND)
 
         // Logical or
-        PARSE_BINARY_OPERATION(KEYWORD_OR, BINARY_LOGICAL_OR, PRECEDENCE_LOGICAL_OR)
+        PARSE_BINARY_OPERATION(KEYWORD_OR, BINARY_LOGICAL_OR)
 
         // Discard `expr` and finish parsing expression
         else

@@ -220,4 +220,7 @@ size_t get_last_statement_in_code_block(Program *apm, Statement *code_block);
 RhinoType get_expression_type(Program *apm, size_t expr_index);
 bool is_expression_boolean(Program *apm, size_t expr_index);
 
+// Expression precedence methods
+ExprPrecedence precedence_of(ExpressionKind expr_kind);
+
 #endif
