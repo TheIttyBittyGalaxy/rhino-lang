@@ -50,8 +50,8 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
     MACRO(NUMBER_LITERAL)            \
     MACRO(BOOLEAN_LITERAL)           \
     MACRO(STRING_LITERAL)            \
-                                     \
     MACRO(VARIABLE_REFERENCE)        \
+                                     \
     MACRO(FUNCTION_CALL)             \
                                      \
     MACRO(BINARY_MULTIPLY)           \

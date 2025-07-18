@@ -171,17 +171,22 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
 {
     Expression *expr = get_expression(apm->expression, expr_index);
 
+    switch (expr->kind)
+    {
     // Literals
-    if (expr->kind == BOOLEAN_LITERAL)
+    case BOOLEAN_LITERAL:
         return RHINO_BOOL;
-    if (expr->kind == STRING_LITERAL)
+
+    case STRING_LITERAL:
         return RHINO_STR;
-    if (expr->kind == NUMBER_LITERAL)
+
+    case NUMBER_LITERAL:
         return RHINO_INT;
 
     // Variables
-    if (expr->kind == VARIABLE_REFERENCE)
+    case VARIABLE_REFERENCE:
         return get_variable(apm->variable, expr->variable)->type;
+    }
 
     return INVALID_RHINO_TYPE;
 }
@@ -201,47 +206,40 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
         return PRECEDENCE_NONE;
 
     case IDENTITY_LITERAL:
-        return PRECEDENCE_NONE;
     case NUMBER_LITERAL:
-        return PRECEDENCE_NONE;
     case BOOLEAN_LITERAL:
-        return PRECEDENCE_NONE;
     case STRING_LITERAL:
-        return PRECEDENCE_NONE;
-
     case VARIABLE_REFERENCE:
         return PRECEDENCE_NONE;
+
     case FUNCTION_CALL:
         return PRECEDENCE_CALL;
 
     case BINARY_MULTIPLY:
-        return PRECEDENCE_FACTOR;
     case BINARY_DIVIDE:
         return PRECEDENCE_FACTOR;
 
     case BINARY_ADD:
-        return PRECEDENCE_TERM;
     case BINARY_SUBTRACT:
         return PRECEDENCE_TERM;
 
     case BINARY_LESS_THAN:
-        return PRECEDENCE_COMPARE_RELATIVE;
     case BINARY_GREATER_THAN:
-        return PRECEDENCE_COMPARE_RELATIVE;
     case BINARY_LESS_THAN_EQUAL:
-        return PRECEDENCE_COMPARE_RELATIVE;
     case BINARY_GREATER_THAN_EQUAL:
         return PRECEDENCE_COMPARE_RELATIVE;
 
     case BINARY_EQUAL:
-        return PRECEDENCE_COMPARE_EQUAL;
     case BINARY_NOT_EQUAL:
         return PRECEDENCE_COMPARE_EQUAL;
 
     case BINARY_LOGICAL_AND:
         return PRECEDENCE_LOGICAL_AND;
+
     case BINARY_LOGICAL_OR:
         return PRECEDENCE_LOGICAL_OR;
     }
+
     // TODO: Ensure this is unreachable
+    return PRECEDENCE_NONE;
 }
