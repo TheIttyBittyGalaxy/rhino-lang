@@ -16,6 +16,29 @@
 
 DECLARE_ENUM(LIST_RHINO_TYPES, RhinoType, rhino_type)
 
+// Enum value
+DECLARE_SLICE_TYPE(EnumValue, enum_value)
+
+typedef struct
+{
+    substr span;
+    substr identity;
+} EnumValue;
+
+DECLARE_LIST_TYPE(EnumValue, enum_value)
+
+// Enum type
+DECLARE_SLICE_TYPE(EnumType, enum_type)
+
+typedef struct
+{
+    substr span;
+    substr identity;
+    EnumValueSlice values;
+} EnumType;
+
+DECLARE_LIST_TYPE(EnumType, enum_type)
+
 // Variable
 DECLARE_SLICE_TYPE(Variable, variable)
 
@@ -201,6 +224,9 @@ typedef struct
     StatementList statement;
     ExpressionList expression;
     VariableList variable;
+
+    EnumTypeList enum_type;
+    EnumValueList enum_value;
 
     size_t main;
 } Program;

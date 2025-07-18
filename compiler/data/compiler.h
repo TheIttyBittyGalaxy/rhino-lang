@@ -19,6 +19,7 @@
     MACRO(EXPECTED_INVALID_TOKEN)                                   \
     MACRO(EXPECTED_SEMI_COLON)                                      \
     MACRO(EXPECTED_COLON)                                           \
+    MACRO(EXPECTED_COMMA)                                           \
     MACRO(EXPECTED_DOT)                                             \
     MACRO(EXPECTED_TWO_DOT)                                         \
     MACRO(EXPECTED_PAREN_L)                                         \
@@ -41,6 +42,7 @@
     MACRO(EXPECTED_KEYWORD_AND)                                     \
     MACRO(EXPECTED_KEYWORD_DEF)                                     \
     MACRO(EXPECTED_KEYWORD_ELSE)                                    \
+    MACRO(EXPECTED_KEYWORD_ENUM)                                    \
     MACRO(EXPECTED_KEYWORD_FALSE)                                   \
     MACRO(EXPECTED_KEYWORD_FN)                                      \
     MACRO(EXPECTED_KEYWORD_FOR)                                     \

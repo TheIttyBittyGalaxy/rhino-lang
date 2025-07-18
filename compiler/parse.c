@@ -24,6 +24,8 @@ bool peek_statement(Compiler *c);
 void parse(Compiler *compiler, Program *apm);
 void parse_program(Compiler *c, Program *apm);
 void parse_function(Compiler *c, Program *apm);
+void parse_enum_type(Compiler *c, Program *apm);
+
 size_t parse_statement(Compiler *c, Program *apm);
 size_t parse_code_block(Compiler *c, Program *apm);
 size_t parse_expression(Compiler *c, Program *apm);
@@ -37,6 +39,8 @@ size_t parse_expression(Compiler *c, Program *apm);
 #define TOKEN_STRING() token_string(c)
 
 #define FUNCTION(index) get_function(apm->function, index)
+#define ENUM_TYPE(index) get_enum_type(apm->enum_type, index)
+#define ENUM_VALUE(index) get_enum_value(apm->enum_value, index)
 #define STATEMENT(index) get_statement(apm->statement, index)
 #define EXPRESSION(index) get_expression(apm->expression, index)
 #define VARIABLE(index) get_variable(apm->variable, index)
@@ -174,8 +178,11 @@ void parse_program(Compiler *c, Program *apm)
             return;
         else if (PEEK(KEYWORD_FN))
             parse_function(c, apm);
+        else if (PEEK(KEYWORD_ENUM))
+            parse_enum_type(c, apm);
         else
         {
+            // FIXME: What is the appropriate error to express here?
             raise_parse_error(c, EXPECTED_FUNCTION);
 
             size_t depth = 0;
@@ -196,6 +203,9 @@ void parse_program(Compiler *c, Program *apm)
                 ADVANCE();
 
                 if (PEEK(KEYWORD_FN))
+                    c->parse_status = RECOVERED;
+
+                if (PEEK(KEYWORD_ENUM))
                     c->parse_status = RECOVERED;
             }
         }
@@ -225,6 +235,48 @@ void parse_function(Compiler *c, Program *apm)
     FUNCTION(funct)->body = body;
 
     END_SPAN(FUNCTION(funct));
+}
+
+void parse_enum_type(Compiler *c, Program *apm)
+{
+    size_t enum_type = add_enum_type(&apm->enum_type);
+    START_SPAN(ENUM_TYPE(enum_type));
+
+    EAT(KEYWORD_ENUM);
+
+    substr identity = TOKEN_STRING();
+    ENUM_TYPE(enum_type)->identity = identity;
+    EAT(IDENTITY);
+
+    // TODO: Handle this scenario correctly
+    assert(c->parse_status == OKAY);
+
+    size_t first_value = apm->enum_value.count;
+    ENUM_TYPE(enum_type)->values.first = first_value;
+
+    EAT(CURLY_L);
+    while (true)
+    {
+        size_t enum_value = add_enum_value(&apm->enum_value);
+        START_SPAN(ENUM_VALUE(enum_value));
+
+        substr identity = TOKEN_STRING();
+        ENUM_VALUE(enum_value)->identity = identity;
+        EAT(IDENTITY);
+
+        END_SPAN(ENUM_VALUE(enum_value));
+
+        if (!PEEK(COMMA))
+            break;
+
+        EAT(COMMA);
+    }
+    EAT(CURLY_R);
+
+    size_t value_count = apm->enum_value.count - first_value;
+    ENUM_TYPE(enum_type)->values.count = value_count;
+
+    END_SPAN(ENUM_TYPE(enum_type));
 }
 
 // NOTE: Can return with status OKAY or RECOVERED

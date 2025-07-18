@@ -75,6 +75,7 @@ enum LineStatus
 #define PRINT_STATEMENT print_parsed_statement
 #define PRINT_FUNCTION print_parsed_function
 #define PRINT_VARIABLE print_parsed_variable
+#define PRINT_ENUM_TYPE print_parsed_enum_type
 #define PRINT_APM print_parsed_apm
 #endif
 
@@ -82,6 +83,7 @@ enum LineStatus
 #define PRINT_EXPRESSION print_analysed_expression
 #define PRINT_STATEMENT print_analysed_statement
 #define PRINT_VARIABLE print_analysed_variable
+#define PRINT_ENUM_TYPE print_analysed_enum_type
 #define PRINT_APM print_analysed_apm
 #endif
 
@@ -318,6 +320,33 @@ void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text)
     NEWLINE();
 }
 
+// PRINT ENUM //
+
+void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_text)
+{
+    EnumType *enum_type = get_enum_type(apm->enum_type, enum_type_index);
+
+    PRINT("ENUM ");
+    PRINT_SUBSTR(enum_type->identity);
+
+    if (enum_type->values.count > 0)
+    {
+        INDENT();
+        NEWLINE();
+        size_t last = enum_type->values.first + enum_type->values.count - 1;
+        for (size_t i = enum_type->values.first; i <= last; i++)
+        {
+            EnumValue *enum_value = get_enum_value(apm->enum_value, i);
+            if (i == last)
+                LAST_ON_LINE();
+            PRINT_SUBSTR(enum_value->identity);
+            NEWLINE();
+        }
+        UNINDENT();
+    }
+    NEWLINE();
+}
+
 // PRINT APM //
 
 void PRINT_APM(Program *apm, const char *source_text)
@@ -342,9 +371,16 @@ void PRINT_APM(Program *apm, const char *source_text)
 
     for (size_t i = 0; i < apm->function.count; i++)
     {
-        if (i == apm->function.count - 1)
+        if (i == apm->function.count - 1 && apm->enum_type.count == 0)
             LAST_ON_LINE();
         PRINT_FUNCTION(apm, i, source_text);
+    }
+
+    for (size_t i = 0; i < apm->enum_type.count; i++)
+    {
+        if (i == apm->enum_type.count - 1)
+            LAST_ON_LINE();
+        PRINT_ENUM_TYPE(apm, i, source_text);
     }
 
     printf("\n");
@@ -364,6 +400,7 @@ void PRINT_APM(Program *apm, const char *source_text)
 #undef PRINT_STATEMENT
 #undef PRINT_FUNCTION
 #undef PRINT_VARIABLE
+#undef PRINT_ENUM_TYPE
 #undef PRINT_APM
 
 #undef PRINT_PARSED

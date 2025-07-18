@@ -12,6 +12,7 @@
                            \
     MACRO(SEMI_COLON)      \
     MACRO(COLON)           \
+    MACRO(COMMA)           \
     MACRO(DOT)             \
     MACRO(TWO_DOT)         \
                            \
@@ -38,6 +39,7 @@
     MACRO(KEYWORD_AND)     \
     MACRO(KEYWORD_DEF)     \
     MACRO(KEYWORD_ELSE)    \
+    MACRO(KEYWORD_ENUM)    \
     MACRO(KEYWORD_FALSE)   \
     MACRO(KEYWORD_FN)      \
     MACRO(KEYWORD_FOR)     \

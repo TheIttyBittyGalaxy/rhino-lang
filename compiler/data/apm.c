@@ -14,11 +14,15 @@ DEFINE_LIST_TYPE(Expression, expression)
 DEFINE_LIST_TYPE(Statement, statement)
 DEFINE_LIST_TYPE(Function, function)
 DEFINE_LIST_TYPE(Variable, variable)
+DEFINE_LIST_TYPE(EnumType, enum_type)
+DEFINE_LIST_TYPE(EnumValue, enum_value)
 
 DEFINE_SLICE_TYPE(Expression, expression)
 DEFINE_SLICE_TYPE(Statement, statement)
 DEFINE_SLICE_TYPE(Function, function)
 DEFINE_SLICE_TYPE(Variable, variable)
+DEFINE_SLICE_TYPE(EnumType, enum_type)
+DEFINE_SLICE_TYPE(EnumValue, enum_value)
 
 // INIT APM //
 
@@ -28,6 +32,8 @@ void init_program(Program *apm)
     init_statement_list(&apm->statement);
     init_expression_list(&apm->expression);
     init_variable_list(&apm->variable);
+    init_enum_type_list(&apm->enum_type);
+    init_enum_value_list(&apm->enum_value);
 }
 
 // DUMP PROGRAM //
@@ -115,6 +121,27 @@ void dump_apm(Program *apm, const char *source_text)
         Variable *var = get_variable(apm->variable, i);
         printf("%02d\t", i);
         printf_substr(source_text, var->identity);
+        printf("\n");
+    }
+    printf("\n");
+
+    printf("ENUM TYPES\n");
+    for (size_t i = 0; i < apm->enum_type.count; i++)
+    {
+        EnumType *enum_type = get_enum_type(apm->enum_type, i);
+        printf("%02d\t", i);
+        printf_substr(source_text, enum_type->identity);
+        printf("\tfirst %02d\tlast %02d", enum_type->values.first, enum_type->values.first + enum_type->values.count - 1);
+        printf("\n");
+    }
+    printf("\n");
+
+    printf("ENUM VALUES\n");
+    for (size_t i = 0; i < apm->enum_value.count; i++)
+    {
+        EnumValue *enum_value = get_enum_value(apm->enum_value, i);
+        printf("%02d\t", i);
+        printf_substr(source_text, enum_value->identity);
         printf("\n");
     }
 }
