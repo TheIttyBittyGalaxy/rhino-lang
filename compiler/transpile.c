@@ -265,6 +265,8 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
             EMIT("char* ");
         else if (var->type == RHINO_INT)
             EMIT("int ");
+        else if (var->type == RHINO_NUM)
+            EMIT("double ");
         else
             fatal_error("Unable to generate variable declaration for variable with type %s.", rhino_type_string(var->type));
 
@@ -278,6 +280,8 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         else if (var->type == RHINO_STR)
             EMIT("\"\"");
         else if (var->type == RHINO_INT)
+            EMIT("0");
+        else if (var->type == RHINO_NUM)
             EMIT("0");
 
         EMIT_LINE(";");
@@ -316,6 +320,11 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         else if (expr_type == RHINO_INT)
         {
             EMIT_ESCAPED("\"%d\\n\", ");
+            transpile_expression(t, apm, expr_index);
+        }
+        else if (expr_type == RHINO_NUM)
+        {
+            EMIT_ESCAPED("\"%f\\n\", ");
             transpile_expression(t, apm, expr_index);
         }
         else
