@@ -4,6 +4,7 @@
 // ENUMS //
 
 DEFINE_ENUM(LIST_RHINO_TYPES, RhinoType, rhino_type)
+DEFINE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
 DEFINE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 DEFINE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
 
@@ -165,8 +166,6 @@ size_t get_last_statement_in_code_block(Program *apm, Statement *code_block)
 }
 
 // TYPE ANALYSIS METHODS //
-
-// UTILITY METHODS //
 
 RhinoType get_expression_type(Program *apm, size_t expr_index)
 {

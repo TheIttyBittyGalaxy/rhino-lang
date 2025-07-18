@@ -149,6 +149,33 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
         NEWLINE();
 
         break;
+
+    case BINARY_MULTIPLY:
+    case BINARY_DIVIDE:
+    case BINARY_ADD:
+    case BINARY_SUBTRACT:
+    case BINARY_LESS_THAN:
+    case BINARY_GREATER_THAN:
+    case BINARY_LESS_THAN_EQUAL:
+    case BINARY_GREATER_THAN_EQUAL:
+    case BINARY_EQUAL:
+    case BINARY_NOT_EQUAL:
+    case BINARY_LOGICAL_AND:
+    case BINARY_LOGICAL_OR:
+        PRINT(expression_kind_string(expr->kind));
+        INDENT();
+
+        NEWLINE();
+        PRINT_EXPRESSION(apm, expr->lhs, source_text);
+
+        NEWLINE();
+        LAST_ON_LINE();
+        PRINT_EXPRESSION(apm, expr->rhs, source_text);
+
+        UNINDENT();
+        NEWLINE();
+
+        break;
     }
 }
 

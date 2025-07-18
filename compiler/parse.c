@@ -1,4 +1,5 @@
 #include "data/substr.h"
+#include "fatal_error.h"
 #include "parse.h"
 
 // FORWARD DECLARATIONS //
@@ -544,10 +545,32 @@ size_t parse_code_block(Compiler *c, Program *apm)
 }
 
 // NOTE: Can return with status OKAY, RECOVERED, or PANIC
+size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedence caller_precedence);
+
 size_t parse_expression(Compiler *c, Program *apm)
 {
-    size_t expr = add_expression(&apm->expression);
-    START_SPAN(EXPRESSION(expr));
+    return parse_expression_with_precedence(c, apm, PRECEDENCE_NONE);
+}
+
+#define LEFT_ASSOCIATIVE_OPERATOR_BINDS(operator_precedence, caller_precedence) operator_precedence > caller_precedence
+#define RIGHT_ASSOCIATIVE_OPERATOR_BINDS(operator_precedence, caller_precedence) operator_precedence >= caller_precedence
+
+#define PARSE_BINARY_OPERATION(token_kind, expr_kind, precedence)                                \
+    else if (PEEK(token_kind) && LEFT_ASSOCIATIVE_OPERATOR_BINDS(precedence, caller_precedence)) \
+    {                                                                                            \
+        EXPRESSION(expr)->kind = expr_kind;                                                      \
+                                                                                                 \
+        ADVANCE();                                                                               \
+                                                                                                 \
+        EXPRESSION(expr)->lhs = lhs;                                                             \
+        size_t rhs = parse_expression_with_precedence(c, apm, precedence);                       \
+        EXPRESSION(expr)->rhs = rhs;                                                             \
+    }
+
+size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedence caller_precedence)
+{
+    size_t lhs = add_expression(&apm->expression);
+    START_SPAN(EXPRESSION(lhs));
 
     // Left-hand side of expression
     if (PEEK(IDENTITY))
@@ -558,8 +581,8 @@ size_t parse_expression(Compiler *c, Program *apm)
             size_t j = c->in_scope_var_count - 1 - i; // Start from the end of the array so that nested variables are checked first
             if (substr_match(c->source_text, TOKEN_STRING(), c->in_scope_vars[j].identity))
             {
-                EXPRESSION(expr)->kind = VARIABLE_REFERENCE;
-                EXPRESSION(expr)->variable = c->in_scope_vars[j].index;
+                EXPRESSION(lhs)->kind = VARIABLE_REFERENCE;
+                EXPRESSION(lhs)->variable = c->in_scope_vars[j].index;
                 is_unknown_literal = false;
                 break;
             }
@@ -567,23 +590,23 @@ size_t parse_expression(Compiler *c, Program *apm)
 
         if (is_unknown_literal)
         {
-            EXPRESSION(expr)->kind = IDENTITY_LITERAL;
-            EXPRESSION(expr)->identity = TOKEN_STRING();
-            EXPRESSION(expr)->identity_resolved = false;
+            EXPRESSION(lhs)->kind = IDENTITY_LITERAL;
+            EXPRESSION(lhs)->identity = TOKEN_STRING();
+            EXPRESSION(lhs)->identity_resolved = false;
         }
 
         ADVANCE();
     }
     else if (PEEK(KEYWORD_TRUE))
     {
-        EXPRESSION(expr)->kind = BOOLEAN_LITERAL;
-        EXPRESSION(expr)->bool_value = true;
+        EXPRESSION(lhs)->kind = BOOLEAN_LITERAL;
+        EXPRESSION(lhs)->bool_value = true;
         ADVANCE();
     }
     else if (PEEK(KEYWORD_FALSE))
     {
-        EXPRESSION(expr)->kind = BOOLEAN_LITERAL;
-        EXPRESSION(expr)->bool_value = false;
+        EXPRESSION(lhs)->kind = BOOLEAN_LITERAL;
+        EXPRESSION(lhs)->bool_value = false;
         ADVANCE();
     }
     else if (PEEK(NUMBER))
@@ -593,8 +616,8 @@ size_t parse_expression(Compiler *c, Program *apm)
         for (size_t i = str.pos; i < str.pos + str.len; i++)
             num = num * 10 + (c->source_text[i] - 48);
 
-        EXPRESSION(expr)->kind = NUMBER_LITERAL;
-        EXPRESSION(expr)->number_value = num;
+        EXPRESSION(lhs)->kind = NUMBER_LITERAL;
+        EXPRESSION(lhs)->number_value = num;
         ADVANCE();
     }
     else if (PEEK(STRING) || PEEK(BROKEN_STRING))
@@ -603,38 +626,81 @@ size_t parse_expression(Compiler *c, Program *apm)
         str.pos++;
         str.len -= PEEK(STRING) ? 2 : 1;
 
-        EXPRESSION(expr)->kind = STRING_LITERAL;
-        EXPRESSION(expr)->string_value = str;
+        EXPRESSION(lhs)->kind = STRING_LITERAL;
+        EXPRESSION(lhs)->string_value = str;
         ADVANCE();
     }
     else
     {
-        EXPRESSION(expr)->kind = INVALID_EXPRESSION;
+        EXPRESSION(lhs)->kind = INVALID_EXPRESSION;
         raise_parse_error(c, EXPECTED_EXPRESSION);
 
         // NOTE: parse_expression can put the parser in panic mode and then return.
         //       This means anyone who calls parse_expression needs to be able to recover.
-        return expr;
+        return lhs;
     }
 
-    END_SPAN(EXPRESSION(expr));
+    END_SPAN(EXPRESSION(lhs));
 
-    // Function call
-    if (PEEK(PAREN_L))
+    // Infix and right-hand side expression
+    while (true)
     {
-        size_t callee = expr;
-        expr = add_expression(&apm->expression);
-        EXPRESSION(expr)->span.pos = EXPRESSION(callee)->span.pos;
+        // Open `expr`
+        size_t expr = add_expression(&apm->expression);
+        EXPRESSION(expr)->span.pos = EXPRESSION(lhs)->span.pos;
 
-        EXPRESSION(expr)->kind = FUNCTION_CALL;
-        EXPRESSION(expr)->callee = callee;
+        // Function call
+        if (PEEK(PAREN_L) && LEFT_ASSOCIATIVE_OPERATOR_BINDS(PRECEDENCE_CALL, caller_precedence))
+        {
+            EXPRESSION(expr)->kind = FUNCTION_CALL;
 
-        ADVANCE();
-        EAT(PAREN_R);
+            EXPRESSION(expr)->callee = lhs;
+
+            // TODO: Implement argument passing
+            ADVANCE();
+            EAT(PAREN_R);
+        }
+
+        // Factor (multiplication and division)
+        PARSE_BINARY_OPERATION(STAR, BINARY_MULTIPLY, PRECEDENCE_FACTOR)
+        PARSE_BINARY_OPERATION(SLASH, BINARY_DIVIDE, PRECEDENCE_FACTOR)
+
+        // Term (addition and subtraction)
+        PARSE_BINARY_OPERATION(PLUS, BINARY_ADD, PRECEDENCE_TERM)
+        PARSE_BINARY_OPERATION(MINUS, BINARY_SUBTRACT, PRECEDENCE_TERM)
+
+        // Compare relative (greater than, less than, etc)
+        PARSE_BINARY_OPERATION(ARROW_L, BINARY_LESS_THAN, PRECEDENCE_COMPARE_RELATIVE)
+        PARSE_BINARY_OPERATION(ARROW_R, BINARY_GREATER_THAN, PRECEDENCE_COMPARE_RELATIVE)
+        PARSE_BINARY_OPERATION(ARROW_L_EQUAL, BINARY_LESS_THAN_EQUAL, PRECEDENCE_COMPARE_RELATIVE)
+        PARSE_BINARY_OPERATION(ARROW_R_EQUAL, BINARY_GREATER_THAN_EQUAL, PRECEDENCE_COMPARE_RELATIVE)
+
+        // Compare equal (equal to, not equal to)
+        PARSE_BINARY_OPERATION(TWO_EQUAL, BINARY_EQUAL, PRECEDENCE_COMPARE_EQUAL)
+        PARSE_BINARY_OPERATION(EXCLAIM_EQUAL, BINARY_NOT_EQUAL, PRECEDENCE_COMPARE_EQUAL)
+
+        // Logical and
+        PARSE_BINARY_OPERATION(KEYWORD_AND, BINARY_LOGICAL_AND, PRECEDENCE_LOGICAL_AND)
+
+        // Logical or
+        PARSE_BINARY_OPERATION(KEYWORD_OR, BINARY_LOGICAL_OR, PRECEDENCE_LOGICAL_OR)
+
+        // Discard `expr` and finish parsing expression
+        else
+        {
+            apm->expression.count--;
+            break;
+        }
+
+        // Close `expr` and continue parsing expression
         END_SPAN(EXPRESSION(expr));
-
         recover_from_panic(c);
+        lhs = expr;
     }
 
-    return expr;
+    return lhs;
 }
+
+#undef LEFT_ASSOCIATIVE_OPERATOR_BINDS
+#undef RIGHT_ASSOCIATIVE_OPERATOR_BINDS
+#undef PARSE_BINARY_OPERATION

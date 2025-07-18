@@ -149,6 +149,28 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
         break;
     }
 
+#define CASE_BINARY(expr_kind, symbol)           \
+    case expr_kind:                              \
+    {                                            \
+        transpile_expression(t, apm, expr->lhs); \
+        EMIT(" " symbol " ");                    \
+        transpile_expression(t, apm, expr->rhs); \
+        break;                                   \
+    }
+
+        CASE_BINARY(BINARY_MULTIPLY, "*")
+        CASE_BINARY(BINARY_DIVIDE, "/")
+        CASE_BINARY(BINARY_ADD, "+")
+        CASE_BINARY(BINARY_SUBTRACT, "-")
+        CASE_BINARY(BINARY_LESS_THAN, "<")
+        CASE_BINARY(BINARY_GREATER_THAN, ">")
+        CASE_BINARY(BINARY_LESS_THAN_EQUAL, "<=")
+        CASE_BINARY(BINARY_GREATER_THAN_EQUAL, ">=")
+        CASE_BINARY(BINARY_EQUAL, "==")
+        CASE_BINARY(BINARY_NOT_EQUAL, "!=")
+        CASE_BINARY(BINARY_LOGICAL_AND, "&&")
+        CASE_BINARY(BINARY_LOGICAL_OR, "||")
+
     default:
         fatal_error("Could not transpile %s expression.", expression_kind_string(expr->kind));
         break;

@@ -17,17 +17,24 @@
                            \
     MACRO(PAREN_L)         \
     MACRO(PAREN_R)         \
-                           \
     MACRO(CURLY_L)         \
     MACRO(CURLY_R)         \
                            \
     MACRO(EQUAL)           \
-                           \
+    MACRO(PLUS)            \
+    MACRO(MINUS)           \
+    MACRO(STAR)            \
+    MACRO(SLASH)           \
     MACRO(ARROW_L)         \
     MACRO(ARROW_R)         \
+    MACRO(EXCLAIM)         \
+                           \
+    MACRO(TWO_EQUAL)       \
     MACRO(ARROW_L_EQUAL)   \
     MACRO(ARROW_R_EQUAL)   \
+    MACRO(EXCLAIM_EQUAL)   \
                            \
+    MACRO(KEYWORD_AND)     \
     MACRO(KEYWORD_DEF)     \
     MACRO(KEYWORD_ELSE)    \
     MACRO(KEYWORD_FALSE)   \
@@ -36,6 +43,7 @@
     MACRO(KEYWORD_IF)      \
     MACRO(KEYWORD_IN)      \
     MACRO(KEYWORD_LOOP)    \
+    MACRO(KEYWORD_OR)      \
     MACRO(KEYWORD_TRUE)    \
     MACRO(KEYWORD_WHILE)   \
                            \

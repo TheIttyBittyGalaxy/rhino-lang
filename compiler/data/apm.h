@@ -7,7 +7,6 @@
 #include <stdbool.h>
 
 // Types
-
 #define LIST_RHINO_TYPES(MACRO) \
     MACRO(INVALID_RHINO_TYPE)   \
     MACRO(RHINO_BOOL)           \
@@ -28,17 +27,45 @@ typedef struct
 
 DECLARE_LIST_TYPE(Variable, variable)
 
+// Expression Precedence
+// Ordered from "happens last" to "happens first"
+#define LIST_EXPR_PRECEDENCE(MACRO)    \
+    MACRO(PRECEDENCE_NONE)             \
+    MACRO(PRECEDENCE_LOGICAL_OR)       \
+    MACRO(PRECEDENCE_LOGICAL_AND)      \
+    MACRO(PRECEDENCE_COMPARE_EQUAL)    \
+    MACRO(PRECEDENCE_COMPARE_RELATIVE) \
+    MACRO(PRECEDENCE_TERM)             \
+    MACRO(PRECEDENCE_FACTOR)           \
+    MACRO(PRECEDENCE_UNARY)            \
+    MACRO(PRECEDENCE_CALL)
+
+DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
+
 // Expression
-#define LIST_EXPRESSIONS(MACRO) \
-    MACRO(INVALID_EXPRESSION)   \
-                                \
-    MACRO(IDENTITY_LITERAL)     \
-    MACRO(NUMBER_LITERAL)       \
-    MACRO(BOOLEAN_LITERAL)      \
-    MACRO(STRING_LITERAL)       \
-                                \
-    MACRO(VARIABLE_REFERENCE)   \
-    MACRO(FUNCTION_CALL)
+#define LIST_EXPRESSIONS(MACRO)      \
+    MACRO(INVALID_EXPRESSION)        \
+                                     \
+    MACRO(IDENTITY_LITERAL)          \
+    MACRO(NUMBER_LITERAL)            \
+    MACRO(BOOLEAN_LITERAL)           \
+    MACRO(STRING_LITERAL)            \
+                                     \
+    MACRO(VARIABLE_REFERENCE)        \
+    MACRO(FUNCTION_CALL)             \
+                                     \
+    MACRO(BINARY_MULTIPLY)           \
+    MACRO(BINARY_DIVIDE)             \
+    MACRO(BINARY_ADD)                \
+    MACRO(BINARY_SUBTRACT)           \
+    MACRO(BINARY_LESS_THAN)          \
+    MACRO(BINARY_GREATER_THAN)       \
+    MACRO(BINARY_LESS_THAN_EQUAL)    \
+    MACRO(BINARY_GREATER_THAN_EQUAL) \
+    MACRO(BINARY_EQUAL)              \
+    MACRO(BINARY_NOT_EQUAL)          \
+    MACRO(BINARY_LOGICAL_AND)        \
+    MACRO(BINARY_LOGICAL_OR)
 
 DECLARE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 
@@ -74,6 +101,11 @@ typedef struct
         struct // FUNCTION_CALL
         {
             size_t callee; // Expression -> Function
+        };
+        struct // BINARY_*
+        {
+            size_t lhs; // Expression
+            size_t rhs; // Expression
         };
     };
 } Expression;
