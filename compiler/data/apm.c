@@ -188,11 +188,20 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
         return get_variable(apm->variable, expr->variable)->type;
 
     // Numerical operations
-    case BINARY_MULTIPLY:
     case BINARY_DIVIDE:
+        return RHINO_NUM;
+
+    case BINARY_MULTIPLY:
     case BINARY_ADD:
     case BINARY_SUBTRACT:
+    {
+        size_t lhs_type = get_expression_type(apm, expr->lhs);
+        size_t rhs_type = get_expression_type(apm, expr->rhs);
+        if (lhs_type == RHINO_INT && rhs_type == RHINO_INT)
+            return RHINO_INT;
+
         return RHINO_NUM;
+    }
 
     // Logical operations
     case BINARY_LESS_THAN:
