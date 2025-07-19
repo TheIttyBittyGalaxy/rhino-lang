@@ -424,11 +424,11 @@ void transpile_program(Transpiler *t, Program *apm)
         for (size_t i = enum_type->values.first; i <= last; i++)
         {
             EnumValue *enum_value = get_enum_value(apm->enum_value, i);
-            if (i > 0)
-                EMIT(", ");
             EMIT_SUBSTR(enum_type->identity);
             EMIT("__");
             EMIT_SUBSTR(enum_value->identity);
+            if (i < last)
+                EMIT(", ");
         }
 
         EMIT(" } ");
