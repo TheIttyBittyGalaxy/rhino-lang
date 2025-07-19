@@ -115,6 +115,10 @@ void dump_apm(Program *apm, const char *source_text)
             printf("variable %02d", expr->variable);
             break;
 
+        case TYPE_REFERENCE:
+            printf("\ttype %s", rhino_type_string(apm, expr->type));
+            break;
+
         case FUNCTION_CALL:
             printf("callee %02d", expr->callee);
             break;

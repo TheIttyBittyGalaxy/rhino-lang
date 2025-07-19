@@ -81,7 +81,9 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
     MACRO(NUMBER_LITERAL)            \
     MACRO(BOOLEAN_LITERAL)           \
     MACRO(STRING_LITERAL)            \
+                                     \
     MACRO(VARIABLE_REFERENCE)        \
+    MACRO(TYPE_REFERENCE)            \
                                      \
     MACRO(FUNCTION_CALL)             \
                                      \
@@ -131,6 +133,10 @@ typedef struct
         struct // VARIABLE_REFERENCE
         {
             size_t variable;
+        };
+        struct // TYPE_REFERENCE
+        {
+            RhinoType type;
         };
         struct // FUNCTION_CALL
         {

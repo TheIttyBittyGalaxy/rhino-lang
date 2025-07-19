@@ -131,6 +131,10 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
         PRINT("v%02d", expr->variable);
         break;
 
+    case TYPE_REFERENCE:
+        PRINT("t%s", rhino_type_string(apm, expr->type));
+        break;
+
     case FUNCTION_CALL:
         PRINT("FUNCTION_CALL");
         INDENT();

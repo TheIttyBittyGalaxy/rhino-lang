@@ -129,10 +129,31 @@ void resolve_identity_literals(Compiler *c, Program *apm)
         if (identity_literal->kind != IDENTITY_LITERAL)
             continue;
 
+        // Skip identity literals that have been resolved in a previous pass
         if (identity_literal->identity_resolved)
             continue;
 
-        raise_compilation_error(c, VARIABLE_DOES_NOT_EXIST, identity_literal->span);
+        // Enum types
+        bool found_enum_type = false;
+        for (size_t i = 0; i < apm->enum_type.count; i++)
+        {
+            EnumType *enum_type = get_enum_type(apm->enum_type, i);
+            if (substr_match(c->source_text, identity_literal->identity, enum_type->identity))
+            {
+                identity_literal->kind = TYPE_REFERENCE;
+                identity_literal->type.sort = SORT_ENUM;
+                identity_literal->type.index = i;
+
+                found_enum_type = true;
+                break;
+            }
+        }
+
+        if (found_enum_type)
+            continue;
+
+        // Could not resolve literal
+        raise_compilation_error(c, VARIABLE_OR_ENUM_DOES_NOT_EXIST, identity_literal->span);
     }
 }
 

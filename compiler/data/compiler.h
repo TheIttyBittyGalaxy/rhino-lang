@@ -62,7 +62,7 @@
     MACRO(NO_MAIN_FUNCTION)                                         \
     MACRO(EXPRESSION_IS_NOT_A_FUNCTION)                             \
     MACRO(FUNCTION_DOES_NOT_EXIST)                                  \
-    MACRO(VARIABLE_DOES_NOT_EXIST)                                  \
+    MACRO(VARIABLE_OR_ENUM_DOES_NOT_EXIST)                          \
     MACRO(CONDITION_IS_NOT_BOOLEAN)                                 \
     MACRO(VARIABLE_DECLARED_WITH_INVALID_TYPE)
 
