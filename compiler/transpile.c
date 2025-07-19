@@ -328,52 +328,65 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         size_t expr_index = stmt->expression;
         RhinoType expr_type = get_expression_type(apm, expr_index);
 
-        EMIT("printf(");
-
-        if (expr_type.sort == SORT_BOOL)
+        switch (expr_type.sort)
         {
-            EMIT_ESCAPED("\"%s\\n\", (");
+
+        case SORT_BOOL:
+        {
+            EMIT_ESCAPED("printf(\"%s\\n\", (");
             transpile_expression(t, apm, expr_index);
-            EMIT(") ? \"true\" : \"false\"");
+            EMIT_LINE(") ? \"true\" : \"false\");");
+            break;
         }
-        else if (expr_type.sort == SORT_STR)
+
+        case SORT_STR:
         {
             Expression *expr = get_expression(apm->expression, expr_index);
 
             if (expr->kind == STRING_LITERAL)
             {
-                EMIT("\"");
+                EMIT("printf(\"");
                 EMIT_SUBSTR(expr->string_value);
-                EMIT("\\n\"");
+                EMIT_LINE("\\n\");");
             }
             else
             {
-                EMIT_ESCAPED("\"%s\\n\", ");
+                EMIT_ESCAPED("printf(\"%s\\n\", ");
                 transpile_expression(t, apm, expr_index);
+                EMIT_LINE(");");
             }
+            break;
         }
-        else if (expr_type.sort == SORT_INT)
+
+        case SORT_INT:
         {
-            EMIT_ESCAPED("\"%d\\n\", ");
+            EMIT_ESCAPED("printf(\"%d\\n\", ");
             transpile_expression(t, apm, expr_index);
+            EMIT_LINE(");");
+            break;
         }
-        else if (expr_type.sort == SORT_NUM)
+
+        case SORT_NUM:
         {
-            EMIT_ESCAPED("\"%f\\n\", ");
+            EMIT_ESCAPED("printf(\"%f\\n\", ");
             transpile_expression(t, apm, expr_index);
+            EMIT_LINE(");");
+            break;
         }
-        else if (expr_type.sort == SORT_ENUM)
+
+        case SORT_ENUM:
         {
             // TODO: Output the enum value as a string, not it's numerical representation
-            EMIT_ESCAPED("\"%d\\n\", ");
+            EMIT_ESCAPED("printf(\"%d\\n\", ");
             transpile_expression(t, apm, expr_index);
+            EMIT_LINE(");");
+            break;
         }
-        else
-        {
+
+        default:
             fatal_error("Unable to generate output statement for expression with type %s.", rhino_type_string(apm, expr_type));
         }
 
-        EMIT_LINE(");");
         break;
     }
 
