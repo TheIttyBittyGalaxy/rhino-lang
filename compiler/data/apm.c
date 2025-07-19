@@ -234,6 +234,11 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
         result.sort = SORT_INT;
         break;
 
+    case ENUM_VALUE_LITERAL:
+        result.sort = SORT_ENUM;
+        result.index = get_enum_type_of_enum_value(apm, expr_index);
+        break;
+
     // Variables
     case VARIABLE_REFERENCE:
         return get_variable(apm->variable, expr->variable)->type;
@@ -271,6 +276,22 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
     }
 
     return result;
+}
+
+size_t get_enum_type_of_enum_value(Program *apm, size_t enum_value_index)
+{
+    size_t last = 0;
+    for (size_t i = 0; i < apm->enum_type.count; i++)
+    {
+        EnumType *enum_type = get_enum_type(apm->enum_type, i);
+        last += enum_type->values.count;
+
+        if (enum_value_index < last)
+            return i;
+    }
+
+    // FIXME: Unreachable, treat this as a fatal error
+    return 0;
 }
 
 bool is_expression_boolean(Program *apm, size_t expr_index)

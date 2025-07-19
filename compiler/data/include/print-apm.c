@@ -127,6 +127,13 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
         PRINT("\"");
         break;
 
+    case ENUM_VALUE_LITERAL:
+    {
+        EnumValue *enum_value = get_enum_value(apm->enum_value, expr->enum_value);
+        PRINT_SUBSTR(enum_value->identity);
+        break;
+    }
+
     case VARIABLE_REFERENCE:
         PRINT("v%02d", expr->variable);
         break;

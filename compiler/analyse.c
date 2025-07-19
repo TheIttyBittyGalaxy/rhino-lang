@@ -157,6 +157,47 @@ void resolve_identity_literals(Compiler *c, Program *apm)
     }
 }
 
+void resolve_enum_values(Compiler *c, Program *apm)
+{
+    for (size_t i = 0; i < apm->expression.count; i++)
+    {
+        Expression *index_by_field = get_expression(apm->expression, i);
+
+        if (index_by_field->kind != INDEX_BY_FIELD)
+            continue;
+
+        Expression *subject = get_expression(apm->expression, index_by_field->subject);
+
+        if (subject->kind != TYPE_REFERENCE)
+            continue;
+
+        if (subject->type.sort != SORT_ENUM)
+            continue;
+
+        EnumType *enum_type = get_enum_type(apm->enum_type, subject->type.index);
+
+        bool found_enum_value = false;
+
+        size_t last = enum_type->values.first + enum_type->values.count - 1;
+        for (size_t i = enum_type->values.first; i <= last; i++)
+        {
+            EnumValue *enum_value = get_enum_value(apm->enum_value, i);
+            if (substr_match(c->source_text, index_by_field->field, enum_value->identity))
+            {
+                index_by_field->kind = ENUM_VALUE_LITERAL;
+                index_by_field->enum_value = i;
+                found_enum_value = true;
+                break;
+            }
+        }
+
+        if (found_enum_value)
+            continue;
+
+        raise_compilation_error(c, ENUM_VALUE_DOES_NOT_EXIST, index_by_field->span);
+    }
+}
+
 void check_conditions_are_booleans(Compiler *c, Program *apm)
 {
     for (size_t i = 0; i < apm->statement.count; i++)
@@ -183,6 +224,7 @@ void analyse(Compiler *c, Program *apm)
     resolve_types(c, apm);
     resolve_function_calls(c, apm);
     resolve_identity_literals(c, apm);
+    resolve_enum_values(c, apm);
 
     check_conditions_are_booleans(c, apm);
 }
