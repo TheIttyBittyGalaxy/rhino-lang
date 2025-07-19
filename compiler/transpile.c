@@ -376,10 +376,13 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
         case SORT_ENUM:
         {
-            // TODO: Output the enum value as a string, not it's numerical representation
-            EMIT_ESCAPED("printf(\"%d\\n\", ");
+            EnumType *enum_type = get_enum_type(apm->enum_type, expr_type.index);
+
+            EMIT_ESCAPED("printf(\"%s\\n\", string_of_");
+            EMIT_SUBSTR(enum_type->identity);
+            EMIT("(");
             transpile_expression(t, apm, expr_index);
-            EMIT_LINE(");");
+            EMIT_LINE("));");
             break;
         }
 
