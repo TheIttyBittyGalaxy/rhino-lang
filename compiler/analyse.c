@@ -50,8 +50,24 @@ void resolve_types(Compiler *c, Program *apm)
                     var->type.sort = SORT_STR;
                 else
                 {
-                    var->type.sort = INVALID_SORT;
-                    raise_compilation_error(c, VARIABLE_DECLARED_WITH_INVALID_TYPE, type_expression->span);
+                    bool enum_type_found = false;
+                    for (size_t i = 0; i < apm->enum_type.count; i++)
+                    {
+                        EnumType *enum_type = get_enum_type(apm->enum_type, i);
+                        if (substr_match(c->source_text, type_expression->identity, enum_type->identity))
+                        {
+                            var->type.sort = SORT_ENUM;
+                            var->type.index = i;
+                            enum_type_found = true;
+                            break;
+                        }
+                    }
+
+                    if (!enum_type_found)
+                    {
+                        var->type.sort = INVALID_SORT;
+                        raise_compilation_error(c, VARIABLE_DECLARED_WITH_INVALID_TYPE, type_expression->span);
+                    }
                 }
             }
             else if (stmt->has_initial_value)
