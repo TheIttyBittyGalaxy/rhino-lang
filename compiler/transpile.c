@@ -110,6 +110,31 @@ void emit_close_brace(Transpiler *t)
 
 // TRANSPILE //
 
+void transpile_type(Transpiler *t, Program *apm, RhinoType rhino_type)
+{
+    switch (rhino_type.sort)
+    {
+    case SORT_BOOL:
+        EMIT("bool");
+        break;
+
+    case SORT_STR:
+        EMIT("char*");
+        break;
+
+    case SORT_INT:
+        EMIT("int");
+        break;
+
+    case SORT_NUM:
+        EMIT("double");
+        break;
+
+    default:
+        fatal_error("Unable to generate Rhino type %s.", rhino_type_string(apm, rhino_type));
+    }
+}
+
 void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
 {
     Expression *expr = get_expression(apm->expression, expr_index);
@@ -258,19 +283,8 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
     case VARIABLE_DECLARATION:
     {
         Variable *var = get_variable(apm->variable, stmt->variable);
-
-        // TODO: Factor out into "transpile type"
-        if (var->type.sort == SORT_BOOL)
-            EMIT("bool ");
-        else if (var->type.sort == SORT_STR)
-            EMIT("char* ");
-        else if (var->type.sort == SORT_INT)
-            EMIT("int ");
-        else if (var->type.sort == SORT_NUM)
-            EMIT("double ");
-        else
-            fatal_error("Unable to generate variable declaration for variable with type %s.", rhino_type_string(apm, var->type));
-
+        transpile_type(t, apm, var->type);
+        EMIT(" ");
         EMIT_SUBSTR(var->identity);
         EMIT(" = ");
 
