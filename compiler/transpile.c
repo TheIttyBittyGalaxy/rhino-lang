@@ -17,6 +17,7 @@ typedef struct
 
 // FORWARD DECLARATIONS //
 
+void transpile_type(Transpiler *t, Program *apm, RhinoType rhino_type);
 void transpile_expression(Transpiler *t, Program *apm, size_t expr_index);
 void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index);
 void transpile_function(Transpiler *t, Program *apm, size_t funct_index);
@@ -130,6 +131,13 @@ void transpile_type(Transpiler *t, Program *apm, RhinoType rhino_type)
         EMIT("double");
         break;
 
+    case SORT_ENUM:
+    {
+        EnumType *enum_type = get_enum_type(apm->enum_type, rhino_type.index);
+        EMIT_SUBSTR(enum_type->identity);
+        break;
+    }
+
     default:
         fatal_error("Unable to generate Rhino type %s.", rhino_type_string(apm, rhino_type));
     }
@@ -158,6 +166,18 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
         EMIT_SUBSTR(expr->string_value);
         EMIT("\"");
         break;
+
+    case ENUM_VALUE_LITERAL:
+    {
+        EnumValue *enum_value = get_enum_value(apm->enum_value, expr->enum_value);
+        size_t enum_type_index = get_enum_type_of_enum_value(apm, expr->enum_value);
+        EnumType *enum_type = get_enum_type(apm->enum_type, enum_type_index);
+
+        EMIT_SUBSTR(enum_type->identity);
+        EMIT("__");
+        EMIT_SUBSTR(enum_value->identity);
+        break;
+    }
 
     case VARIABLE_REFERENCE:
     {
@@ -342,6 +362,12 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
             EMIT_ESCAPED("\"%f\\n\", ");
             transpile_expression(t, apm, expr_index);
         }
+        else if (expr_type.sort == SORT_ENUM)
+        {
+            // TODO: Output the enum value as a string, not it's numerical representation
+            EMIT_ESCAPED("\"%d\\n\", ");
+            transpile_expression(t, apm, expr_index);
+        }
         else
         {
             fatal_error("Unable to generate output statement for expression with type %s.", rhino_type_string(apm, expr_type));
@@ -387,6 +413,28 @@ void transpile_program(Transpiler *t, Program *apm)
     EMIT_LINE("#include <stdbool.h>");
     EMIT_LINE("#include <stdio.h>");
     EMIT_NEWLINE();
+
+    // Enum declarations
+    for (size_t i = 0; i < apm->enum_type.count; i++)
+    {
+        EnumType *enum_type = get_enum_type(apm->enum_type, i);
+
+        EMIT("typedef enum { ");
+        size_t last = enum_type->values.first + enum_type->values.count - 1;
+        for (size_t i = enum_type->values.first; i <= last; i++)
+        {
+            EnumValue *enum_value = get_enum_value(apm->enum_value, i);
+            if (i > 0)
+                EMIT(", ");
+            EMIT_SUBSTR(enum_type->identity);
+            EMIT("__");
+            EMIT_SUBSTR(enum_value->identity);
+        }
+
+        EMIT(" } ");
+        EMIT_SUBSTR(enum_type->identity);
+        EMIT_LINE(";");
+    }
 
     // Forward function declarations
     for (size_t i = 0; i < apm->function.count; i++)
