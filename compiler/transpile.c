@@ -260,29 +260,29 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         Variable *var = get_variable(apm->variable, stmt->variable);
 
         // TODO: Factor out into "transpile type"
-        if (var->type == RHINO_BOOL)
+        if (var->type.sort == SORT_BOOL)
             EMIT("bool ");
-        else if (var->type == RHINO_STR)
+        else if (var->type.sort == SORT_STR)
             EMIT("char* ");
-        else if (var->type == RHINO_INT)
+        else if (var->type.sort == SORT_INT)
             EMIT("int ");
-        else if (var->type == RHINO_NUM)
+        else if (var->type.sort == SORT_NUM)
             EMIT("double ");
         else
-            fatal_error("Unable to generate variable declaration for variable with type %s.", rhino_type_string(var->type));
+            fatal_error("Unable to generate variable declaration for variable with type %s.", rhino_type_string(apm, var->type));
 
         EMIT_SUBSTR(var->identity);
         EMIT(" = ");
 
         if (stmt->has_initial_value)
             transpile_expression(t, apm, stmt->initial_value);
-        else if (var->type == RHINO_BOOL)
+        else if (var->type.sort == SORT_BOOL)
             EMIT("false");
-        else if (var->type == RHINO_STR)
+        else if (var->type.sort == SORT_STR)
             EMIT("\"\"");
-        else if (var->type == RHINO_INT)
+        else if (var->type.sort == SORT_INT)
             EMIT("0");
-        else if (var->type == RHINO_NUM)
+        else if (var->type.sort == SORT_NUM)
             EMIT("0");
 
         EMIT_LINE(";");
@@ -296,13 +296,13 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
         EMIT("printf(");
 
-        if (expr_type == RHINO_BOOL)
+        if (expr_type.sort == SORT_BOOL)
         {
             EMIT_ESCAPED("\"%s\\n\", (");
             transpile_expression(t, apm, expr_index);
             EMIT(") ? \"true\" : \"false\"");
         }
-        else if (expr_type == RHINO_STR)
+        else if (expr_type.sort == SORT_STR)
         {
             Expression *expr = get_expression(apm->expression, expr_index);
 
@@ -318,19 +318,19 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
                 transpile_expression(t, apm, expr_index);
             }
         }
-        else if (expr_type == RHINO_INT)
+        else if (expr_type.sort == SORT_INT)
         {
             EMIT_ESCAPED("\"%d\\n\", ");
             transpile_expression(t, apm, expr_index);
         }
-        else if (expr_type == RHINO_NUM)
+        else if (expr_type.sort == SORT_NUM)
         {
             EMIT_ESCAPED("\"%f\\n\", ");
             transpile_expression(t, apm, expr_index);
         }
         else
         {
-            fatal_error("Unable to generate output statement for expression with type %s.", rhino_type_string(expr_type));
+            fatal_error("Unable to generate output statement for expression with type %s.", rhino_type_string(apm, expr_type));
         }
 
         EMIT_LINE(");");

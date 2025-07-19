@@ -7,14 +7,21 @@
 #include <stdbool.h>
 
 // Types
-#define LIST_RHINO_TYPES(MACRO) \
-    MACRO(INVALID_RHINO_TYPE)   \
-    MACRO(RHINO_BOOL)           \
-    MACRO(RHINO_INT)            \
-    MACRO(RHINO_NUM)            \
-    MACRO(RHINO_STR)
+#define LIST_RHINO_SORTS(MACRO) \
+    MACRO(INVALID_SORT)         \
+    MACRO(SORT_BOOL)            \
+    MACRO(SORT_INT)             \
+    MACRO(SORT_NUM)             \
+    MACRO(SORT_STR)             \
+    MACRO(SORT_ENUM)
 
-DECLARE_ENUM(LIST_RHINO_TYPES, RhinoType, rhino_type)
+DECLARE_ENUM(LIST_RHINO_SORTS, RhinoSort, rhino_sort)
+
+typedef struct
+{
+    RhinoSort sort;
+    size_t index;
+} RhinoType;
 
 // Enum value
 DECLARE_SLICE_TYPE(EnumValue, enum_value)
@@ -242,6 +249,7 @@ typedef struct
 void init_program(Program *apm);
 
 // Display APM
+const char *rhino_type_string(Program *apm, RhinoType ty);
 void dump_apm(Program *apm, const char *source_text);
 void print_parsed_apm(Program *apm, const char *source_text);
 void print_analysed_apm(Program *apm, const char *source_text);

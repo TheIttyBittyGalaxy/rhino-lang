@@ -43,14 +43,14 @@ void resolve_types(Compiler *c, Program *apm)
                 type_expression->identity_resolved = true;
 
                 if (substr_is(c->source_text, type_expression->identity, "int"))
-                    var->type = RHINO_INT;
+                    var->type.sort = SORT_INT;
                 else if (substr_is(c->source_text, type_expression->identity, "num"))
-                    var->type = RHINO_NUM;
+                    var->type.sort = SORT_NUM;
                 else if (substr_is(c->source_text, type_expression->identity, "str"))
-                    var->type = RHINO_STR;
+                    var->type.sort = SORT_STR;
                 else
                 {
-                    var->type = INVALID_RHINO_TYPE;
+                    var->type.sort = INVALID_SORT;
                     raise_compilation_error(c, VARIABLE_DECLARED_WITH_INVALID_TYPE, type_expression->span);
                 }
             }

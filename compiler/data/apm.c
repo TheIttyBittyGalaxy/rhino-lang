@@ -3,7 +3,7 @@
 
 // ENUMS //
 
-DEFINE_ENUM(LIST_RHINO_TYPES, RhinoType, rhino_type)
+DEFINE_ENUM(LIST_RHINO_SORTS, RhinoSort, rhino_sort)
 DEFINE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
 DEFINE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 DEFINE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
@@ -23,6 +23,14 @@ DEFINE_SLICE_TYPE(Function, function)
 DEFINE_SLICE_TYPE(Variable, variable)
 DEFINE_SLICE_TYPE(EnumType, enum_type)
 DEFINE_SLICE_TYPE(EnumValue, enum_value)
+
+// RHINO TYPE //
+
+const char *rhino_type_string(Program *apm, RhinoType ty)
+{
+    // TODO: Return name of enum type instead of sort
+    return rhino_sort_string(ty.sort);
+}
 
 // INIT APM //
 
@@ -126,7 +134,7 @@ void dump_apm(Program *apm, const char *source_text)
         Variable *var = get_variable(apm->variable, i);
         printf("%02d\t", i);
         printf_substr(source_text, var->identity);
-        printf("\n");
+        printf("\t%s\n", rhino_type_string(apm, var->type));
     }
     printf("\n");
 
@@ -201,19 +209,26 @@ size_t get_last_statement_in_code_block(Program *apm, Statement *code_block)
 
 RhinoType get_expression_type(Program *apm, size_t expr_index)
 {
+    RhinoType result;
+    result.sort = INVALID_SORT;
+    result.index = 0;
+
     Expression *expr = get_expression(apm->expression, expr_index);
 
     switch (expr->kind)
     {
     // Literals
     case BOOLEAN_LITERAL:
-        return RHINO_BOOL;
+        result.sort = SORT_BOOL;
+        break;
 
     case STRING_LITERAL:
-        return RHINO_STR;
+        result.sort = SORT_STR;
+        break;
 
     case NUMBER_LITERAL:
-        return RHINO_INT;
+        result.sort = SORT_INT;
+        break;
 
     // Variables
     case VARIABLE_REFERENCE:
@@ -221,19 +236,21 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
 
     // Numerical operations
     case BINARY_DIVIDE:
-        return RHINO_NUM;
+        result.sort = SORT_NUM;
+        break;
 
     case BINARY_MULTIPLY:
     case BINARY_REMAINDER:
     case BINARY_ADD:
     case BINARY_SUBTRACT:
     {
-        size_t lhs_type = get_expression_type(apm, expr->lhs);
-        size_t rhs_type = get_expression_type(apm, expr->rhs);
-        if (lhs_type == RHINO_INT && rhs_type == RHINO_INT)
-            return RHINO_INT;
-
-        return RHINO_NUM;
+        RhinoType lhs_type = get_expression_type(apm, expr->lhs);
+        RhinoType rhs_type = get_expression_type(apm, expr->rhs);
+        if (lhs_type.sort == SORT_INT && rhs_type.sort == SORT_INT)
+            result.sort = SORT_INT;
+        else
+            result.sort = SORT_NUM;
+        break;
     }
 
     // Logical operations
@@ -245,15 +262,16 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
     case BINARY_NOT_EQUAL:
     case BINARY_LOGICAL_AND:
     case BINARY_LOGICAL_OR:
-        return RHINO_BOOL;
+        result.sort = SORT_BOOL;
+        break;
     }
 
-    return INVALID_RHINO_TYPE;
+    return result;
 }
 
 bool is_expression_boolean(Program *apm, size_t expr_index)
 {
-    return get_expression_type(apm, expr_index) == RHINO_BOOL;
+    return get_expression_type(apm, expr_index).sort == SORT_BOOL;
 }
 
 // EXPRESSION PRECEDENCE METHODS //

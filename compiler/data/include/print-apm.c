@@ -94,7 +94,7 @@ void PRINT_VARIABLE(Program *apm, size_t var_index, const char *source_text)
     Variable *var = get_variable(apm->variable, var_index);
 
     PRINT_SUBSTR(var->identity);
-    PRINT(" v%02d (%s)", var_index, rhino_type_string(var->type));
+    PRINT(" v%02d (%s)", var_index, rhino_type_string(apm, var->type));
 }
 
 // PRINT EXPRESSION //
