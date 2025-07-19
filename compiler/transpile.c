@@ -414,11 +414,12 @@ void transpile_program(Transpiler *t, Program *apm)
     EMIT_LINE("#include <stdio.h>");
     EMIT_NEWLINE();
 
-    // Enum declarations
+    // Enum types
     for (size_t i = 0; i < apm->enum_type.count; i++)
     {
         EnumType *enum_type = get_enum_type(apm->enum_type, i);
 
+        // Enum declaration
         EMIT("typedef enum { ");
         size_t last = enum_type->values.first + enum_type->values.count - 1;
         for (size_t i = enum_type->values.first; i <= last; i++)
@@ -434,7 +435,36 @@ void transpile_program(Transpiler *t, Program *apm)
         EMIT(" } ");
         EMIT_SUBSTR(enum_type->identity);
         EMIT_LINE(";");
+        EMIT_NEWLINE();
+
+        // To string function
+        EMIT("const char* string_of_");
+        EMIT_SUBSTR(enum_type->identity);
+        EMIT("(");
+        EMIT_SUBSTR(enum_type->identity);
+        EMIT(" value)");
+        EMIT_NEWLINE();
+
+        EMIT_OPEN_BRACE();
+        EMIT_LINE("switch(value)");
+        EMIT_OPEN_BRACE();
+        for (size_t i = enum_type->values.first; i <= last; i++)
+        {
+            EnumValue *enum_value = get_enum_value(apm->enum_value, i);
+            EMIT("case ");
+            EMIT_SUBSTR(enum_type->identity);
+            EMIT("__");
+            EMIT_SUBSTR(enum_value->identity);
+
+            EMIT(": return \"");
+            EMIT_SUBSTR(enum_value->identity);
+            EMIT_LINE("\";");
+        }
+        EMIT_CLOSE_BRACE();
+        EMIT_CLOSE_BRACE();
+        EMIT_NEWLINE();
     }
+    EMIT_NEWLINE();
 
     // Forward function declarations
     for (size_t i = 0; i < apm->function.count; i++)
