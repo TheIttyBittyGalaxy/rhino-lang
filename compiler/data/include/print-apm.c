@@ -152,6 +152,24 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
 
         break;
 
+    case INDEX_BY_FIELD:
+        PRINT("INDEX_BY_FIELD ");
+        INDENT();
+
+        NEWLINE();
+        PRINT("field: ")
+        PRINT_SUBSTR(expr->field);
+
+        NEWLINE();
+        LAST_ON_LINE();
+        PRINT("subject: ")
+        PRINT_EXPRESSION(apm, expr->subject, source_text);
+
+        UNINDENT();
+        NEWLINE();
+
+        break;
+
     case BINARY_MULTIPLY:
     case BINARY_DIVIDE:
     case BINARY_REMAINDER:

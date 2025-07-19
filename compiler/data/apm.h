@@ -61,6 +61,7 @@ DECLARE_LIST_TYPE(Variable, variable)
     MACRO(PRECEDENCE_TERM)             \
     MACRO(PRECEDENCE_FACTOR)           \
     MACRO(PRECEDENCE_UNARY)            \
+    MACRO(PRECEDENCE_INDEX)            \
     MACRO(PRECEDENCE_CALL)
 
 DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
@@ -76,6 +77,8 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
     MACRO(VARIABLE_REFERENCE)        \
                                      \
     MACRO(FUNCTION_CALL)             \
+                                     \
+    MACRO(INDEX_BY_FIELD)            \
                                      \
     MACRO(BINARY_MULTIPLY)           \
     MACRO(BINARY_DIVIDE)             \
@@ -125,6 +128,11 @@ typedef struct
         struct // FUNCTION_CALL
         {
             size_t callee; // Expression -> Function
+        };
+        struct // INDEX_BY_FIELD
+        {
+            size_t subject; // Expression
+            substr field;
         };
         struct // BINARY_*
         {

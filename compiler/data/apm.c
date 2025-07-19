@@ -110,6 +110,11 @@ void dump_apm(Program *apm, const char *source_text)
         case FUNCTION_CALL:
             printf("callee %02d", expr->callee);
             break;
+
+        case INDEX_BY_FIELD:
+            printf("\tsubject: %02d\tfield: ", expr->subject);
+            printf_substr(source_text, expr->field);
+            break;
         }
         printf("\n");
     }
@@ -269,6 +274,9 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
 
     case FUNCTION_CALL:
         return PRECEDENCE_CALL;
+
+    case INDEX_BY_FIELD:
+        return PRECEDENCE_INDEX;
 
     case BINARY_MULTIPLY:
     case BINARY_DIVIDE:

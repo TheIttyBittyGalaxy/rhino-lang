@@ -723,6 +723,18 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
             EAT(PAREN_R);
         }
 
+        // Index by field
+        else if (PEEK(DOT) && LEFT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(INDEX_BY_FIELD), caller_precedence))
+        {
+            EXPRESSION(expr)->kind = INDEX_BY_FIELD;
+            EXPRESSION(expr)->subject = lhs;
+
+            ADVANCE();
+
+            EXPRESSION(expr)->field = TOKEN_STRING();
+            EAT(IDENTITY);
+        }
+
         // Factor (multiplication, division, remainder)
         PARSE_BINARY_OPERATION(STAR, BINARY_MULTIPLY)
         PARSE_BINARY_OPERATION(SLASH, BINARY_DIVIDE)
