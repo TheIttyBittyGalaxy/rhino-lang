@@ -18,6 +18,14 @@ size_t cmd_arg_start;
 #define BUFFER_SIZE 2048
 char buffer[BUFFER_SIZE];
 
+typedef enum
+{
+    INVALID,
+    SUCCESS,
+    ERRORS,
+    FATAL_ERROR
+} CompilerResult;
+
 void test_program_at_active_path(size_t active_path_len)
 {
     // printf("%s\n", active_path);
@@ -46,11 +54,19 @@ void test_program_at_active_path(size_t active_path_len)
         return;
     }
 
-    while (!feof(stream))
+    // Determine status
+    CompilerResult result = INVALID;
+    if (fgets(buffer, BUFFER_SIZE, stream) != NULL)
     {
-        if (fgets(buffer, BUFFER_SIZE, stream) != NULL)
-            printf("%s", buffer);
+        if (buffer[0] == 'S')
+            result = SUCCESS;
+        else if (buffer[0] == 'E')
+            result = ERRORS;
+        else if (buffer[0] == 'F')
+            result = FATAL_ERROR;
     }
+
+    // while (!feof(stream))
 
     pclose(stream);
     printf("\n");
