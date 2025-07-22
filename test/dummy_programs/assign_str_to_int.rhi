@@ -1,0 +1,6 @@
+fn main() {
+    int x = "Hello!";
+    > x;
+}
+
+// ERRORS

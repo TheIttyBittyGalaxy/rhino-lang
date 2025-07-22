@@ -154,6 +154,9 @@ void test_program_at_active_path(size_t active_path_len)
         expected_output_count++;
     }
 
+    if (expected_compiler_result == INVALID)
+        expected_compiler_result = NOT_FOUND;
+
     fclose(source_file);
 
     // Determine if test passed

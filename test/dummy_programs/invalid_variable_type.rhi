@@ -1,0 +1,7 @@
+fn main() {
+    main x;
+    > x;
+}
+
+// ERRORS
+// VARIABLE_DECLARED_WITH_INVALID_TYPE:2:5

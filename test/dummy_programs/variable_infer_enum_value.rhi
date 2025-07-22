@@ -4,3 +4,6 @@ fn main() {
     Thing x = foo;
     > x;
 }
+
+// SUCCESS
+// foo

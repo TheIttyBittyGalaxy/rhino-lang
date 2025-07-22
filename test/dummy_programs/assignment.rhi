@@ -17,7 +17,7 @@ fn main() {
     > y;
 }
 
-// RESULTS
+// SUCCESS
 // 5
 // 5
 // 4

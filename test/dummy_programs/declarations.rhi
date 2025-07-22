@@ -24,7 +24,7 @@ fn main() {
     > z;
 }
 
-// RESULTS
+// SUCCESS
 // 2.71
 // 3.14
 // 2

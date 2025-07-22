@@ -3,7 +3,7 @@ fn main() {
         > i;
 }
 
-// RESULTS
+// SUCCESS
 // 1
 // 2
 // 3

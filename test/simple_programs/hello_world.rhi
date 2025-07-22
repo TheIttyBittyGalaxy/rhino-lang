@@ -1,3 +1,6 @@
 fn main() {
     > "Hello World!";
 }
+
+// SUCCESS
+// Hello World!

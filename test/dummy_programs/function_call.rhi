@@ -6,5 +6,5 @@ fn greet() {
     > "Howdy!";
 }
 
-// RESULTS
+// SUCCESS
 // Howdy!

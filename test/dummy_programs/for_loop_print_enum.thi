@@ -5,5 +5,8 @@ fn main() {
         > thing;
 }
 
-// ERRORS
-// EXPECTED_TWO_DOT:4:23
+// SUCCESS
+// foo
+// bar
+// boo
+// bar

@@ -4,3 +4,6 @@ fn main() {
     def x = Thing.foo;
     > x;
 }
+
+// SUCCESS
+// foo
