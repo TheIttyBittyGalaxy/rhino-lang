@@ -8,15 +8,17 @@
 //       and then compare the results with the expectation to determine
 //       if the test has passed.
 
-// TODO: Output an overview of the test results in a markdown file.
+// STRING BUFFERS //
 
 char active_path[512];
 
 char cmd[512];
 size_t cmd_arg_start;
 
-#define BUFFER_SIZE 2048
-char buffer[BUFFER_SIZE];
+#define RESULT_BUFFER_SIZE 2048
+char result_buffer[RESULT_BUFFER_SIZE];
+
+// COMPILER RESULT ENUM //
 
 typedef enum
 {
@@ -26,10 +28,36 @@ typedef enum
     FATAL_ERROR
 } CompilerResult;
 
+const char *compiler_result_string(CompilerResult result)
+{
+    switch (result)
+    {
+    case SUCCESS:
+        return "SUCCESS";
+    case ERRORS:
+        return "ERRORS";
+    case FATAL_ERROR:
+        return "FATAL ERROR";
+    default:
+        return "INVALID COMPILER OUTPUT";
+    }
+}
+
+// OUTPUT FILE //
+
+FILE *output_file;
+size_t failed_test_id;
+
+char output_append[65536];
+size_t output_append_start;
+
+#define OUTPUT(...) fprintf(output_file, __VA_ARGS__)
+#define APPEND_OUTPUT(...) output_append_start += sprintf(output_append + output_append_start, __VA_ARGS__)
+
+// TEST PROGRAM //
+
 void test_program_at_active_path(size_t active_path_len)
 {
-    // printf("%s\n", active_path);
-
     // Update system command
     {
         size_t c = cmd_arg_start;
@@ -54,23 +82,83 @@ void test_program_at_active_path(size_t active_path_len)
         return;
     }
 
-    // Determine status
-    CompilerResult result = INVALID;
-    if (fgets(buffer, BUFFER_SIZE, stream) != NULL)
+    // Determine result
+    bool test_passed = false;
+    CompilerResult compiler_result = INVALID;
+
+    if (fgets(result_buffer, RESULT_BUFFER_SIZE, stream) != NULL)
     {
-        if (buffer[0] == 'S')
-            result = SUCCESS;
-        else if (buffer[0] == 'E')
-            result = ERRORS;
-        else if (buffer[0] == 'F')
-            result = FATAL_ERROR;
+        if (result_buffer[0] == 'S')
+            compiler_result = SUCCESS;
+        else if (result_buffer[0] == 'E')
+            compiler_result = ERRORS;
+        else if (result_buffer[0] == 'F')
+            compiler_result = FATAL_ERROR;
     }
 
-    // while (!feof(stream))
+    // Get outputs of compiler
+    char output_buffer[512][64];
+    size_t outputs;
+    for (size_t i = 0; i < 64; i++)
+    {
+        if (fgets(output_buffer[i], RESULT_BUFFER_SIZE, stream) != NULL)
+        {
+            size_t n = strlen(output_buffer[i]);
+            if (output_buffer[i][n - 1] == '\n')
+                output_buffer[i][n - 1] = '\0';
+        }
+        else
+        {
+            outputs = i;
+            break;
+        }
+    }
 
+    if (compiler_result == INVALID || compiler_result == FATAL_ERROR)
+        goto output_html;
+
+    // TODO: Verify test passed
+
+output_html:
     pclose(stream);
-    printf("\n");
+
+    OUTPUT("\n<tr>");
+    OUTPUT("<td><a href=\"%s\">%s</a></td>", active_path, active_path);
+
+    if (test_passed)
+        OUTPUT("<td class=\"result\">YES</td>");
+    else if (compiler_result == FATAL_ERROR)
+        OUTPUT("<td class=\"result result-fail\"><a href=\"#F%03d\">FATAL</a></td>", failed_test_id);
+    else
+        OUTPUT("<td class=\"result result-fail\"><a href=\"#F%03d\">NO</a></td>", failed_test_id);
+
+    OUTPUT("</tr>");
+
+    if (!test_passed)
+    {
+        APPEND_OUTPUT("\n<h2 id=\"F%03d\"><a href=\"%s\">%s</a></h2>", failed_test_id, active_path, active_path);
+
+        APPEND_OUTPUT("<table>");
+        APPEND_OUTPUT("<tr><th>Expected</th><th>Actual</th></tr>");
+        APPEND_OUTPUT("<tr><td>");
+
+        // TODO: Show expected result
+
+        APPEND_OUTPUT("</td><td>");
+        APPEND_OUTPUT("<b>%s</b>", compiler_result_string(compiler_result));
+
+        for (size_t i = 0; i < outputs; i++)
+        {
+            APPEND_OUTPUT("<br>");
+            APPEND_OUTPUT(output_buffer[i]);
+        }
+
+        APPEND_OUTPUT("</td></tr></table>");
+        failed_test_id++;
+    }
 }
+
+// SCAN DIRECTORY //
 
 void scan_directory(DIR *dir, size_t path_len)
 {
@@ -80,6 +168,9 @@ void scan_directory(DIR *dir, size_t path_len)
         printf("ERROR: Could not scan directory %s\n", active_path);
         return;
     }
+
+    // Output to table
+    bool outputted_table_row = false;
 
     // Extend active path ready for item paths
     path_len--;
@@ -122,6 +213,8 @@ void scan_directory(DIR *dir, size_t path_len)
     }
 }
 
+// MAIN //
+
 int main(int argc, char *argv[])
 {
     // Process arguments
@@ -149,10 +242,56 @@ int main(int argc, char *argv[])
     // Prepare active path
     memcpy(active_path, test_path, test_path_len + 1);
 
+    // Open output file
+    output_file = fopen("test-results.html", "w");
+    output_append_start = 0;
+
+    failed_test_id = 0;
+
+    OUTPUT("<!DOCTYPE html><html lang=\"en\"><head>"
+           "<meta charset=\"UTF-8\">"
+           "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+           "<title>Test Results</title>"
+           "<style>"
+           "body {"
+           "font-family: monospace;"
+           "font-size: 120%%;"
+           "}"
+           "table {"
+           "border-collapse: collapse;"
+           "background-color: #EBEBEB;"
+           "}"
+           "tr { border: 3px solid white; }"
+           "th, td { padding: 0.3em; }"
+           "tr:first-child {"
+           "background-color: #373F51;"
+           "color: white;"
+           "}"
+           ".result { text-align: center; }"
+           ".result-fail { background-color: #FF4BD2; }"
+           ".result-fail a { color: white; }"
+           "</style>"
+           "</head><body>");
+
+    OUTPUT("<table>");
+    OUTPUT("<tr><th>Test</th><th>Passed</th></tr>");
+
     // Scan tests directory
     DIR *dir = opendir(active_path);
     scan_directory(dir, test_path_len + 1);
     closedir(dir);
+
+    // Close the output file
+    APPEND_OUTPUT("\0");
+
+    OUTPUT("</table>");
+
+    output_append[output_append_start] = '\0';
+    OUTPUT(output_append);
+
+    OUTPUT("</body></html>");
+
+    fclose(output_file);
 
     return 0;
 }

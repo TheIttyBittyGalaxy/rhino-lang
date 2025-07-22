@@ -1,5 +1,6 @@
 # Local repo files
 local.rhi
+test-results.html
 _out.c
 
 # Prerequisites
