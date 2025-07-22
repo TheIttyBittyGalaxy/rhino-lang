@@ -9,9 +9,19 @@ extern bool flag_test_mode;
 void fatal_error(const char *message, ...)
 {
     if (flag_test_mode)
-        fprintf(stderr, "FATAL ERROR\n");
-    else
-        fprintf(stderr, "A fatal error has occurred. This is an issue with the Rhino compiler, and not with your program.\n");
+    {
+        printf("FATAL ERROR\n");
+
+        va_list args;
+        va_start(args, message);
+        vprintf(message, args);
+        va_end(args);
+        printf("\n");
+
+        exit(EXIT_FAILURE);
+    }
+
+    fprintf(stderr, "A fatal error has occurred. This is an issue with the Rhino compiler, and not with your program.\n");
 
     va_list args;
     va_start(args, message);
