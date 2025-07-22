@@ -107,10 +107,24 @@ int main(int argc, char *argv[])
         analyse(&compiler, &apm);
 
         if (compiler.error_count > 0)
+        {
+            printf("ERRORS\n");
+            determine_error_positions(&compiler);
+            for (size_t i = 0; i < compiler.error_count; i++)
+            {
+                CompilationError error = compiler.errors[i];
+                printf("%s:%d:%d\n",
+                       compilation_error_code_string(error.code),
+                       error.line,
+                       error.column);
+            }
+
             return EXIT_FAILURE;
+        }
 
         transpile(&compiler, &apm);
-        // TODO: Compile and run the C output
+
+        printf("SUCCESS\n");
 
         return EXIT_SUCCESS;
     }
