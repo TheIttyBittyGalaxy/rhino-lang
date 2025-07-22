@@ -23,6 +23,7 @@ char result_buffer[RESULT_BUFFER_SIZE];
 typedef enum
 {
     INVALID,
+    NOT_FOUND,
     SUCCESS,
     ERRORS,
     FATAL_ERROR
@@ -32,6 +33,8 @@ const char *compiler_result_string(CompilerResult result)
 {
     switch (result)
     {
+    case NOT_FOUND:
+        return "NOT FOUND";
     case SUCCESS:
         return "SUCCESS";
     case ERRORS:
@@ -83,7 +86,6 @@ void test_program_at_active_path(size_t active_path_len)
     }
 
     // Determine result
-    bool test_passed = false;
     CompilerResult compiler_result = INVALID;
 
     if (fgets(result_buffer, RESULT_BUFFER_SIZE, stream) != NULL)
@@ -98,7 +100,7 @@ void test_program_at_active_path(size_t active_path_len)
 
     // Get outputs of compiler
     char output_buffer[512][64];
-    size_t outputs;
+    size_t output_count;
     for (size_t i = 0; i < 64; i++)
     {
         if (fgets(output_buffer[i], RESULT_BUFFER_SIZE, stream) != NULL)
@@ -109,17 +111,69 @@ void test_program_at_active_path(size_t active_path_len)
         }
         else
         {
-            outputs = i;
+            output_count = i;
             break;
         }
     }
 
-    if (compiler_result == INVALID || compiler_result == FATAL_ERROR)
-        goto output_html;
+    // Get program expectation
+    CompilerResult expected_compiler_result = INVALID;
+    char expected_output_buffer[512][64];
+    size_t expected_output_count = 0;
+    FILE *source_file = fopen(active_path, "r");
 
-    // TODO: Verify test passed
+    char line[512];
+    while (fgets(line, sizeof(line), source_file))
+    {
+        if (line[0] != '/' || line[1] != '/')
+            continue;
 
-output_html:
+        if (expected_compiler_result == INVALID)
+        {
+            if (line[3] == 'S')
+            {
+                expected_compiler_result = SUCCESS;
+                continue;
+            }
+
+            if (line[3] == 'E')
+            {
+                expected_compiler_result = ERRORS;
+                continue;
+            }
+
+            expected_compiler_result = NOT_FOUND;
+        }
+
+        size_t n = strlen(line);
+        if (line[n - 1] == '\n')
+            line[n - 1] = '\0';
+
+        strcpy(expected_output_buffer[expected_output_count], line + 3);
+
+        expected_output_count++;
+    }
+
+    fclose(source_file);
+
+    // Determine if test passed
+    bool test_passed = false;
+    if (compiler_result != expected_compiler_result)
+        goto failed_test;
+
+    if (output_count != expected_output_count)
+        goto failed_test;
+
+    for (size_t i = 0; i < output_count; i++)
+    {
+        if (strcmp(output_buffer[i], expected_output_buffer[i]) != 0)
+            goto failed_test;
+    }
+
+    test_passed = true;
+
+failed_test:
+    // Output results to HTML
     pclose(stream);
 
     OUTPUT("\n<tr>");
@@ -127,6 +181,8 @@ output_html:
 
     if (test_passed)
         OUTPUT("<td class=\"result\">YES</td>");
+    else if (expected_compiler_result == NOT_FOUND)
+        OUTPUT("<td class=\"result result-fail\"><a href=\"#F%03d\">NOT FOUND</a></td>", failed_test_id);
     else if (compiler_result == FATAL_ERROR)
         OUTPUT("<td class=\"result result-fail\"><a href=\"#F%03d\">FATAL</a></td>", failed_test_id);
     else
@@ -142,12 +198,17 @@ output_html:
         APPEND_OUTPUT("<tr><th>Expected</th><th>Actual</th></tr>");
         APPEND_OUTPUT("<tr><td>");
 
-        // TODO: Show expected result
+        APPEND_OUTPUT("<b>%s</b>", compiler_result_string(expected_compiler_result));
+        for (size_t i = 0; i < expected_output_count; i++)
+        {
+            APPEND_OUTPUT("<br>");
+            APPEND_OUTPUT(expected_output_buffer[i]);
+        }
 
         APPEND_OUTPUT("</td><td>");
-        APPEND_OUTPUT("<b>%s</b>", compiler_result_string(compiler_result));
 
-        for (size_t i = 0; i < outputs; i++)
+        APPEND_OUTPUT("<b>%s</b>", compiler_result_string(compiler_result));
+        for (size_t i = 0; i < output_count; i++)
         {
             APPEND_OUTPUT("<br>");
             APPEND_OUTPUT(output_buffer[i]);
@@ -262,7 +323,10 @@ int main(int argc, char *argv[])
            "background-color: #EBEBEB;"
            "}"
            "tr { border: 3px solid white; }"
-           "th, td { padding: 0.3em; }"
+           "th, td {"
+           "padding: 0.3em;"
+           "vertical-align: top;"
+           "}"
            "tr:first-child {"
            "background-color: #373F51;"
            "color: white;"

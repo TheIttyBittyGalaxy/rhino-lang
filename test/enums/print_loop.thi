@@ -4,3 +4,6 @@ fn main() {
     for thing in Thing:
         > thing;
 }
+
+// ERRORS
+// EXPECTED_TWO_DOT:4:23

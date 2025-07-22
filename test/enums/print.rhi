@@ -4,3 +4,7 @@ fn main() {
     > Thing.foo;
     > Thing.boo;
 }
+
+// SUCCESS
+// foo
+// boo
