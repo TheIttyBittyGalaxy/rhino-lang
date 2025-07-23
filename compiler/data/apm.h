@@ -115,25 +115,25 @@ typedef struct
     substr span;
     union
     {
-        struct
-        { // IDENTITY_LITERAL
+        struct // IDENTITY_LITERAL
+        {
             substr identity;
             bool identity_resolved;
         };
-        struct
-        { // BOOLEAN_LITERAL
+        struct // BOOLEAN_LITERAL
+        {
             bool bool_value;
         };
-        struct
-        { // INTEGER_LITERAL
+        struct // INTEGER_LITERAL
+        {
             int integer_value;
         };
-        struct
-        { // FLOAT_LITERAL
+        struct // FLOAT_LITERAL
+        {
             double float_value;
         };
-        struct
-        { // STRING_LITERAL
+        struct // STRING_LITERAL
+        {
             substr string_value;
         };
         struct // ENUM_VALUE_LITERAL
