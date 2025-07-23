@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 
 char __to_str_buffer[64];
 
@@ -20,18 +19,17 @@ void float_to_str(double x)
     long long integer_portion = x;
     float rational_portion = x - integer_portion;
 
-    size_t int_digits = 0;
-    long long multiplier = 1;
-    while (integer_portion /= 10)
-    {
-        int_digits++;
-        multiplier *= 10;
-    }
+    int f = c;
+    do
+        __to_str_buffer[c++] = '0' + integer_portion % 10;
+    while (integer_portion /= 10);
+    int l = c - 1;
 
-    for (int i = int_digits; i >= 0; i--)
+    while (l > f)
     {
-        __to_str_buffer[c++] = '0' + (long long)(x / multiplier) % 10;
-        multiplier /= 10;
+        char t = __to_str_buffer[f];
+        __to_str_buffer[f++] = __to_str_buffer[l];
+        __to_str_buffer[l--] = t;
     }
 
     if (rational_portion > 0.0001)
@@ -57,6 +55,7 @@ void float_to_str(double x)
 
 int main()
 {
+    FTOS(1234.56);
     FTOS(123.456);
     FTOS(123.4);
     FTOS(3.14);
