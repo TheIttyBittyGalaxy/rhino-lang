@@ -12,8 +12,8 @@
 
 char active_path[512];
 
-char cmd[512];
-size_t cmd_arg_start;
+char rhino_cmd[512];
+size_t rhino_cmd_arg_start;
 
 #define RESULT_BUFFER_SIZE 2048
 char result_buffer[RESULT_BUFFER_SIZE];
@@ -63,23 +63,23 @@ void test_program_at_active_path(size_t active_path_len)
 {
     // Update system command
     {
-        size_t c = cmd_arg_start;
-        memcpy(cmd + c, active_path, active_path_len - 1);
+        size_t c = rhino_cmd_arg_start;
+        memcpy(rhino_cmd + c, active_path, active_path_len - 1);
         c += active_path_len - 1;
-        cmd[c++] = ' ';
-        cmd[c++] = '-';
-        cmd[c++] = 't';
-        cmd[c++] = 'e';
-        cmd[c++] = 's';
-        cmd[c++] = 't';
-        cmd[c++] = '\0';
+        rhino_cmd[c++] = ' ';
+        rhino_cmd[c++] = '-';
+        rhino_cmd[c++] = 't';
+        rhino_cmd[c++] = 'e';
+        rhino_cmd[c++] = 's';
+        rhino_cmd[c++] = 't';
+        rhino_cmd[c++] = '\0';
     }
 
     // Run the command
-    printf("> %s\n", cmd);
-    FILE *stream = popen(cmd, "r");
+    printf("> %s\n", rhino_cmd);
+    FILE *rhino_cmd_stream = popen(rhino_cmd, "r");
 
-    if (!stream)
+    if (!rhino_cmd_stream)
     {
         printf("ERROR: Unable to run command\n");
         return;
@@ -88,7 +88,7 @@ void test_program_at_active_path(size_t active_path_len)
     // Determine result
     CompilerResult compiler_result = INVALID;
 
-    if (fgets(result_buffer, RESULT_BUFFER_SIZE, stream) != NULL)
+    if (fgets(result_buffer, RESULT_BUFFER_SIZE, rhino_cmd_stream) != NULL)
     {
         if (result_buffer[0] == 'S')
             compiler_result = SUCCESS;
@@ -98,27 +98,86 @@ void test_program_at_active_path(size_t active_path_len)
             compiler_result = FATAL_ERROR;
     }
 
-    // Get outputs of compiler
-    char output_buffer[512][64];
-    size_t output_count;
-    for (size_t i = 0; i < 64; i++)
+    // Get outputs
+    char output_buffer[64][512];
+    size_t output_count = 0;
+
+    if (compiler_result == SUCCESS)
     {
-        if (fgets(output_buffer[i], RESULT_BUFFER_SIZE, stream) != NULL)
+        // Run the build command
+        const char *build_cmd = "g++ -o _out.exe _out.c -w";
+        printf("> %s\n", build_cmd);
+        FILE *build_cmd_stream = popen(build_cmd, "r");
+
+        if (!build_cmd_stream)
         {
-            size_t n = strlen(output_buffer[i]);
-            if (output_buffer[i][n - 1] == '\n')
-                output_buffer[i][n - 1] = '\0';
+            printf("ERROR: Unable to run build command\n");
+            return;
+        }
+
+        int build_status = pclose(build_cmd_stream);
+        if (build_status == 0)
+        {
+
+            // Run the output
+            const char *run_cmd = "_out.exe";
+            printf("> %s\n", run_cmd);
+            FILE *run_cmd_stream = popen(run_cmd, "r");
+
+            if (!run_cmd_stream)
+            {
+                printf("ERROR: Unable to run output\n");
+                return;
+            }
+
+            for (size_t i = 0; i < 64; i++)
+            {
+                if (fgets(output_buffer[i], sizeof(output_buffer[i]), run_cmd_stream) != NULL)
+                {
+                    size_t n = strlen(output_buffer[i]);
+                    if (output_buffer[i][n - 1] == '\n')
+                        output_buffer[i][n - 1] = '\0';
+                }
+                else
+                {
+                    output_count = i;
+                    break;
+                }
+            }
+
+            pclose(run_cmd_stream);
         }
         else
         {
-            output_count = i;
-            break;
+            compiler_result = FATAL_ERROR;
+            output_count = 1;
+            strcpy(output_buffer[0], "Error during compilation of the C program.");
+        }
+    }
+    else if (compiler_result == ERRORS || compiler_result == FATAL_ERROR)
+    {
+        for (size_t i = 0; i < 64; i++)
+        {
+            if (fgets(output_buffer[i], sizeof(output_buffer[i]), rhino_cmd_stream) != NULL)
+            {
+                size_t n = strlen(output_buffer[i]);
+                if (output_buffer[i][n - 1] == '\n')
+                    output_buffer[i][n - 1] = '\0';
+            }
+            else
+            {
+                output_count = i;
+                break;
+            }
         }
     }
 
+    pclose(rhino_cmd_stream);
+    printf("\n");
+
     // Get program expectation
     CompilerResult expected_compiler_result = INVALID;
-    char expected_output_buffer[512][64];
+    char expected_output_buffer[64][512];
     size_t expected_output_count = 0;
     FILE *source_file = fopen(active_path, "r");
 
@@ -176,9 +235,8 @@ void test_program_at_active_path(size_t active_path_len)
     test_passed = true;
 
 failed_test:
-    // Output results to HTML
-    pclose(stream);
 
+    // Output results to HTML
     OUTPUT("\n<tr>");
     OUTPUT("<td><a href=\"%s\">%s</a></td>", active_path, active_path);
 
@@ -299,9 +357,9 @@ int main(int argc, char *argv[])
         ;
 
     // Prepare system command
-    memcpy(cmd, exe_path, exe_path_len);
-    cmd[exe_path_len] = ' ';
-    cmd_arg_start = exe_path_len + 1;
+    memcpy(rhino_cmd, exe_path, exe_path_len);
+    rhino_cmd[exe_path_len] = ' ';
+    rhino_cmd_arg_start = exe_path_len + 1;
 
     // Prepare active path
     memcpy(active_path, test_path, test_path_len + 1);
