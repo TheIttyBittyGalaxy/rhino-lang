@@ -61,6 +61,21 @@ typedef struct
     size_t output_count;
 } Results;
 
+bool results_match(Results a, Results b)
+{
+    if (a.outcome != b.outcome)
+        return false;
+
+    if (a.output_count != b.output_count)
+        return false;
+
+    for (size_t i = 0; i < a.output_count; i++)
+        if (strcmp(a.output[i], b.output[i]) != 0)
+            return false;
+
+    return true;
+}
+
 // OUTPUT FILE //
 
 FILE *output_file;
@@ -72,19 +87,25 @@ size_t output_append_start;
 #define OUTPUT(...) fprintf(output_file, __VA_ARGS__)
 #define APPEND_OUTPUT(...) output_append_start += sprintf(output_append + output_append_start, __VA_ARGS__)
 
-// TEST PROGRAM //
+// RUN COMMANDS //
 
-void test_program_at_active_path(size_t active_path_len)
+typedef enum
 {
-    Results program_result;
-    program_result.outcome = INVALID;
-    program_result.output_count = 0;
+    COMMAND_SUCCESS,
+    COMMAND_FAIL,
+    COULD_NOT_RUN_COMMAND
+} CommandResult;
 
-    Results expected_result;
-    expected_result.outcome = INVALID;
-    expected_result.output_count = 0;
+#define CHECK_CMD_RESULT(result)                      \
+    if (result == COULD_NOT_RUN_COMMAND)              \
+    {                                                 \
+        printf("ERROR: Could not execute command\n"); \
+        return;                                       \
+    }
 
-    // Update system command
+CommandResult run_rhino_compiler_cmd(Results *result, size_t active_path_len)
+{
+    // Update string
     {
         size_t c = rhino_cmd_arg_start;
         memcpy(rhino_cmd + c, active_path, active_path_len - 1);
@@ -100,145 +121,161 @@ void test_program_at_active_path(size_t active_path_len)
 
     // Run the command
     printf("> %s\n", rhino_cmd);
-    FILE *rhino_cmd_stream = popen(rhino_cmd, "r");
+    FILE *stream = popen(rhino_cmd, "r");
+    if (!stream)
+        return COULD_NOT_RUN_COMMAND;
 
-    if (!rhino_cmd_stream)
+    // Determine the outcome
+    char buffer[1024];
+    if (fgets(buffer, sizeof(buffer), stream) != NULL)
     {
-        printf("ERROR: Unable to run command\n");
-        return;
+        if (buffer[0] == 'S')
+            result->outcome = SUCCESS;
+        else if (buffer[0] == 'E')
+            result->outcome = ERRORS;
+        else if (buffer[0] == 'F')
+            result->outcome = FATAL_ERROR;
     }
 
-    // Determine result
-    char outcome_buffer[1024];
-    if (fgets(outcome_buffer, sizeof(outcome_buffer), rhino_cmd_stream) != NULL)
+    // Determine outputs
+    if (result->outcome == SUCCESS)
     {
-        if (outcome_buffer[0] == 'S')
-            program_result.outcome = SUCCESS;
-        else if (outcome_buffer[0] == 'E')
-            program_result.outcome = ERRORS;
-        else if (outcome_buffer[0] == 'F')
-            program_result.outcome = FATAL_ERROR;
+        pclose(stream);
+        return COMMAND_SUCCESS;
     }
 
-    // Get outputs
-    if (program_result.outcome == SUCCESS)
+    size_t i = 0;
+    while (fgets(result->output[i], sizeof(result->output[i]), stream))
     {
-        // Run the build command
-        const char *build_cmd = "g++ -o _out.exe _out.c -w";
-        printf("> %s\n", build_cmd);
-        FILE *build_cmd_stream = popen(build_cmd, "r");
-
-        if (!build_cmd_stream)
-        {
-            printf("ERROR: Unable to run build command\n");
-            return;
-        }
-
-        int build_status = pclose(build_cmd_stream);
-        if (build_status == 0)
-        {
-
-            // Run the output
-            const char *run_cmd = "_out.exe";
-            printf("> %s\n", run_cmd);
-            FILE *run_cmd_stream = popen(run_cmd, "r");
-
-            if (!run_cmd_stream)
-            {
-                printf("ERROR: Unable to run output\n");
-                return;
-            }
-
-            for (size_t i = 0; i < 64; i++)
-            {
-                if (fgets(program_result.output[i], sizeof(program_result.output[i]), run_cmd_stream) == NULL)
-                {
-                    program_result.output_count = i;
-                    break;
-                }
-
-                strip_newline(program_result.output[i]);
-            }
-
-            pclose(run_cmd_stream);
-        }
-        else
-        {
-            program_result.outcome = FATAL_ERROR;
-            program_result.output_count = 1;
-            strcpy(program_result.output[0], "Error during compilation of the C program.");
-        }
+        strip_newline(result->output[i]);
+        i++;
     }
-    else if (program_result.outcome == ERRORS || program_result.outcome == FATAL_ERROR)
+    result->output_count = i;
+
+    pclose(stream);
+    return COMMAND_FAIL;
+}
+
+CommandResult run_c_compiler_cmd()
+{
+    // Run the command
+    const char *cmd = "g++ -o _out.exe _out.c -w";
+    printf("> %s\n", cmd);
+    FILE *stream = popen(cmd, "r");
+
+    if (!stream)
+        return COULD_NOT_RUN_COMMAND;
+
+    // Return success or fail depending on if G++ signaled there was a compilation error
+    int build_status = pclose(stream);
+
+    if (build_status == 0)
+        return COMMAND_SUCCESS;
+
+    return COMMAND_FAIL;
+}
+
+CommandResult run_compiled_test_cmd(Results *result)
+{
+    // Run the command
+    const char *cmd = "_out.exe";
+    printf("> %s\n", cmd);
+    FILE *stream = popen(cmd, "r");
+
+    if (!stream)
+        return COULD_NOT_RUN_COMMAND;
+
+    // Determine outputs
+    size_t i = 0;
+    while (fgets(result->output[i], sizeof(result->output[i]), stream))
     {
-        for (size_t i = 0; i < 64; i++)
-        {
-            if (fgets(program_result.output[i], sizeof(program_result.output[i]), rhino_cmd_stream) == NULL)
-            {
-                program_result.output_count = i;
-                break;
-            }
-
-            strip_newline(program_result.output[i]);
-        }
+        strip_newline(result->output[i]);
+        i++;
     }
+    result->output_count = i;
 
-    pclose(rhino_cmd_stream);
-    printf("\n");
+    pclose(stream);
+    return COMMAND_SUCCESS;
+}
 
-    // Get program expectation
-    FILE *source_file = fopen(active_path, "r");
+// DETERMINE EXPECTATION //
+
+Results determine_expectation()
+{
+    Results result;
+    result.outcome = NOT_FOUND;
+    result.output_count = 0;
 
     char line[512];
+    FILE *source_file = fopen(active_path, "r");
+
     while (fgets(line, sizeof(line), source_file))
     {
         if (!is_comment(line))
             continue;
 
-        if (expected_result.outcome == INVALID)
-        {
-            if (line[3] == 'S')
-            {
-                expected_result.outcome = SUCCESS;
-                continue;
-            }
+        if (line[3] == 'S')
+            result.outcome = SUCCESS;
+        else if (line[3] == 'E')
+            result.outcome = ERRORS;
+        else
+            goto treat_as_output;
 
-            if (line[3] == 'E')
-            {
-                expected_result.outcome = ERRORS;
-                continue;
-            }
-
-            expected_result.outcome = NOT_FOUND;
-        }
-
-        strip_newline(line);
-        strcpy(expected_result.output[expected_result.output_count], line + 3);
-        expected_result.output_count++;
+        break;
     }
 
-    if (expected_result.outcome == INVALID)
-        expected_result.outcome = NOT_FOUND;
+    while (fgets(line, sizeof(line), source_file))
+    {
+        if (!is_comment(line))
+            continue;
+
+    treat_as_output:
+        strip_newline(line);
+        strcpy(result.output[result.output_count], line + 3);
+        result.output_count++;
+    }
 
     fclose(source_file);
+    return result;
+}
 
-    // Determine if test passed
-    bool test_passed = false;
-    if (program_result.outcome != expected_result.outcome)
-        goto failed_test;
+// TEST PROGRAM //
 
-    if (program_result.output_count != expected_result.output_count)
-        goto failed_test;
+void test_program_at_active_path(size_t active_path_len)
+{
+    // Determine expectation
+    Results expected_result = determine_expectation();
 
-    for (size_t i = 0; i < program_result.output_count; i++)
+    // Determine actual results
+    Results actual_result;
+    actual_result.outcome = INVALID;
+    actual_result.output_count = 0;
+
+    CommandResult rhino_build = run_rhino_compiler_cmd(&actual_result, active_path_len);
+    CHECK_CMD_RESULT(rhino_build);
+
+    if (rhino_build == COMMAND_SUCCESS)
     {
-        if (strcmp(program_result.output[i], expected_result.output[i]) != 0)
-            goto failed_test;
+        CommandResult c_build = run_c_compiler_cmd();
+        CHECK_CMD_RESULT(c_build);
+
+        if (c_build == COMMAND_SUCCESS)
+        {
+            CommandResult compiled_test = run_compiled_test_cmd(&actual_result);
+            CHECK_CMD_RESULT(compiled_test);
+        }
+        else
+        {
+            actual_result.outcome = FATAL_ERROR;
+            actual_result.output_count = 1;
+            strcpy(actual_result.output[0], "Error during compilation of the C program.");
+        }
     }
 
-    test_passed = true;
+    printf("\n");
 
-failed_test:
+    // Compare results
+    bool test_passed = results_match(expected_result, actual_result);
 
     // Output results to HTML
     OUTPUT("\n<tr>");
@@ -248,7 +285,7 @@ failed_test:
         OUTPUT("<td class=\"result\">YES</td>");
     else if (expected_result.outcome == NOT_FOUND)
         OUTPUT("<td class=\"result result-fail\"><a href=\"#F%03d\">NOT FOUND</a></td>", failed_test_id);
-    else if (program_result.outcome == FATAL_ERROR)
+    else if (actual_result.outcome == FATAL_ERROR)
         OUTPUT("<td class=\"result result-fail\"><a href=\"#F%03d\">FATAL</a></td>", failed_test_id);
     else
         OUTPUT("<td class=\"result result-fail\"><a href=\"#F%03d\">NO</a></td>", failed_test_id);
@@ -272,11 +309,11 @@ failed_test:
 
         APPEND_OUTPUT("</td><td>");
 
-        APPEND_OUTPUT("<b>%s</b>", outcome_string(program_result.outcome));
-        for (size_t i = 0; i < program_result.output_count; i++)
+        APPEND_OUTPUT("<b>%s</b>", outcome_string(actual_result.outcome));
+        for (size_t i = 0; i < actual_result.output_count; i++)
         {
             APPEND_OUTPUT("<br>");
-            APPEND_OUTPUT(program_result.output[i]);
+            APPEND_OUTPUT(actual_result.output[i]);
         }
 
         APPEND_OUTPUT("</td></tr></table>");
