@@ -4,3 +4,4 @@ fn main() {
 }
 
 // ERRORS
+// RHS_TYPE_DOES_NOT_MATCH_LHS:2:5

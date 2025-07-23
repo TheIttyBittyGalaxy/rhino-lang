@@ -215,6 +215,34 @@ void check_conditions_are_booleans(Compiler *c, Program *apm)
     }
 }
 
+void check_variable_assignments(Compiler *c, Program *apm)
+{
+    for (size_t i = 0; i < apm->statement.count; i++)
+    {
+        Statement *stmt = get_statement(apm->statement, i);
+
+        if (stmt->kind == VARIABLE_DECLARATION)
+        {
+            if (!stmt->has_initial_value)
+                continue;
+
+            Variable *var = get_variable(apm->variable, stmt->variable);
+            RhinoType value_type = get_expression_type(apm, stmt->initial_value);
+
+            if (!can_assign_a_to_b(value_type, var->type))
+                raise_compilation_error(c, RHS_TYPE_DOES_NOT_MATCH_LHS, stmt->span);
+        }
+        else if (stmt->kind == ASSIGNMENT_STATEMENT)
+        {
+            RhinoType lhs_type = get_expression_type(apm, stmt->assignment_lhs);
+            RhinoType rhs_type = get_expression_type(apm, stmt->assignment_rhs);
+
+            if (!can_assign_a_to_b(rhs_type, lhs_type))
+                raise_compilation_error(c, RHS_TYPE_DOES_NOT_MATCH_LHS, stmt->span);
+        }
+    }
+}
+
 // ANALYSE //
 
 void analyse(Compiler *c, Program *apm)
@@ -227,4 +255,5 @@ void analyse(Compiler *c, Program *apm)
     resolve_enum_values(c, apm);
 
     check_conditions_are_booleans(c, apm);
+    check_variable_assignments(c, apm);
 }

@@ -65,7 +65,8 @@
     MACRO(VARIABLE_OR_ENUM_DOES_NOT_EXIST)                          \
     MACRO(ENUM_VALUE_DOES_NOT_EXIST)                                \
     MACRO(CONDITION_IS_NOT_BOOLEAN)                                 \
-    MACRO(VARIABLE_DECLARED_WITH_INVALID_TYPE)
+    MACRO(VARIABLE_DECLARED_WITH_INVALID_TYPE)                      \
+    MACRO(RHS_TYPE_DOES_NOT_MATCH_LHS)
 
 DECLARE_ENUM(LIST_COMPILATION_ERRORS, CompilationErrorCode, compilation_error_code)
 

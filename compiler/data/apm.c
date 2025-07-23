@@ -299,6 +299,28 @@ bool is_expression_boolean(Program *apm, size_t expr_index)
     return get_expression_type(apm, expr_index).sort == SORT_BOOL;
 }
 
+bool are_types_equal(RhinoType a, RhinoType b)
+{
+    if (a.sort != b.sort)
+        return false;
+
+    if (a.sort == SORT_ENUM && a.index != b.index)
+        return false;
+
+    return true;
+}
+
+bool can_assign_a_to_b(RhinoType a, RhinoType b)
+{
+    if (are_types_equal(a, b))
+        return true;
+
+    if (a.sort == SORT_INT && b.sort == SORT_NUM)
+        return true;
+
+    return false;
+}
+
 // EXPRESSION PRECEDENCE METHODS //
 
 ExprPrecedence precedence_of(ExpressionKind expr_kind)

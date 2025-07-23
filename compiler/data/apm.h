@@ -274,6 +274,8 @@ size_t get_last_statement_in_code_block(Program *apm, Statement *code_block);
 RhinoType get_expression_type(Program *apm, size_t expr_index);
 size_t get_enum_type_of_enum_value(Program *apm, size_t enum_value_index);
 bool is_expression_boolean(Program *apm, size_t expr_index);
+bool are_types_equal(RhinoType a, RhinoType b);
+bool can_assign_a_to_b(RhinoType a, RhinoType b);
 
 // Expression precedence methods
 ExprPrecedence precedence_of(ExpressionKind expr_kind);
