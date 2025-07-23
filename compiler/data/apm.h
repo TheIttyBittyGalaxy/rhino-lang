@@ -78,7 +78,8 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
     MACRO(INVALID_EXPRESSION)        \
                                      \
     MACRO(IDENTITY_LITERAL)          \
-    MACRO(NUMBER_LITERAL)            \
+    MACRO(INTEGER_LITERAL)           \
+    MACRO(FLOAT_LITERAL)             \
     MACRO(BOOLEAN_LITERAL)           \
     MACRO(STRING_LITERAL)            \
     MACRO(ENUM_VALUE_LITERAL)        \
@@ -124,8 +125,12 @@ typedef struct
             bool bool_value;
         };
         struct
-        { // NUMBER_LITERAL
-            int number_value;
+        { // INTEGER_LITERAL
+            int integer_value;
+        };
+        struct
+        { // FLOAT_LITERAL
+            double float_value;
         };
         struct
         { // STRING_LITERAL

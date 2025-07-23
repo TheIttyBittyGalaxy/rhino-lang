@@ -51,7 +51,8 @@
     MACRO(KEYWORD_WHILE)   \
                            \
     MACRO(IDENTITY)        \
-    MACRO(NUMBER)          \
+    MACRO(INTEGER)         \
+    MACRO(RATIONAL)        \
     MACRO(STRING)          \
     MACRO(BROKEN_STRING)   \
                            \

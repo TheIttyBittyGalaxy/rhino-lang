@@ -102,9 +102,16 @@ void tokenise(Compiler *const c)
 
             if (is_digit(*character))
             {
-                kind = NUMBER;
-                while (is_digit(*character))
+                kind = INTEGER;
+                while (true)
+                {
+                    if (*character == '.' && kind == INTEGER)
+                        kind = RATIONAL;
+                    else if (!is_digit(*character))
+                        break;
+
                     character++;
+                }
             }
 
             else if (is_word(*character))

@@ -157,8 +157,12 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
         EMIT(expr->bool_value ? "true" : "false");
         break;
 
-    case NUMBER_LITERAL:
-        EMIT("%d", expr->number_value);
+    case INTEGER_LITERAL:
+        EMIT("%d", expr->integer_value);
+        break;
+
+    case FLOAT_LITERAL:
+        EMIT("%f", expr->float_value);
         break;
 
     case STRING_LITERAL:

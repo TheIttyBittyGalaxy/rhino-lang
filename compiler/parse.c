@@ -145,7 +145,8 @@ bool peek_expression(Compiler *c)
     return PEEK(IDENTITY) ||
            PEEK(KEYWORD_TRUE) ||
            PEEK(KEYWORD_FALSE) ||
-           PEEK(NUMBER) ||
+           PEEK(INTEGER) ||
+           PEEK(RATIONAL) ||
            PEEK(STRING) ||
            PEEK(BROKEN_STRING);
 }
@@ -671,15 +672,40 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
         EXPRESSION(lhs)->bool_value = false;
         ADVANCE();
     }
-    else if (PEEK(NUMBER))
+    else if (PEEK(INTEGER))
     {
         substr str = TOKEN_STRING();
+
         int num = 0;
         for (size_t i = str.pos; i < str.pos + str.len; i++)
             num = num * 10 + (c->source_text[i] - 48);
 
-        EXPRESSION(lhs)->kind = NUMBER_LITERAL;
-        EXPRESSION(lhs)->number_value = num;
+        EXPRESSION(lhs)->kind = INTEGER_LITERAL;
+        EXPRESSION(lhs)->integer_value = num;
+        ADVANCE();
+    }
+    else if (PEEK(RATIONAL))
+    {
+        substr str = TOKEN_STRING();
+
+        int int_part = 0;
+        for (size_t i = str.pos; i < str.pos + str.len; i++)
+        {
+            if (c->source_text[i] == '.')
+                break;
+            int_part = int_part * 10 + (c->source_text[i] - 48);
+        }
+
+        double float_part = 0;
+        for (size_t i = str.pos + str.len - 1; i >= str.pos; i--)
+        {
+            if (c->source_text[i] == '.')
+                break;
+            float_part = (float_part + (c->source_text[i] - 48)) / 10;
+        }
+
+        EXPRESSION(lhs)->kind = FLOAT_LITERAL;
+        EXPRESSION(lhs)->float_value = int_part + float_part;
         ADVANCE();
     }
     else if (PEEK(STRING) || PEEK(BROKEN_STRING))

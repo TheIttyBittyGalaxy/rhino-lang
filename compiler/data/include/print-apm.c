@@ -58,6 +58,12 @@ enum LineStatus
         printf("%d", x); \
     }
 
+#define PRINT_FLOAT(x)   \
+    {                    \
+        BEFORE_PRINT();  \
+        printf("%f", x); \
+    }
+
 #define PRINT_SUBSTR(str)                \
     {                                    \
         BEFORE_PRINT();                  \
@@ -113,8 +119,12 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
         PRINT_SUBSTR(expr->identity);
         break;
 
-    case NUMBER_LITERAL:
-        PRINT_INT(expr->number_value);
+    case INTEGER_LITERAL:
+        PRINT_INT(expr->integer_value);
+        break;
+
+    case FLOAT_LITERAL:
+        PRINT_FLOAT(expr->float_value);
         break;
 
     case BOOLEAN_LITERAL:

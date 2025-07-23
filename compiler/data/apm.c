@@ -230,8 +230,12 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
         result.sort = SORT_STR;
         break;
 
-    case NUMBER_LITERAL:
+    case INTEGER_LITERAL:
         result.sort = SORT_INT;
+        break;
+
+    case FLOAT_LITERAL:
+        result.sort = SORT_NUM;
         break;
 
     case ENUM_VALUE_LITERAL:
@@ -331,7 +335,8 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
         return PRECEDENCE_NONE;
 
     case IDENTITY_LITERAL:
-    case NUMBER_LITERAL:
+    case INTEGER_LITERAL:
+    case FLOAT_LITERAL:
     case BOOLEAN_LITERAL:
     case STRING_LITERAL:
     case VARIABLE_REFERENCE:
