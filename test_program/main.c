@@ -1,5 +1,6 @@
 #include <dirent.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,7 +26,7 @@ void strip_newline(char *str)
         str[n - 1] = '\0';
 }
 
-// COMPILER RESULT ENUM //
+// RESULTS //
 
 typedef enum
 {
@@ -34,9 +35,9 @@ typedef enum
     SUCCESS,
     ERRORS,
     FATAL_ERROR
-} CompilerResult;
+} Outcome;
 
-const char *compiler_result_string(CompilerResult result)
+const char *outcome_string(Outcome result)
 {
     switch (result)
     {
@@ -53,6 +54,13 @@ const char *compiler_result_string(CompilerResult result)
     }
 }
 
+typedef struct
+{
+    Outcome outcome;
+    char output[64][512];
+    size_t output_count;
+} Results;
+
 // OUTPUT FILE //
 
 FILE *output_file;
@@ -68,6 +76,14 @@ size_t output_append_start;
 
 void test_program_at_active_path(size_t active_path_len)
 {
+    Results program_result;
+    program_result.outcome = INVALID;
+    program_result.output_count = 0;
+
+    Results expected_result;
+    expected_result.outcome = INVALID;
+    expected_result.output_count = 0;
+
     // Update system command
     {
         size_t c = rhino_cmd_arg_start;
@@ -93,24 +109,19 @@ void test_program_at_active_path(size_t active_path_len)
     }
 
     // Determine result
-    CompilerResult compiler_result = INVALID;
-
-    char result_buffer[1024];
-    if (fgets(result_buffer, sizeof(result_buffer), rhino_cmd_stream) != NULL)
+    char outcome_buffer[1024];
+    if (fgets(outcome_buffer, sizeof(outcome_buffer), rhino_cmd_stream) != NULL)
     {
-        if (result_buffer[0] == 'S')
-            compiler_result = SUCCESS;
-        else if (result_buffer[0] == 'E')
-            compiler_result = ERRORS;
-        else if (result_buffer[0] == 'F')
-            compiler_result = FATAL_ERROR;
+        if (outcome_buffer[0] == 'S')
+            program_result.outcome = SUCCESS;
+        else if (outcome_buffer[0] == 'E')
+            program_result.outcome = ERRORS;
+        else if (outcome_buffer[0] == 'F')
+            program_result.outcome = FATAL_ERROR;
     }
 
     // Get outputs
-    char output_buffer[64][512];
-    size_t output_count = 0;
-
-    if (compiler_result == SUCCESS)
+    if (program_result.outcome == SUCCESS)
     {
         // Run the build command
         const char *build_cmd = "g++ -o _out.exe _out.c -w";
@@ -140,35 +151,35 @@ void test_program_at_active_path(size_t active_path_len)
 
             for (size_t i = 0; i < 64; i++)
             {
-                if (fgets(output_buffer[i], sizeof(output_buffer[i]), run_cmd_stream) == NULL)
+                if (fgets(program_result.output[i], sizeof(program_result.output[i]), run_cmd_stream) == NULL)
                 {
-                    output_count = i;
+                    program_result.output_count = i;
                     break;
                 }
 
-                strip_newline(output_buffer[i]);
+                strip_newline(program_result.output[i]);
             }
 
             pclose(run_cmd_stream);
         }
         else
         {
-            compiler_result = FATAL_ERROR;
-            output_count = 1;
-            strcpy(output_buffer[0], "Error during compilation of the C program.");
+            program_result.outcome = FATAL_ERROR;
+            program_result.output_count = 1;
+            strcpy(program_result.output[0], "Error during compilation of the C program.");
         }
     }
-    else if (compiler_result == ERRORS || compiler_result == FATAL_ERROR)
+    else if (program_result.outcome == ERRORS || program_result.outcome == FATAL_ERROR)
     {
         for (size_t i = 0; i < 64; i++)
         {
-            if (fgets(output_buffer[i], sizeof(output_buffer[i]), rhino_cmd_stream) == NULL)
+            if (fgets(program_result.output[i], sizeof(program_result.output[i]), rhino_cmd_stream) == NULL)
             {
-                output_count = i;
+                program_result.output_count = i;
                 break;
             }
 
-            strip_newline(output_buffer[i]);
+            strip_newline(program_result.output[i]);
         }
     }
 
@@ -176,9 +187,6 @@ void test_program_at_active_path(size_t active_path_len)
     printf("\n");
 
     // Get program expectation
-    CompilerResult expected_compiler_result = INVALID;
-    char expected_output_buffer[64][512];
-    size_t expected_output_count = 0;
     FILE *source_file = fopen(active_path, "r");
 
     char line[512];
@@ -187,44 +195,44 @@ void test_program_at_active_path(size_t active_path_len)
         if (!is_comment(line))
             continue;
 
-        if (expected_compiler_result == INVALID)
+        if (expected_result.outcome == INVALID)
         {
             if (line[3] == 'S')
             {
-                expected_compiler_result = SUCCESS;
+                expected_result.outcome = SUCCESS;
                 continue;
             }
 
             if (line[3] == 'E')
             {
-                expected_compiler_result = ERRORS;
+                expected_result.outcome = ERRORS;
                 continue;
             }
 
-            expected_compiler_result = NOT_FOUND;
+            expected_result.outcome = NOT_FOUND;
         }
 
         strip_newline(line);
-        strcpy(expected_output_buffer[expected_output_count], line + 3);
-        expected_output_count++;
+        strcpy(expected_result.output[expected_result.output_count], line + 3);
+        expected_result.output_count++;
     }
 
-    if (expected_compiler_result == INVALID)
-        expected_compiler_result = NOT_FOUND;
+    if (expected_result.outcome == INVALID)
+        expected_result.outcome = NOT_FOUND;
 
     fclose(source_file);
 
     // Determine if test passed
     bool test_passed = false;
-    if (compiler_result != expected_compiler_result)
+    if (program_result.outcome != expected_result.outcome)
         goto failed_test;
 
-    if (output_count != expected_output_count)
+    if (program_result.output_count != expected_result.output_count)
         goto failed_test;
 
-    for (size_t i = 0; i < output_count; i++)
+    for (size_t i = 0; i < program_result.output_count; i++)
     {
-        if (strcmp(output_buffer[i], expected_output_buffer[i]) != 0)
+        if (strcmp(program_result.output[i], expected_result.output[i]) != 0)
             goto failed_test;
     }
 
@@ -238,9 +246,9 @@ failed_test:
 
     if (test_passed)
         OUTPUT("<td class=\"result\">YES</td>");
-    else if (expected_compiler_result == NOT_FOUND)
+    else if (expected_result.outcome == NOT_FOUND)
         OUTPUT("<td class=\"result result-fail\"><a href=\"#F%03d\">NOT FOUND</a></td>", failed_test_id);
-    else if (compiler_result == FATAL_ERROR)
+    else if (program_result.outcome == FATAL_ERROR)
         OUTPUT("<td class=\"result result-fail\"><a href=\"#F%03d\">FATAL</a></td>", failed_test_id);
     else
         OUTPUT("<td class=\"result result-fail\"><a href=\"#F%03d\">NO</a></td>", failed_test_id);
@@ -255,20 +263,20 @@ failed_test:
         APPEND_OUTPUT("<tr><th>Expected</th><th>Actual</th></tr>");
         APPEND_OUTPUT("<tr><td>");
 
-        APPEND_OUTPUT("<b>%s</b>", compiler_result_string(expected_compiler_result));
-        for (size_t i = 0; i < expected_output_count; i++)
+        APPEND_OUTPUT("<b>%s</b>", outcome_string(expected_result.outcome));
+        for (size_t i = 0; i < expected_result.output_count; i++)
         {
             APPEND_OUTPUT("<br>");
-            APPEND_OUTPUT(expected_output_buffer[i]);
+            APPEND_OUTPUT(expected_result.output[i]);
         }
 
         APPEND_OUTPUT("</td><td>");
 
-        APPEND_OUTPUT("<b>%s</b>", compiler_result_string(compiler_result));
-        for (size_t i = 0; i < output_count; i++)
+        APPEND_OUTPUT("<b>%s</b>", outcome_string(program_result.outcome));
+        for (size_t i = 0; i < program_result.output_count; i++)
         {
             APPEND_OUTPUT("<br>");
-            APPEND_OUTPUT(output_buffer[i]);
+            APPEND_OUTPUT(program_result.output[i]);
         }
 
         APPEND_OUTPUT("</td></tr></table>");
