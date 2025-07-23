@@ -372,9 +372,15 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
         case SORT_NUM:
         {
-            EMIT_ESCAPED("printf(\"%f\\n\", ");
+            EMIT_OPEN_BRACE();
+
+            EMIT("float_to_str(");
             transpile_expression(t, apm, expr_index);
             EMIT_LINE(");");
+
+            EMIT_ESCAPED("printf(\"%s\\n\", __to_str_buffer);");
+
+            EMIT_CLOSE_BRACE();
             break;
         }
 
@@ -433,6 +439,51 @@ void transpile_program(Transpiler *t, Program *apm)
     EMIT_LINE("#include <stdbool.h>");
     EMIT_LINE("#include <stdio.h>");
     EMIT_NEWLINE();
+
+    // Rhino Runtime
+    EMIT_LINE("char __to_str_buffer[64];");
+
+    // FIXME: This implementation cannot handle particularly large floats
+    //        e.g. 1000000000000000000000000000000.1
+    EMIT_LINE("void float_to_str(double x)");
+    EMIT_LINE("{");
+    EMIT_LINE("    size_t c = 0;");
+    EMIT_LINE("");
+    EMIT_LINE("    if (x < 0)");
+    EMIT_LINE("    {");
+    EMIT_LINE("        __to_str_buffer[c++] = '-';");
+    EMIT_LINE("        x = -x;");
+    EMIT_LINE("    }");
+    EMIT_LINE("");
+    EMIT_LINE("    long long integer_portion = x;");
+    EMIT_LINE("    float rational_portion = x - integer_portion;");
+    EMIT_LINE("");
+    EMIT_LINE("    int f = c;");
+    EMIT_LINE("    do");
+    EMIT_LINE("        __to_str_buffer[c++] = '0' + integer_portion %% 10;");
+    EMIT_LINE("    while (integer_portion /= 10);");
+    EMIT_LINE("    int l = c - 1;");
+    EMIT_LINE("");
+    EMIT_LINE("    while (l > f)");
+    EMIT_LINE("    {");
+    EMIT_LINE("        char t = __to_str_buffer[f];");
+    EMIT_LINE("        __to_str_buffer[f++] = __to_str_buffer[l];");
+    EMIT_LINE("        __to_str_buffer[l--] = t;");
+    EMIT_LINE("    }");
+    EMIT_LINE("");
+    EMIT_LINE("    if (rational_portion > 0.0001)");
+    EMIT_LINE("    {");
+    EMIT_LINE("        __to_str_buffer[c++] = '.';");
+    EMIT_LINE("        while (rational_portion > 0.0001)");
+    EMIT_LINE("        {");
+    EMIT_LINE("            int d = rational_portion * 10;");
+    EMIT_LINE("            __to_str_buffer[c++] = '0' + (d %% 10);");
+    EMIT_LINE("            rational_portion = rational_portion * 10 - d;");
+    EMIT_LINE("        }");
+    EMIT_LINE("    }");
+    EMIT_LINE("");
+    EMIT_LINE("    __to_str_buffer[c] = '\\0';");
+    EMIT_LINE("}");
 
     // Enum types
     for (size_t i = 0; i < apm->enum_type.count; i++)
