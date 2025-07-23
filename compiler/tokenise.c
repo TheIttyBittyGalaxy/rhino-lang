@@ -105,7 +105,7 @@ void tokenise(Compiler *const c)
                 kind = INTEGER;
                 while (true)
                 {
-                    if (*character == '.' && kind == INTEGER)
+                    if (*character == '.' && is_digit(*(character + 1)) && kind == INTEGER)
                         kind = RATIONAL;
                     else if (!is_digit(*character))
                         break;
