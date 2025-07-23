@@ -1,0 +1,10 @@
+fn main() {
+    int x = 42;
+    num y = 3.14;
+    x = y;
+    > x;
+    > y;
+}
+
+// ERRORS
+// RHS_TYPE_DOES_NOT_MATCH_LHS:4:5

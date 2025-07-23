@@ -1,0 +1,11 @@
+fn main() {
+    int x = 42;
+    num y = 3.14;
+    y = x;
+    > x;
+    > y;
+}
+
+// SUCCESS
+// 42
+// 42
