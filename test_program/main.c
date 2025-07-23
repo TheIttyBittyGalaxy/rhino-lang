@@ -1,5 +1,6 @@
 #include <dirent.h>
 #include <errno.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -78,14 +79,44 @@ bool results_match(Results a, Results b)
 
 // OUTPUT FILE //
 
-FILE *output_file;
+typedef struct Page Page;
+
+struct Page
+{
+    Page *next_page;
+    char *content;
+    size_t length;
+};
+
+Page *first_page;
+Page *current_page;
 size_t failed_test_id;
 
-char output_append[16777216];
-size_t output_append_start;
+Page *create_page(size_t size)
+{
+    Page *page = (Page *)malloc(sizeof(Page));
 
-#define OUTPUT(...) fprintf(output_file, __VA_ARGS__)
-#define APPEND_OUTPUT(...) output_append_start += sprintf(output_append + output_append_start, __VA_ARGS__)
+    page->next_page = NULL;
+    page->content = (char *)malloc(size);
+    page->length = 0;
+
+    page->content[0] = '\0';
+
+    return page;
+}
+
+void write(Page *page, const char *str, ...)
+{
+    va_list args;
+    va_start(args, str);
+    int chars_used = vsprintf(page->content + page->length, str, args);
+    va_end(args);
+
+    // FIXME: If chars_used is negative, that tells us that an error occurred
+
+    page->length += chars_used;
+    page->content[page->length] = '\0';
+}
 
 // RUN COMMANDS //
 
@@ -278,45 +309,49 @@ void test_program_at_active_path(size_t active_path_len)
     bool test_passed = results_match(expected_result, actual_result);
 
     // Output results to HTML
-    OUTPUT("\n<tr>");
-    OUTPUT("<td><a href=\"%s\">%s</a></td>", active_path, active_path);
+    write(first_page, "\n<tr>");
+    write(first_page, "<td><a href=\"%s\">%s</a></td>", active_path, active_path);
 
     if (test_passed)
-        OUTPUT("<td class=\"result\">YES</td>");
+        write(first_page, "<td class=\"result\">YES</td>");
     else if (expected_result.outcome == NOT_FOUND)
-        OUTPUT("<td class=\"result result-fail\"><a href=\"#F%03d\">NOT FOUND</a></td>", failed_test_id);
+        write(first_page, "<td class=\"result result-fail\"><a href=\"#F%03d\">NOT FOUND</a></td>", failed_test_id);
     else if (actual_result.outcome == FATAL_ERROR)
-        OUTPUT("<td class=\"result result-fail\"><a href=\"#F%03d\">FATAL</a></td>", failed_test_id);
+        write(first_page, "<td class=\"result result-fail\"><a href=\"#F%03d\">FATAL</a></td>", failed_test_id);
     else
-        OUTPUT("<td class=\"result result-fail\"><a href=\"#F%03d\">NO</a></td>", failed_test_id);
+        write(first_page, "<td class=\"result result-fail\"><a href=\"#F%03d\">NO</a></td>", failed_test_id);
 
-    OUTPUT("</tr>");
+    write(first_page, "</tr>");
 
     if (!test_passed)
     {
-        APPEND_OUTPUT("\n<h2 id=\"F%03d\"><a href=\"%s\">%s</a></h2>", failed_test_id, active_path, active_path);
+        Page *error_info = create_page(1024);
+        current_page->next_page = error_info;
+        current_page = error_info;
 
-        APPEND_OUTPUT("<table>");
-        APPEND_OUTPUT("<tr><th>Expected</th><th>Actual</th></tr>");
-        APPEND_OUTPUT("<tr><td>");
+        write(error_info, "\n<h2 id=\"F%03d\"><a href=\"%s\">%s</a></h2>", failed_test_id, active_path, active_path);
 
-        APPEND_OUTPUT("<b>%s</b>", outcome_string(expected_result.outcome));
+        write(error_info, "<table>");
+        write(error_info, "<tr><th>Expected</th><th>Actual</th></tr>");
+        write(error_info, "<tr><td>");
+
+        write(error_info, "<b>%s</b>", outcome_string(expected_result.outcome));
         for (size_t i = 0; i < expected_result.output_count; i++)
         {
-            APPEND_OUTPUT("<br>");
-            APPEND_OUTPUT(expected_result.output[i]);
+            write(error_info, "<br>");
+            write(error_info, expected_result.output[i]);
         }
 
-        APPEND_OUTPUT("</td><td>");
+        write(error_info, "</td><td>");
 
-        APPEND_OUTPUT("<b>%s</b>", outcome_string(actual_result.outcome));
+        write(error_info, "<b>%s</b>", outcome_string(actual_result.outcome));
         for (size_t i = 0; i < actual_result.output_count; i++)
         {
-            APPEND_OUTPUT("<br>");
-            APPEND_OUTPUT(actual_result.output[i]);
+            write(error_info, "<br>");
+            write(error_info, actual_result.output[i]);
         }
 
-        APPEND_OUTPUT("</td></tr></table>");
+        write(error_info, "</td></tr></table>");
         failed_test_id++;
     }
 }
@@ -405,57 +440,63 @@ int main(int argc, char *argv[])
     // Prepare active path
     memcpy(active_path, test_path, test_path_len + 1);
 
-    // Open output file
-    output_file = fopen("test-results.html", "w");
-    output_append_start = 0;
-
-    failed_test_id = 0;
-
-    OUTPUT("<!DOCTYPE html><html lang=\"en\"><head>"
-           "<meta charset=\"UTF-8\">"
-           "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
-           "<title>Test Results</title>"
-           "<style>"
-           "body {"
-           "background-color: black;"
-           "font-family: monospace;"
-           "font-size: 110%;"
-           "color: white;"
-           "}"
-           "table { border-collapse: collapse; }"
-           "tr { border: 1px solid rgb(111, 195, 223); }"
-           "th, td {"
-           "padding: 0.3em;"
-           "vertical-align: top;"
-           "}"
-           "tr:first-child {"
-           "background-color: #373F51;"
-           "color: white;"
-           "}"
-           ".result { text-align: center; }"
-           ".result-fail { background-color: #373F51; }"
-           "a { color: inherit; }"
-           "h2 { color: rgb(215, 186, 125); }"
-           "</style>"
-           "</head><body>");
-
-    OUTPUT("<table>");
-    OUTPUT("<tr><th>Test</th><th>Passed</th></tr>");
+    // Prepare pages
+    first_page = create_page(65536);
+    current_page = first_page;
 
     // Scan tests directory
+    failed_test_id = 0;
+
     DIR *dir = opendir(active_path);
     scan_directory(dir, test_path_len + 1);
     closedir(dir);
 
-    // Close the output file
-    APPEND_OUTPUT("\0");
+    // End first page
+    write(first_page, "</table>");
 
-    OUTPUT("</table>");
+    // Generate output file
+    FILE *output_file = fopen("test-results.html", "w");
 
-    output_append[output_append_start] = '\0';
-    OUTPUT(output_append);
+    fprintf(output_file,
+            "<!DOCTYPE html><html lang=\"en\"><head>"
+            "<meta charset=\"UTF-8\">"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+            "<title>Test Results</title>"
+            "<style>"
+            "body {"
+            "background-color: black;"
+            "font-family: monospace;"
+            "font-size: 110%%;"
+            "color: white;"
+            "}"
+            "table { border-collapse: collapse; }"
+            "tr { border: 1px solid rgb(111, 195, 223); }"
+            "th, td {"
+            "padding: 0.3em;"
+            "vertical-align: top;"
+            "}"
+            "tr:first-child {"
+            "background-color: #373F51;"
+            "color: white;"
+            "}"
+            ".result { text-align: center; }"
+            ".result-fail { background-color: #373F51; }"
+            "a { color: inherit; }"
+            "h2 { color: rgb(215, 186, 125); }"
+            "</style>"
+            "</head><body>"
+            "<table>"
+            "<tr><th>Test</th><th>Passed</th></tr>");
 
-    OUTPUT("</body></html>");
+    Page *p = first_page;
+    while (p != NULL)
+    {
+        printf("%p %d\n", p, p->length);
+        fprintf(output_file, p->content);
+        p = p->next_page;
+    }
+
+    fprintf(output_file, "</body></html>");
 
     fclose(output_file);
 
