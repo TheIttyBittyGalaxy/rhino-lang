@@ -2,6 +2,7 @@
 local.rhi
 test-results.html
 _out.c
+compiler/rhino/runtime_as_str.c
 
 # Prerequisites
 *.d
