@@ -4,10 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// TODO: For each test program, scrape the comments for the expectation
-//       and then compare the results with the expectation to determine
-//       if the test has passed.
-
 // STRING BUFFERS //
 
 char active_path[512];
@@ -15,8 +11,19 @@ char active_path[512];
 char rhino_cmd[512];
 size_t rhino_cmd_arg_start;
 
-#define RESULT_BUFFER_SIZE 2048
-char result_buffer[RESULT_BUFFER_SIZE];
+// STRING UTILITY METHODS //
+
+bool is_comment(char *str)
+{
+    return str[0] == '/' && str[1] == '/';
+}
+
+void strip_newline(char *str)
+{
+    size_t n = strlen(str);
+    if (str[n - 1] == '\n')
+        str[n - 1] = '\0';
+}
 
 // COMPILER RESULT ENUM //
 
@@ -88,7 +95,8 @@ void test_program_at_active_path(size_t active_path_len)
     // Determine result
     CompilerResult compiler_result = INVALID;
 
-    if (fgets(result_buffer, RESULT_BUFFER_SIZE, rhino_cmd_stream) != NULL)
+    char result_buffer[1024];
+    if (fgets(result_buffer, sizeof(result_buffer), rhino_cmd_stream) != NULL)
     {
         if (result_buffer[0] == 'S')
             compiler_result = SUCCESS;
@@ -132,17 +140,13 @@ void test_program_at_active_path(size_t active_path_len)
 
             for (size_t i = 0; i < 64; i++)
             {
-                if (fgets(output_buffer[i], sizeof(output_buffer[i]), run_cmd_stream) != NULL)
-                {
-                    size_t n = strlen(output_buffer[i]);
-                    if (output_buffer[i][n - 1] == '\n')
-                        output_buffer[i][n - 1] = '\0';
-                }
-                else
+                if (fgets(output_buffer[i], sizeof(output_buffer[i]), run_cmd_stream) == NULL)
                 {
                     output_count = i;
                     break;
                 }
+
+                strip_newline(output_buffer[i]);
             }
 
             pclose(run_cmd_stream);
@@ -158,17 +162,13 @@ void test_program_at_active_path(size_t active_path_len)
     {
         for (size_t i = 0; i < 64; i++)
         {
-            if (fgets(output_buffer[i], sizeof(output_buffer[i]), rhino_cmd_stream) != NULL)
-            {
-                size_t n = strlen(output_buffer[i]);
-                if (output_buffer[i][n - 1] == '\n')
-                    output_buffer[i][n - 1] = '\0';
-            }
-            else
+            if (fgets(output_buffer[i], sizeof(output_buffer[i]), rhino_cmd_stream) == NULL)
             {
                 output_count = i;
                 break;
             }
+
+            strip_newline(output_buffer[i]);
         }
     }
 
@@ -184,7 +184,7 @@ void test_program_at_active_path(size_t active_path_len)
     char line[512];
     while (fgets(line, sizeof(line), source_file))
     {
-        if (line[0] != '/' || line[1] != '/')
+        if (!is_comment(line))
             continue;
 
         if (expected_compiler_result == INVALID)
@@ -204,12 +204,8 @@ void test_program_at_active_path(size_t active_path_len)
             expected_compiler_result = NOT_FOUND;
         }
 
-        size_t n = strlen(line);
-        if (line[n - 1] == '\n')
-            line[n - 1] = '\0';
-
+        strip_newline(line);
         strcpy(expected_output_buffer[expected_output_count], line + 3);
-
         expected_output_count++;
     }
 
