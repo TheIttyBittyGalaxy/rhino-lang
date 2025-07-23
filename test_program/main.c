@@ -81,7 +81,7 @@ bool results_match(Results a, Results b)
 FILE *output_file;
 size_t failed_test_id;
 
-char output_append[65536];
+char output_append[16777216];
 size_t output_append_start;
 
 #define OUTPUT(...) fprintf(output_file, __VA_ARGS__)
