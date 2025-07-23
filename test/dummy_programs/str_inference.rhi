@@ -1,6 +1,5 @@
 fn main() {
-    def x;
-    x = "Howdy World!";
+    def x = "Howdy World!";
     > x;
 }
 

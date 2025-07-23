@@ -1,6 +1,5 @@
 fn main() {
-    def x;
-    x = 3.14;
+    def x = 3.14;
     > x;
 }
 
