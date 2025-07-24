@@ -178,7 +178,9 @@ DECLARE_LIST_TYPE(Expression, expression)
     MACRO(ELSE_IF_SEGMENT)      \
     MACRO(ELSE_SEGMENT)         \
                                 \
+    MACRO(BREAK_LOOP)           \
     MACRO(FOR_LOOP)             \
+    MACRO(BREAK_STATEMENT)      \
                                 \
     MACRO(ASSIGNMENT_STATEMENT) \
     MACRO(VARIABLE_DECLARATION) \
@@ -204,6 +206,10 @@ typedef struct
         {
             size_t body;      // Statement
             size_t condition; // Expression
+        };
+        struct // BREAK_LOOP
+        {
+            size_t __loop_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
         };
         struct // FOR_LOOP
         {

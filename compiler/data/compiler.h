@@ -40,6 +40,7 @@
     MACRO(EXPECTED_ARROW_R_EQUAL)                                   \
     MACRO(EXPECTED_EXCLAIM_EQUAL)                                   \
     MACRO(EXPECTED_KEYWORD_AND)                                     \
+    MACRO(EXPECTED_KEYWORD_BREAK)                                   \
     MACRO(EXPECTED_KEYWORD_DEF)                                     \
     MACRO(EXPECTED_KEYWORD_ELSE)                                    \
     MACRO(EXPECTED_KEYWORD_ENUM)                                    \

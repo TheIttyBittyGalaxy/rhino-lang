@@ -37,6 +37,7 @@
     MACRO(EXCLAIM_EQUAL)   \
                            \
     MACRO(KEYWORD_AND)     \
+    MACRO(KEYWORD_BREAK)   \
     MACRO(KEYWORD_DEF)     \
     MACRO(KEYWORD_ELSE)    \
     MACRO(KEYWORD_ENUM)    \

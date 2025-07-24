@@ -271,6 +271,13 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         break;
     }
 
+    case BREAK_LOOP:
+    {
+        EMIT_LINE("while (true)");
+        transpile_statement(t, apm, stmt->body);
+        break;
+    }
+
     case FOR_LOOP:
     {
         Variable *iterator = get_variable(apm->variable, stmt->iterator);
@@ -290,6 +297,12 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         EMIT(")");
 
         transpile_statement(t, apm, stmt->body);
+        break;
+    }
+
+    case BREAK_STATEMENT:
+    {
+        EMIT_LINE("break;");
         break;
     }
 

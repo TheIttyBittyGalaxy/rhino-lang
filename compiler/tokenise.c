@@ -121,6 +121,7 @@ void tokenise(Compiler *const c)
 
                 size_t len = character - start;
                 IF_KEYWORD_ELSE("and", KEYWORD_AND)
+                IF_KEYWORD_ELSE("break", KEYWORD_BREAK)
                 IF_KEYWORD_ELSE("def", KEYWORD_DEF)
                 IF_KEYWORD_ELSE("else", KEYWORD_ELSE)
                 IF_KEYWORD_ELSE("enum", KEYWORD_ENUM)

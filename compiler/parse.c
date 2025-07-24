@@ -157,6 +157,7 @@ bool peek_statement(Compiler *c)
            PEEK(COLON) ||
            PEEK(KEYWORD_IF) ||
            PEEK(KEYWORD_FOR) ||
+           PEEK(KEYWORD_LOOP) ||
            PEEK(KEYWORD_DEF) ||
            PEEK(ARROW_R) ||
            peek_expression(c);
@@ -347,6 +348,18 @@ size_t parse_statement(Compiler *c, Program *apm)
         goto finish;
     }
 
+    // BREAK_LOOP
+    if (PEEK(KEYWORD_LOOP))
+    {
+        STATEMENT(stmt)->kind = BREAK_LOOP;
+        EAT(KEYWORD_LOOP);
+
+        size_t body = parse_code_block(c, apm);
+        STATEMENT(stmt)->body = body;
+
+        goto finish;
+    }
+
     // FOR_STATEMENT
     if (PEEK(KEYWORD_FOR))
     {
@@ -390,6 +403,15 @@ size_t parse_statement(Compiler *c, Program *apm)
         size_t body = parse_code_block(c, apm);
         STATEMENT(stmt)->body = body;
 
+        goto finish;
+    }
+
+    // BREAK_STATEMENT
+    if (PEEK(KEYWORD_BREAK))
+    {
+        STATEMENT(stmt)->kind = BREAK_STATEMENT;
+        EAT(KEYWORD_BREAK);
+        EAT(SEMI_COLON);
         goto finish;
     }
 
