@@ -3,6 +3,8 @@
         "*.drop": "plaintext",
         "stdio.h": "c",
         "chrono": "c",
-        "utility": "c"
+        "utility": "c",
+        "xutility": "c",
+        "xlocale": "c"
     }
 }
