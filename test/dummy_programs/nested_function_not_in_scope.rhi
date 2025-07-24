@@ -1,0 +1,12 @@
+fn main() {
+    {    
+        fn hello() {
+            > "Hello World!";
+        }
+    }
+    
+    hello();
+}
+
+// SUCCESS
+// Hello World!

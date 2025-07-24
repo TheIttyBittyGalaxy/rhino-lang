@@ -1,0 +1,7 @@
+fn main() {
+    Foo x;
+    > x;
+}
+
+// ERRORS
+// VARIABLE_OR_ENUM_DOES_NOT_EXIST:2:5

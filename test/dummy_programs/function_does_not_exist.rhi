@@ -1,0 +1,6 @@
+fn main() {
+    foo();
+}
+
+// ERRORS
+// FUNCTION_DOES_NOT_EXIST:2:5

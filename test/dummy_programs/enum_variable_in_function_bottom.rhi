@@ -1,0 +1,9 @@
+fn main() {
+    Thing x = Thing.foo;
+    > x;
+
+    enum Thing { foo, bar, boo, far }
+}
+
+// SUCCESS
+// foo
