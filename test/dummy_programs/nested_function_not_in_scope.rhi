@@ -8,5 +8,5 @@ fn main() {
     hello();
 }
 
-// SUCCESS
-// Hello World!
+// ERRORS
+// FUNCTION_DOES_NOT_EXIST:8:5
