@@ -23,11 +23,11 @@ bool peek_statement(Compiler *c);
 // Parse APM
 void parse(Compiler *compiler, Program *apm);
 void parse_program(Compiler *c, Program *apm);
-void parse_function(Compiler *c, Program *apm, size_t scope);
-void parse_enum_type(Compiler *c, Program *apm, size_t scope);
+void parse_function(Compiler *c, Program *apm, size_t symbol_table);
+void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table);
 
-size_t parse_statement(Compiler *c, Program *apm);
-size_t parse_code_block(Compiler *c, Program *apm);
+size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table);
+size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table);
 size_t parse_expression(Compiler *c, Program *apm);
 
 // MACROS //
@@ -222,7 +222,7 @@ void parse_program(Compiler *c, Program *apm)
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
-void parse_function(Compiler *c, Program *apm, size_t scope)
+void parse_function(Compiler *c, Program *apm, size_t symbol_table)
 {
     size_t funct = add_function(&apm->function);
     START_SPAN(FUNCTION(funct));
@@ -240,15 +240,15 @@ void parse_function(Compiler *c, Program *apm, size_t scope)
     EAT(PAREN_R);
 
     attempt_to_recover_at_next_code_block(c);
-    size_t body = parse_code_block(c, apm);
+    size_t body = parse_code_block(c, apm, symbol_table);
     FUNCTION(funct)->body = body;
 
     END_SPAN(FUNCTION(funct));
-    append_symbol(apm, scope, FUNCTION_SYMBOL, funct, identity);
+    append_symbol(apm, symbol_table, FUNCTION_SYMBOL, funct, identity);
 }
 
 // TODO: Ensure this can only return with status OKAY or RECOVERED
-void parse_enum_type(Compiler *c, Program *apm, size_t scope)
+void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table)
 {
     size_t enum_type = add_enum_type(&apm->enum_type);
     START_SPAN(ENUM_TYPE(enum_type));
@@ -288,15 +288,15 @@ void parse_enum_type(Compiler *c, Program *apm, size_t scope)
     ENUM_TYPE(enum_type)->values.count = value_count;
 
     END_SPAN(ENUM_TYPE(enum_type));
-    append_symbol(apm, scope, ENUM_TYPE_SYMBOL, enum_type, identity);
+    append_symbol(apm, symbol_table, ENUM_TYPE_SYMBOL, enum_type, identity);
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
-size_t parse_statement(Compiler *c, Program *apm)
+size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
 {
     if (PEEK(CURLY_L))
     {
-        return parse_code_block(c, apm); // Can return with status OKAY or RECOVERED
+        return parse_code_block(c, apm, symbol_table); // Can return with status OKAY or RECOVERED
     }
 
     size_t stmt = add_statement(&apm->statement);
@@ -315,7 +315,7 @@ size_t parse_statement(Compiler *c, Program *apm)
         if (c->parse_status == PANIC)
             goto recover;
 
-        size_t body = parse_code_block(c, apm);
+        size_t body = parse_code_block(c, apm, symbol_table);
         STATEMENT(stmt)->body = body;
 
         while (PEEK(KEYWORD_ELSE))
@@ -338,7 +338,7 @@ size_t parse_statement(Compiler *c, Program *apm)
                 if (c->parse_status == PANIC)
                     goto recover;
 
-                size_t body = parse_code_block(c, apm);
+                size_t body = parse_code_block(c, apm, symbol_table);
                 STATEMENT(segment_stmt)->body = body;
 
                 END_SPAN(STATEMENT(segment_stmt));
@@ -347,7 +347,7 @@ size_t parse_statement(Compiler *c, Program *apm)
             {
                 STATEMENT(segment_stmt)->kind = ELSE_SEGMENT;
 
-                size_t body = parse_code_block(c, apm);
+                size_t body = parse_code_block(c, apm, symbol_table);
                 STATEMENT(segment_stmt)->body = body;
 
                 END_SPAN(STATEMENT(segment_stmt));
@@ -364,7 +364,7 @@ size_t parse_statement(Compiler *c, Program *apm)
         STATEMENT(stmt)->kind = BREAK_LOOP;
         EAT(KEYWORD_LOOP);
 
-        size_t body = parse_code_block(c, apm);
+        size_t body = parse_code_block(c, apm, symbol_table);
         STATEMENT(stmt)->body = body;
 
         goto finish;
@@ -410,7 +410,7 @@ size_t parse_statement(Compiler *c, Program *apm)
         if (c->parse_status == PANIC)
             goto recover;
 
-        size_t body = parse_code_block(c, apm);
+        size_t body = parse_code_block(c, apm, symbol_table);
         STATEMENT(stmt)->body = body;
 
         goto finish;
@@ -601,10 +601,11 @@ recover:
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
-size_t parse_code_block(Compiler *c, Program *apm)
+size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table)
 {
     size_t code_block = add_statement(&apm->statement);
     STATEMENT(code_block)->kind = CODE_BLOCK;
+    STATEMENT(code_block)->symbol_table = symbol_table;
     START_SPAN(STATEMENT(code_block));
 
     size_t first_statement = apm->statement.count;
@@ -616,23 +617,40 @@ size_t parse_code_block(Compiler *c, Program *apm)
     {
         EAT(COLON);
         STATEMENT(code_block)->kind = SINGLE_BLOCK;
-        parse_statement(c, apm); // Can return with status OKAY or RECOVERED
+        parse_statement(c, apm, symbol_table); // Can return with status OKAY or RECOVERED
     }
     else
     {
         EAT(CURLY_L);
         recover_from_panic(c);
 
+        // TODO: Make this more efficient
+        //       Currently we create a new symbol table for every block,
+        //       meaning we create numerous completely empty tables.
+        size_t block_symbol_table = add_symbol_table(&apm->symbol_table);
+        SYMBOL_TABLE(block_symbol_table)->next = 0;
+        SYMBOL_TABLE(block_symbol_table)->symbol_count = 0;
+
+        STATEMENT(code_block)->symbol_table = block_symbol_table;
+
         while (true)
         {
             if (PEEK(KEYWORD_FN))
-                parse_function(c, apm, apm->global_symbol_table); // NOTE: Can return with status OKAY or RECOVERED
+                parse_function(c, apm, block_symbol_table); // Can return with status OKAY or RECOVERED
             else if (PEEK(KEYWORD_ENUM))
-                parse_enum_type(c, apm, apm->global_symbol_table);
+                parse_enum_type(c, apm, block_symbol_table); // TODO: Do we need to handle a PANIC status?
             else if (peek_statement(c))
-                parse_statement(c, apm); // Can return with status OKAY or RECOVERED
+                parse_statement(c, apm, block_symbol_table); // Can return with status OKAY or RECOVERED
             else
                 break;
+        }
+
+        {
+            size_t last_table = block_symbol_table;
+            while (SYMBOL_TABLE(last_table)->next)
+                last_table = SYMBOL_TABLE(last_table)->next;
+
+            SYMBOL_TABLE(last_table)->next = symbol_table;
         }
 
         EAT(CURLY_R);

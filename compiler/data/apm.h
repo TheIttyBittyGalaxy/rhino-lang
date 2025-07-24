@@ -233,6 +233,7 @@ typedef struct
         struct // CODE_BLOCK / SINGLE_BLOCK
         {
             StatementSlice statements;
+            size_t symbol_table;
         };
         struct // IF_SEGMENT / ELSE_IF_SEGMENT / ELSE_SEGMENT
         {

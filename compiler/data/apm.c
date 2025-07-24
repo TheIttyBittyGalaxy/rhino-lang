@@ -109,7 +109,7 @@ void dump_apm(Program *apm, const char *source_text)
         {
         case CODE_BLOCK:
         case SINGLE_BLOCK:
-            printf("first %02d\tlast %02d", stmt->statements.first, stmt->statements.first + stmt->statements.count - 1);
+            printf("first %02d\tlast %02d\tsymbol table %02d", stmt->statements.first, stmt->statements.first + stmt->statements.count - 1, stmt->symbol_table);
             break;
 
         case IF_SEGMENT:
