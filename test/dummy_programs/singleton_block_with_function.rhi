@@ -1,0 +1,11 @@
+fn main() {
+    if true:
+        fn foo() {
+            > "This is not allowed";
+        }
+
+    > "This is not allowed";
+}
+
+// ERRORS
+// SINGLETON_BLOCK_MUST_CONTAIN_STATEMENT:3:9

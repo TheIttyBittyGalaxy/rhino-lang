@@ -1,0 +1,9 @@
+fn main() {
+    if true:
+        enum Thing { THIS, IS, NOT, ALLOWED }
+
+    > "This is not allowed";
+}
+
+// ERRORS
+// SINGLETON_BLOCK_MUST_CONTAIN_STATEMENT:3:9
