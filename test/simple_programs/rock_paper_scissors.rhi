@@ -1,0 +1,39 @@
+// FIXME: The testing program currently cannot handle this
+
+enum Throw { ROCK , PAPER , SCISSORS }
+
+fn a_beats_b(Throw a, Throw b) {
+    return a == ROCK     and b == SCISSORS
+        or a == SCISSORS and b == PAPER
+        or a == PAPER    and b == ROCK;
+}
+
+fn main() {
+    loop {
+        Throw user;
+        Throw comp = random(Throw);
+        
+        match input().lower() {
+            "rock": user = ROCK;
+            "r": user = ROCK;
+            "paper": user = PAPER;
+            "p": user = PAPER;
+            "scissors": user = SCISSORS;
+            "s": user = SCISSORS;
+            else: {
+                > "Bye!";
+                break;
+            }
+        }
+            
+        > "You throw " .. user;
+        > "They throw " .. comp;
+
+        if comp == user:
+            > "Tie!";
+        else if a_beats_b(user, comp):
+            > "Win!";
+        else:
+            > "Loose!";
+    }
+}
