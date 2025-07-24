@@ -491,7 +491,6 @@ int main(int argc, char *argv[])
     Page *p = first_page;
     while (p != NULL)
     {
-        printf("%p %d\n", p, p->length);
         fprintf(output_file, p->content);
         p = p->next_page;
     }
