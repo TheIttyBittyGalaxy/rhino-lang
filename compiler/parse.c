@@ -247,6 +247,7 @@ void parse_function(Compiler *c, Program *apm, size_t scope)
     append_symbol(apm, scope, FUNCTION_SYMBOL, funct, identity);
 }
 
+// TODO: Ensure this can only return with status OKAY or RECOVERED
 void parse_enum_type(Compiler *c, Program *apm, size_t scope)
 {
     size_t enum_type = add_enum_type(&apm->enum_type);
@@ -622,8 +623,17 @@ size_t parse_code_block(Compiler *c, Program *apm)
         EAT(CURLY_L);
         recover_from_panic(c);
 
-        while (peek_statement(c))
-            parse_statement(c, apm); // Can return with status OKAY or RECOVERED
+        while (true)
+        {
+            if (PEEK(KEYWORD_FN))
+                parse_function(c, apm, apm->global_symbol_table); // NOTE: Can return with status OKAY or RECOVERED
+            else if (PEEK(KEYWORD_ENUM))
+                parse_enum_type(c, apm, apm->global_symbol_table);
+            else if (peek_statement(c))
+                parse_statement(c, apm); // Can return with status OKAY or RECOVERED
+            else
+                break;
+        }
 
         EAT(CURLY_R);
         recover_from_panic(c);
