@@ -57,6 +57,33 @@ typedef struct
 
 DECLARE_LIST_TYPE(Variable, variable)
 
+// Symbol table
+#define LIST_SYMBOL_TAG(MACRO) \
+    MACRO(INVALID_SYMBOL)      \
+    MACRO(FUNCTION_SYMBOL)     \
+    MACRO(ENUM_TYPE_SYMBOL)
+
+DECLARE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
+
+typedef struct
+{
+    SymbolTag tag;
+    size_t index;
+    substr identity;
+} Symbol;
+
+#define SYMBOL_TABLE_SIZE 16
+
+typedef struct
+{
+    size_t next;
+    size_t symbol_count;
+    Symbol symbol[SYMBOL_TABLE_SIZE];
+} SymbolTable;
+
+DECLARE_SLICE_TYPE(SymbolTable, symbol_table)
+DECLARE_LIST_TYPE(SymbolTable, symbol_table)
+
 // Expression Precedence
 // Ordered from "happens last" to "happens first"
 #define LIST_EXPR_PRECEDENCE(MACRO)    \
@@ -265,10 +292,15 @@ typedef struct
     EnumTypeList enum_type;
     EnumValueList enum_value;
 
+    SymbolTableList symbol_table;
+    size_t global_symbol_table;
+
     size_t main;
 } Program;
 
 void init_program(Program *apm);
+
+void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, size_t symbol_index, substr symbol_identity);
 
 // Display APM
 const char *rhino_type_string(Program *apm, RhinoType ty);

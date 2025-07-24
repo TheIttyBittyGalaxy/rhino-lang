@@ -23,8 +23,8 @@ bool peek_statement(Compiler *c);
 // Parse APM
 void parse(Compiler *compiler, Program *apm);
 void parse_program(Compiler *c, Program *apm);
-void parse_function(Compiler *c, Program *apm);
-void parse_enum_type(Compiler *c, Program *apm);
+void parse_function(Compiler *c, Program *apm, size_t scope);
+void parse_enum_type(Compiler *c, Program *apm, size_t scope);
 
 size_t parse_statement(Compiler *c, Program *apm);
 size_t parse_code_block(Compiler *c, Program *apm);
@@ -44,6 +44,7 @@ size_t parse_expression(Compiler *c, Program *apm);
 #define STATEMENT(index) get_statement(apm->statement, index)
 #define EXPRESSION(index) get_expression(apm->expression, index)
 #define VARIABLE(index) get_variable(apm->variable, index)
+#define SYMBOL_TABLE(index) get_symbol_table(apm->symbol_table, index)
 
 #define START_SPAN(node_ptr) node_ptr->span.pos = token_string(c).pos;
 #define END_SPAN(node_ptr) node_ptr->span.len = token_string(c).pos - node_ptr->span.pos;
@@ -174,14 +175,20 @@ void parse(Compiler *compiler, Program *apm)
 
 void parse_program(Compiler *c, Program *apm)
 {
+    // Initialise global scopes
+    apm->global_symbol_table = add_symbol_table(&apm->symbol_table);
+    SYMBOL_TABLE(apm->global_symbol_table)->next = 0;
+    SYMBOL_TABLE(apm->global_symbol_table)->symbol_count = 0;
+
+    // Parse top-level of program
     while (true)
     {
         if (PEEK(END_OF_FILE))
             return;
         else if (PEEK(KEYWORD_FN))
-            parse_function(c, apm);
+            parse_function(c, apm, apm->global_symbol_table);
         else if (PEEK(KEYWORD_ENUM))
-            parse_enum_type(c, apm);
+            parse_enum_type(c, apm, apm->global_symbol_table);
         else
         {
             // FIXME: What is the appropriate error to express here?
@@ -215,7 +222,7 @@ void parse_program(Compiler *c, Program *apm)
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
-void parse_function(Compiler *c, Program *apm)
+void parse_function(Compiler *c, Program *apm, size_t scope)
 {
     size_t funct = add_function(&apm->function);
     START_SPAN(FUNCTION(funct));
@@ -237,9 +244,10 @@ void parse_function(Compiler *c, Program *apm)
     FUNCTION(funct)->body = body;
 
     END_SPAN(FUNCTION(funct));
+    append_symbol(apm, scope, FUNCTION_SYMBOL, funct, identity);
 }
 
-void parse_enum_type(Compiler *c, Program *apm)
+void parse_enum_type(Compiler *c, Program *apm, size_t scope)
 {
     size_t enum_type = add_enum_type(&apm->enum_type);
     START_SPAN(ENUM_TYPE(enum_type));
@@ -279,6 +287,7 @@ void parse_enum_type(Compiler *c, Program *apm)
     ENUM_TYPE(enum_type)->values.count = value_count;
 
     END_SPAN(ENUM_TYPE(enum_type));
+    append_symbol(apm, scope, ENUM_TYPE_SYMBOL, enum_type, identity);
 }
 
 // NOTE: Can return with status OKAY or RECOVERED

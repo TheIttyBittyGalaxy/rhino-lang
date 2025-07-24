@@ -7,6 +7,7 @@ DEFINE_ENUM(LIST_RHINO_SORTS, RhinoSort, rhino_sort)
 DEFINE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
 DEFINE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 DEFINE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
+DEFINE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
 // LIST TYPE //
 
@@ -16,6 +17,7 @@ DEFINE_LIST_TYPE(Function, function)
 DEFINE_LIST_TYPE(Variable, variable)
 DEFINE_LIST_TYPE(EnumType, enum_type)
 DEFINE_LIST_TYPE(EnumValue, enum_value)
+DEFINE_LIST_TYPE(SymbolTable, symbol_table)
 
 DEFINE_SLICE_TYPE(Expression, expression)
 DEFINE_SLICE_TYPE(Statement, statement)
@@ -23,6 +25,7 @@ DEFINE_SLICE_TYPE(Function, function)
 DEFINE_SLICE_TYPE(Variable, variable)
 DEFINE_SLICE_TYPE(EnumType, enum_type)
 DEFINE_SLICE_TYPE(EnumValue, enum_value)
+DEFINE_SLICE_TYPE(SymbolTable, symbol_table)
 
 // RHINO TYPE //
 
@@ -40,8 +43,47 @@ void init_program(Program *apm)
     init_statement_list(&apm->statement);
     init_expression_list(&apm->expression);
     init_variable_list(&apm->variable);
+
     init_enum_type_list(&apm->enum_type);
     init_enum_value_list(&apm->enum_value);
+
+    init_symbol_table_list(&apm->symbol_table);
+
+    // Symbol tables treat `symbol_table.next = 0` as `symbol_table.next = NULL`. and so the first symbol table has to be empty
+    add_symbol_table(&apm->symbol_table);
+}
+
+// APPEND TO SYMBOL TABLE //
+
+void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, size_t symbol_index, substr symbol_identity)
+{
+    SymbolTable *table = get_symbol_table(apm->symbol_table, table_index);
+    while (table->symbol_count == SYMBOL_TABLE_SIZE && table->next)
+    {
+        table_index = table->next;
+        table = get_symbol_table(apm->symbol_table, table_index);
+    }
+
+    if (table->symbol_count == SYMBOL_TABLE_SIZE)
+    {
+        size_t next_index = add_symbol_table(&apm->symbol_table);
+        SymbolTable *next = get_symbol_table(apm->symbol_table, next_index);
+
+        // We cannot use the `table` pointer here as the table may been reallocated after we called add_symbol_table
+        get_symbol_table(apm->symbol_table, table_index)->next = next_index;
+
+        next->next = 0;
+        next->symbol_count = 1;
+        next->symbol[0].index = symbol_index;
+        next->symbol[0].tag = symbol_tag;
+        next->symbol[0].identity = symbol_identity;
+        return;
+    }
+
+    size_t i = table->symbol_count++;
+    table->symbol[i].index = symbol_index;
+    table->symbol[i].tag = symbol_tag;
+    table->symbol[i].identity = symbol_identity;
 }
 
 // DUMP PROGRAM //
@@ -161,6 +203,22 @@ void dump_apm(Program *apm, const char *source_text)
         printf_substr(source_text, enum_value->identity);
         printf("\n");
     }
+
+    printf("SYMBOL TABLES\n");
+    for (size_t i = 1; i < apm->symbol_table.count; i++)
+    {
+        SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, i);
+        printf("%02d -> %02d", i, symbol_table->next);
+        for (size_t i = 0; i < symbol_table->symbol_count; i++)
+        {
+            printf("\n");
+            Symbol symbol = symbol_table->symbol[i];
+            printf("\t%02d\t%s\t%02d\t", i, symbol_tag_string(symbol.tag), symbol.index);
+            printf_substr(source_text, symbol.identity);
+        }
+        printf("\n");
+    }
+    printf("\n");
 }
 
 // PRINT APM //
