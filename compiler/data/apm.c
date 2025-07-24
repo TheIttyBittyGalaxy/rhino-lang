@@ -241,7 +241,12 @@ size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, siz
 
     if (child->kind == CODE_BLOCK || child->kind == SINGLE_BLOCK)
         return n + child->statements.count;
-    else if (child->kind == IF_SEGMENT || child->kind == ELSE_IF_SEGMENT || child->kind == ELSE_SEGMENT || child->kind == BREAK_LOOP || child->kind == FOR_LOOP)
+    else if (child->kind == IF_SEGMENT ||
+             child->kind == ELSE_IF_SEGMENT ||
+             child->kind == ELSE_SEGMENT ||
+             child->kind == BREAK_LOOP ||
+             child->kind == FOR_LOOP ||
+             child->kind == FUNCTION_DECLARATION)
         return n + get_statement(apm->statement, child->body)->statements.count + 1;
 
     return n;

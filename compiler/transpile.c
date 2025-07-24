@@ -422,6 +422,9 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         break;
     }
 
+    case FUNCTION_DECLARATION:
+        break;
+
     default:
         fatal_error("Could not transpile %s statement.", statement_kind_string(stmt->kind));
         break;

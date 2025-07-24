@@ -218,7 +218,9 @@ DECLARE_LIST_TYPE(Expression, expression)
     MACRO(VARIABLE_DECLARATION) \
                                 \
     MACRO(OUTPUT_STATEMENT)     \
-    MACRO(EXPRESSION_STMT)
+    MACRO(EXPRESSION_STMT)      \
+                                \
+    MACRO(FUNCTION_DECLARATION)
 
 DECLARE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
 
@@ -269,6 +271,12 @@ typedef struct
         struct // OUTPUT_STATEMENT / EXPRESSION_STMT
         {
             size_t expression; // Expression
+        };
+
+        // NOTE: This only exists so that `get_next_statement_in_code_block` can know how to skip the body of a nested function
+        struct // FUNCTION_DECLARATION
+        {
+            size_t __funct_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
         };
     };
 } Statement;

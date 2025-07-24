@@ -197,6 +197,9 @@ void resolve_identity_literals(Compiler *c, Program *apm)
                 resolve_identity_literals_in_expression(c, apm, stmt->expression, symbol_table);
                 break;
 
+            case FUNCTION_DECLARATION:
+                break;
+
             default:
                 fatal_error("Could not resolve identity literals in %s statement", statement_kind_string(stmt->kind));
                 break;

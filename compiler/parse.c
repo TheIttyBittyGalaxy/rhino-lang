@@ -23,7 +23,7 @@ bool peek_statement(Compiler *c);
 // Parse APM
 void parse(Compiler *compiler, Program *apm);
 void parse_program(Compiler *c, Program *apm);
-void parse_function(Compiler *c, Program *apm, size_t symbol_table);
+size_t parse_function(Compiler *c, Program *apm, size_t symbol_table);
 void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table);
 
 size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table);
@@ -222,7 +222,7 @@ void parse_program(Compiler *c, Program *apm)
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
-void parse_function(Compiler *c, Program *apm, size_t symbol_table)
+size_t parse_function(Compiler *c, Program *apm, size_t symbol_table)
 {
     size_t funct = add_function(&apm->function);
     START_SPAN(FUNCTION(funct));
@@ -245,6 +245,8 @@ void parse_function(Compiler *c, Program *apm, size_t symbol_table)
 
     END_SPAN(FUNCTION(funct));
     append_symbol(apm, symbol_table, FUNCTION_SYMBOL, funct, identity);
+
+    return funct;
 }
 
 // TODO: Ensure this can only return with status OKAY or RECOVERED
@@ -636,7 +638,15 @@ size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table)
         while (true)
         {
             if (PEEK(KEYWORD_FN))
-                parse_function(c, apm, block_symbol_table); // Can return with status OKAY or RECOVERED
+            {
+                size_t dec_stmt = add_statement(&apm->statement);
+                START_SPAN(STATEMENT(dec_stmt));
+                size_t funct = parse_function(c, apm, block_symbol_table); // Can return with status OKAY or RECOVERED
+                END_SPAN(STATEMENT(dec_stmt));
+
+                STATEMENT(dec_stmt)->kind = FUNCTION_DECLARATION;
+                STATEMENT(dec_stmt)->body = FUNCTION(funct)->body;
+            }
             else if (PEEK(KEYWORD_ENUM))
                 parse_enum_type(c, apm, block_symbol_table); // TODO: Do we need to handle a PANIC status?
             else if (peek_statement(c))
