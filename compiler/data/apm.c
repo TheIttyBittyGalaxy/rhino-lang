@@ -297,9 +297,12 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
         break;
 
     case ENUM_VALUE_LITERAL:
+    {
+        Expression *enum_value_literal = get_expression(apm->expression, expr_index);
         result.sort = SORT_ENUM;
-        result.index = get_enum_type_of_enum_value(apm, expr_index);
+        result.index = get_enum_type_of_enum_value(apm, enum_value_literal->enum_value);
         break;
+    }
 
     // Variables
     case VARIABLE_REFERENCE:
