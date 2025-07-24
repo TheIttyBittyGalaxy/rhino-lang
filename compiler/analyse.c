@@ -32,6 +32,8 @@ void resolve_identity_literals(Compiler *c, Program *apm)
         if (identity_literal->kind != IDENTITY_LITERAL)
             continue;
 
+        identity_literal->given_error = false;
+
         // Primitive types
         if (substr_is(c->source_text, identity_literal->identity, "int"))
         {
@@ -91,12 +93,6 @@ void resolve_identity_literals(Compiler *c, Program *apm)
                 break;
 
             symbol_table = get_symbol_table(apm->symbol_table, symbol_table->next);
-        }
-
-        // Could not resolve literal
-        if (!found_symbol)
-        {
-            raise_compilation_error(c, VARIABLE_OR_ENUM_DOES_NOT_EXIST, identity_literal->span);
         }
     }
 }
@@ -160,10 +156,14 @@ void resolve_variable_types(Compiler *c, Program *apm)
                 {
                     var->type = type_expression->type;
                 }
+                else if (type_expression->kind == IDENTITY_LITERAL)
+                {
+                    raise_compilation_error(c, TYPE_DOES_NOT_EXIST, type_expression->span);
+                    type_expression->given_error = true;
+                }
                 else
                 {
-                    // FIXME: Really the error here should be something like "invalid type expression"
-                    raise_compilation_error(c, VARIABLE_DECLARED_WITH_INVALID_TYPE, type_expression->span);
+                    raise_compilation_error(c, VARIABLE_TYPE_IS_INVALID, type_expression->span);
                 }
             }
             else if (stmt->has_initial_value)
@@ -212,9 +212,14 @@ void check_function_calls(Compiler *c, Program *apm)
         if (callee_expr->kind != FUNCTION_REFERENCE)
         {
             if (callee_expr->kind == IDENTITY_LITERAL)
-                raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, funct_call->span);
+            {
+                raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, callee_expr->span);
+                callee_expr->given_error = true;
+            }
             else
-                raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, funct_call->span);
+            {
+                raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, callee_expr->span);
+            }
             continue;
         }
 
@@ -250,6 +255,22 @@ void check_variable_assignments(Compiler *c, Program *apm)
     }
 }
 
+void check_invalid_identity_literals(Compiler *c, Program *apm)
+{
+    for (size_t i = 0; i < apm->expression.count; i++)
+    {
+        Expression *identity_literal = get_expression(apm->expression, i);
+
+        if (identity_literal->kind != IDENTITY_LITERAL)
+            continue;
+
+        if (identity_literal->given_error)
+            continue;
+
+        raise_compilation_error(c, IDENTITY_DOES_NOT_EXIST, identity_literal->span);
+    }
+}
+
 // ANALYSE //
 
 void analyse(Compiler *c, Program *apm)
@@ -263,4 +284,6 @@ void analyse(Compiler *c, Program *apm)
     check_conditions_are_booleans(c, apm);
     check_function_calls(c, apm);
     check_variable_assignments(c, apm);
+
+    check_invalid_identity_literals(c, apm);
 }

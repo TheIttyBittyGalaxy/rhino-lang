@@ -4,4 +4,4 @@ fn main() {
 }
 
 // ERRORS
-// VARIABLE_OR_ENUM_DOES_NOT_EXIST:2:5
+// TYPE_DOES_NOT_EXIST:2:5

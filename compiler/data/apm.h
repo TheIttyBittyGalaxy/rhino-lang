@@ -146,6 +146,7 @@ typedef struct
         struct // IDENTITY_LITERAL
         {
             substr identity;
+            bool given_error;
         };
         struct // BOOLEAN_LITERAL
         {
