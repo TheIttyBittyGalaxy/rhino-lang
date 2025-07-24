@@ -1,4 +1,5 @@
 #include "analyse.h"
+#include "fatal_error.h"
 #include <string.h>
 
 // ANALYSIS STAGES //
@@ -23,64 +24,61 @@ void determine_main_function(Compiler *c, Program *apm)
 
 // RESOLVE APM NODES //
 
-void resolve_identity_literals(Compiler *c, Program *apm)
+void resolve_identity_literals_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table)
 {
-    for (size_t i = 0; i < apm->expression.count; i++)
+    Expression *expr = get_expression(apm->expression, expr_index);
+
+    switch (expr->kind)
     {
-        Expression *identity_literal = get_expression(apm->expression, i);
-
-        if (identity_literal->kind != IDENTITY_LITERAL)
-            continue;
-
-        identity_literal->given_error = false;
-
+    case IDENTITY_LITERAL:
+    {
         // Primitive types
-        if (substr_is(c->source_text, identity_literal->identity, "int"))
+        if (substr_is(c->source_text, expr->identity, "int"))
         {
-            identity_literal->kind = TYPE_REFERENCE;
-            identity_literal->type.sort = SORT_INT;
-            continue;
+            expr->kind = TYPE_REFERENCE;
+            expr->type.sort = SORT_INT;
+            break;
         }
 
-        if (substr_is(c->source_text, identity_literal->identity, "num"))
+        if (substr_is(c->source_text, expr->identity, "num"))
         {
-            identity_literal->kind = TYPE_REFERENCE;
-            identity_literal->type.sort = SORT_NUM;
-            continue;
+            expr->kind = TYPE_REFERENCE;
+            expr->type.sort = SORT_NUM;
+            break;
         }
 
-        if (substr_is(c->source_text, identity_literal->identity, "str"))
+        if (substr_is(c->source_text, expr->identity, "str"))
         {
-            identity_literal->kind = TYPE_REFERENCE;
-            identity_literal->type.sort = SORT_STR;
-            continue;
+            expr->kind = TYPE_REFERENCE;
+            expr->type.sort = SORT_STR;
+            break;
         }
 
         // Scan symbol table
-        SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, apm->global_symbol_table);
+        SymbolTable *current_table = symbol_table;
         bool found_symbol = false;
         while (true)
         {
-            for (size_t i = 0; i < symbol_table->symbol_count; i++)
+            for (size_t i = 0; i < current_table->symbol_count; i++)
             {
-                Symbol s = symbol_table->symbol[i];
+                Symbol s = current_table->symbol[i];
 
-                if (!substr_match(c->source_text, s.identity, identity_literal->identity))
+                if (!substr_match(c->source_text, s.identity, expr->identity))
                     continue;
 
                 if (s.tag == ENUM_TYPE_SYMBOL)
                 {
-                    identity_literal->kind = TYPE_REFERENCE;
-                    identity_literal->type.sort = SORT_ENUM;
-                    identity_literal->type.index = s.index;
+                    expr->kind = TYPE_REFERENCE;
+                    expr->type.sort = SORT_ENUM;
+                    expr->type.index = s.index;
                     found_symbol = true;
                     break;
                 }
 
                 if (s.tag == FUNCTION_SYMBOL)
                 {
-                    identity_literal->kind = FUNCTION_REFERENCE;
-                    identity_literal->function = s.index;
+                    expr->kind = FUNCTION_REFERENCE;
+                    expr->function = s.index;
                     found_symbol = true;
                     break;
                 }
@@ -89,10 +87,122 @@ void resolve_identity_literals(Compiler *c, Program *apm)
             if (found_symbol)
                 break;
 
-            if (symbol_table->next == 0)
+            if (current_table->next == 0)
                 break;
 
-            symbol_table = get_symbol_table(apm->symbol_table, symbol_table->next);
+            current_table = get_symbol_table(apm->symbol_table, current_table->next);
+        }
+
+        break;
+    }
+
+    case INTEGER_LITERAL:
+    case FLOAT_LITERAL:
+    case BOOLEAN_LITERAL:
+    case STRING_LITERAL:
+    case ENUM_VALUE_LITERAL:
+        break;
+
+    case VARIABLE_REFERENCE:
+    case FUNCTION_REFERENCE:
+    case TYPE_REFERENCE:
+        break;
+
+    case FUNCTION_CALL:
+        resolve_identity_literals_in_expression(c, apm, expr->callee, symbol_table);
+        break;
+
+    case INDEX_BY_FIELD:
+        resolve_identity_literals_in_expression(c, apm, expr->subject, symbol_table);
+        break;
+
+    case BINARY_MULTIPLY:
+    case BINARY_DIVIDE:
+    case BINARY_REMAINDER:
+    case BINARY_ADD:
+    case BINARY_SUBTRACT:
+    case BINARY_LESS_THAN:
+    case BINARY_GREATER_THAN:
+    case BINARY_LESS_THAN_EQUAL:
+    case BINARY_GREATER_THAN_EQUAL:
+    case BINARY_EQUAL:
+    case BINARY_NOT_EQUAL:
+    case BINARY_LOGICAL_AND:
+    case BINARY_LOGICAL_OR:
+        resolve_identity_literals_in_expression(c, apm, expr->lhs, symbol_table);
+        resolve_identity_literals_in_expression(c, apm, expr->rhs, symbol_table);
+        break;
+
+    default:
+        fatal_error("Could not resolve identity literals in %s expression", expression_kind_string(expr->kind));
+        break;
+    }
+}
+
+void resolve_identity_literals(Compiler *c, Program *apm)
+{
+    for (size_t i = 0; i < apm->statement.count; i++)
+    {
+        Statement *block = get_statement(apm->statement, i);
+
+        if (block->kind != CODE_BLOCK && block->kind != SINGLE_BLOCK)
+            continue;
+
+        SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, block->symbol_table);
+
+        size_t last = get_last_statement_in_code_block(apm, block);
+        size_t n = get_first_statement_in_code_block(apm, block);
+        while (n < block->statements.count)
+        {
+            Statement *stmt = get_statement(apm->statement, block->statements.first + n);
+            switch (stmt->kind)
+            {
+            case CODE_BLOCK:
+            case SINGLE_BLOCK:
+                break; // Nested blocks will be handled by the outer for loop of this function
+
+            case IF_SEGMENT:
+            case ELSE_IF_SEGMENT:
+                resolve_identity_literals_in_expression(c, apm, stmt->condition, symbol_table);
+                break;
+
+            case ELSE_SEGMENT:
+                break;
+
+            case BREAK_LOOP:
+                break;
+
+            case FOR_LOOP:
+                resolve_identity_literals_in_expression(c, apm, stmt->first, symbol_table);
+                resolve_identity_literals_in_expression(c, apm, stmt->last, symbol_table);
+                break;
+
+            case BREAK_STATEMENT:
+                break;
+
+            case ASSIGNMENT_STATEMENT:
+                resolve_identity_literals_in_expression(c, apm, stmt->assignment_lhs, symbol_table);
+                resolve_identity_literals_in_expression(c, apm, stmt->assignment_rhs, symbol_table);
+                break;
+
+            case VARIABLE_DECLARATION:
+                if (stmt->has_initial_value)
+                    resolve_identity_literals_in_expression(c, apm, stmt->initial_value, symbol_table);
+                if (stmt->has_type_expression)
+                    resolve_identity_literals_in_expression(c, apm, stmt->type_expression, symbol_table);
+                break;
+
+            case OUTPUT_STATEMENT:
+            case EXPRESSION_STMT:
+                resolve_identity_literals_in_expression(c, apm, stmt->expression, symbol_table);
+                break;
+
+            default:
+                fatal_error("Could not resolve identity literals in %s statement", statement_kind_string(stmt->kind));
+                break;
+            }
+
+            n = get_next_statement_in_code_block(apm, block, n);
         }
     }
 }

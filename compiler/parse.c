@@ -714,6 +714,7 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
         {
             EXPRESSION(lhs)->kind = IDENTITY_LITERAL;
             EXPRESSION(lhs)->identity = TOKEN_STRING();
+            EXPRESSION(lhs)->given_error = false;
         }
 
         ADVANCE();
