@@ -1,0 +1,14 @@
+fn main() {
+    foo();
+
+    fn foo() {
+        bar();
+    }
+
+    fn bar() {
+        > "Funky control flow!";
+    }
+}
+
+// SUCCESS
+// Funky control flow!
