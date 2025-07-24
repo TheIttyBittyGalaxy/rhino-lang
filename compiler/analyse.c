@@ -21,104 +21,7 @@ void determine_main_function(Compiler *c, Program *apm)
     raise_compilation_error(c, NO_MAIN_FUNCTION, str);
 }
 
-void resolve_types(Compiler *c, Program *apm)
-{
-    for (size_t i = 0; i < apm->statement.count; i++)
-    {
-        Statement *stmt = get_statement(apm->statement, i);
-
-        if (stmt->kind == VARIABLE_DECLARATION)
-        {
-            Variable *var = get_variable(apm->variable, stmt->variable);
-
-            if (stmt->has_type_expression)
-            {
-                Expression *type_expression = get_expression(apm->expression, stmt->type_expression);
-                if (type_expression->kind != IDENTITY_LITERAL)
-                {
-                    // FIXME: Really the error here should be something like "invalid type expression"
-                    raise_compilation_error(c, VARIABLE_DECLARED_WITH_INVALID_TYPE, type_expression->span);
-                }
-
-                type_expression->identity_resolved = true;
-
-                if (substr_is(c->source_text, type_expression->identity, "int"))
-                    var->type.sort = SORT_INT;
-                else if (substr_is(c->source_text, type_expression->identity, "num"))
-                    var->type.sort = SORT_NUM;
-                else if (substr_is(c->source_text, type_expression->identity, "str"))
-                    var->type.sort = SORT_STR;
-                else
-                {
-                    bool enum_type_found = false;
-                    for (size_t i = 0; i < apm->enum_type.count; i++)
-                    {
-                        EnumType *enum_type = get_enum_type(apm->enum_type, i);
-                        if (substr_match(c->source_text, type_expression->identity, enum_type->identity))
-                        {
-                            var->type.sort = SORT_ENUM;
-                            var->type.index = i;
-                            enum_type_found = true;
-                            break;
-                        }
-                    }
-
-                    if (!enum_type_found)
-                    {
-                        var->type.sort = INVALID_SORT;
-                        raise_compilation_error(c, VARIABLE_DECLARED_WITH_INVALID_TYPE, type_expression->span);
-                    }
-                }
-            }
-            else if (stmt->has_initial_value)
-            {
-                var->type = get_expression_type(apm, stmt->initial_value);
-            }
-            else
-            {
-                // TODO: What should we do here? Presumably we can only reach this state if the parser
-                //       found an inferred variable declaration defined without an initial value?
-            }
-        }
-    }
-}
-
-void resolve_function_calls(Compiler *c, Program *apm)
-{
-    for (size_t i = 0; i < apm->expression.count; i++)
-    {
-        Expression *funct_call = get_expression(apm->expression, i);
-
-        if (funct_call->kind != FUNCTION_CALL)
-            continue;
-
-        Expression *callee_expr = get_expression(apm->expression, funct_call->callee);
-
-        if (callee_expr->kind != IDENTITY_LITERAL)
-        {
-            raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, funct_call->span);
-            continue;
-        }
-
-        callee_expr->identity_resolved = true;
-
-        substr identity = callee_expr->identity;
-        bool funct_exists = false;
-        for (size_t i = 0; i < apm->function.count; i++)
-        {
-            Function *funct = get_function(apm->function, i);
-            if (substr_match(c->source_text, funct->identity, identity))
-            {
-                funct_call->callee = i;
-                funct_exists = true;
-                break;
-            }
-        }
-
-        if (!funct_exists)
-            raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, funct_call->span);
-    }
-}
+// RESOLVE APM NODES //
 
 void resolve_identity_literals(Compiler *c, Program *apm)
 {
@@ -129,31 +32,72 @@ void resolve_identity_literals(Compiler *c, Program *apm)
         if (identity_literal->kind != IDENTITY_LITERAL)
             continue;
 
-        // Skip identity literals that have been resolved in a previous pass
-        if (identity_literal->identity_resolved)
-            continue;
-
-        // Enum types
-        bool found_enum_type = false;
-        for (size_t i = 0; i < apm->enum_type.count; i++)
+        // Primitive types
+        if (substr_is(c->source_text, identity_literal->identity, "int"))
         {
-            EnumType *enum_type = get_enum_type(apm->enum_type, i);
-            if (substr_match(c->source_text, identity_literal->identity, enum_type->identity))
-            {
-                identity_literal->kind = TYPE_REFERENCE;
-                identity_literal->type.sort = SORT_ENUM;
-                identity_literal->type.index = i;
-
-                found_enum_type = true;
-                break;
-            }
+            identity_literal->kind = TYPE_REFERENCE;
+            identity_literal->type.sort = SORT_INT;
+            continue;
         }
 
-        if (found_enum_type)
+        if (substr_is(c->source_text, identity_literal->identity, "num"))
+        {
+            identity_literal->kind = TYPE_REFERENCE;
+            identity_literal->type.sort = SORT_NUM;
             continue;
+        }
+
+        if (substr_is(c->source_text, identity_literal->identity, "str"))
+        {
+            identity_literal->kind = TYPE_REFERENCE;
+            identity_literal->type.sort = SORT_STR;
+            continue;
+        }
+
+        // Scan symbol table
+        SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, apm->global_symbol_table);
+        bool found_symbol = false;
+        while (true)
+        {
+            for (size_t i = 0; i < symbol_table->symbol_count; i++)
+            {
+                Symbol s = symbol_table->symbol[i];
+
+                if (!substr_match(c->source_text, s.identity, identity_literal->identity))
+                    continue;
+
+                if (s.tag == ENUM_TYPE_SYMBOL)
+                {
+                    identity_literal->kind = TYPE_REFERENCE;
+                    identity_literal->type.sort = SORT_ENUM;
+                    identity_literal->type.index = s.index;
+                    found_symbol = true;
+                    break;
+                }
+
+                if (s.tag == FUNCTION_SYMBOL)
+                {
+                    identity_literal->kind = FUNCTION_REFERENCE;
+                    identity_literal->function = s.index;
+                    found_symbol = true;
+                    break;
+                }
+            }
+
+            if (found_symbol)
+                break;
+
+            if (symbol_table->next == 0)
+                break;
+
+            symbol_table = get_symbol_table(apm->symbol_table, symbol_table->next);
+        }
 
         // Could not resolve literal
-        raise_compilation_error(c, VARIABLE_OR_ENUM_DOES_NOT_EXIST, identity_literal->span);
+        if (!found_symbol)
+        {
+            raise_compilation_error(c, VARIABLE_OR_ENUM_DOES_NOT_EXIST, identity_literal->span);
+        }
     }
 }
 
@@ -198,6 +142,45 @@ void resolve_enum_values(Compiler *c, Program *apm)
     }
 }
 
+void resolve_variable_types(Compiler *c, Program *apm)
+{
+    for (size_t i = 0; i < apm->statement.count; i++)
+    {
+        Statement *stmt = get_statement(apm->statement, i);
+
+        if (stmt->kind == VARIABLE_DECLARATION)
+        {
+            Variable *var = get_variable(apm->variable, stmt->variable);
+            var->type.sort = INVALID_SORT;
+
+            if (stmt->has_type_expression)
+            {
+                Expression *type_expression = get_expression(apm->expression, stmt->type_expression);
+                if (type_expression->kind == TYPE_REFERENCE)
+                {
+                    var->type = type_expression->type;
+                }
+                else
+                {
+                    // FIXME: Really the error here should be something like "invalid type expression"
+                    raise_compilation_error(c, VARIABLE_DECLARED_WITH_INVALID_TYPE, type_expression->span);
+                }
+            }
+            else if (stmt->has_initial_value)
+            {
+                var->type = get_expression_type(apm, stmt->initial_value);
+            }
+            else
+            {
+                // TODO: What should we do here? Presumably we can only reach this state if the parser
+                //       found an inferred variable declaration defined without an initial value?
+            }
+        }
+    }
+}
+
+// CHECK SEMANTICS //
+
 void check_conditions_are_booleans(Compiler *c, Program *apm)
 {
     for (size_t i = 0; i < apm->statement.count; i++)
@@ -212,6 +195,30 @@ void check_conditions_are_booleans(Compiler *c, Program *apm)
                 raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, condition->span);
             }
         }
+    }
+}
+
+void check_function_calls(Compiler *c, Program *apm)
+{
+    for (size_t i = 0; i < apm->expression.count; i++)
+    {
+        Expression *funct_call = get_expression(apm->expression, i);
+
+        if (funct_call->kind != FUNCTION_CALL)
+            continue;
+
+        Expression *callee_expr = get_expression(apm->expression, funct_call->callee);
+
+        if (callee_expr->kind != FUNCTION_REFERENCE)
+        {
+            if (callee_expr->kind == IDENTITY_LITERAL)
+                raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, funct_call->span);
+            else
+                raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, funct_call->span);
+            continue;
+        }
+
+        funct_call->callee = callee_expr->function;
     }
 }
 
@@ -249,11 +256,11 @@ void analyse(Compiler *c, Program *apm)
 {
     determine_main_function(c, apm);
 
-    resolve_types(c, apm);
-    resolve_function_calls(c, apm);
     resolve_identity_literals(c, apm);
     resolve_enum_values(c, apm);
+    resolve_variable_types(c, apm);
 
     check_conditions_are_booleans(c, apm);
+    check_function_calls(c, apm);
     check_variable_assignments(c, apm);
 }

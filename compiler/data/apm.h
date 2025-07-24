@@ -112,6 +112,7 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
     MACRO(ENUM_VALUE_LITERAL)        \
                                      \
     MACRO(VARIABLE_REFERENCE)        \
+    MACRO(FUNCTION_REFERENCE)        \
     MACRO(TYPE_REFERENCE)            \
                                      \
     MACRO(FUNCTION_CALL)             \
@@ -145,7 +146,6 @@ typedef struct
         struct // IDENTITY_LITERAL
         {
             substr identity;
-            bool identity_resolved;
         };
         struct // BOOLEAN_LITERAL
         {
@@ -170,6 +170,10 @@ typedef struct
         struct // VARIABLE_REFERENCE
         {
             size_t variable;
+        };
+        struct // FUNCTION_REFERENCE
+        {
+            size_t function;
         };
         struct // TYPE_REFERENCE
         {
