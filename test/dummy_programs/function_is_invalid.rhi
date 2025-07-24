@@ -1,0 +1,6 @@
+fn main() {
+    5();
+}
+
+// ERRORS
+// EXPRESSION_IS_NOT_A_FUNCTION:2:5

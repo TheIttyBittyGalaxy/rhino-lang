@@ -1,0 +1,4 @@
+fn foo() {}
+
+// ERRORS
+// NO_MAIN_FUNCTION:1:1
