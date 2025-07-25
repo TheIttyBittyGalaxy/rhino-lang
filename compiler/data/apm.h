@@ -94,6 +94,7 @@ DECLARE_LIST_TYPE(SymbolTable, symbol_table)
     MACRO(PRECEDENCE_COMPARE_RELATIVE) \
     MACRO(PRECEDENCE_TERM)             \
     MACRO(PRECEDENCE_FACTOR)           \
+    MACRO(PRECEDENCE_RANGE)            \
     MACRO(PRECEDENCE_UNARY)            \
     MACRO(PRECEDENCE_INDEX)            \
     MACRO(PRECEDENCE_CALL)
@@ -118,6 +119,8 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
     MACRO(FUNCTION_CALL)             \
                                      \
     MACRO(INDEX_BY_FIELD)            \
+                                     \
+    MACRO(RANGE_LITERAL)             \
                                      \
     MACRO(BINARY_MULTIPLY)           \
     MACRO(BINARY_DIVIDE)             \
@@ -189,6 +192,11 @@ typedef struct
             size_t subject; // Expression
             substr field;
         };
+        struct // RANGE
+        {
+            size_t first; // Expression
+            size_t last;  // Expression
+        };
         struct // BINARY_*
         {
             size_t lhs; // Expression
@@ -250,10 +258,7 @@ typedef struct
         {
             size_t __for_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
             size_t iterator;   // Variable
-
-            // TODO: Rather than storing a first and last point, we should store the thing being iterated on as an expression
-            size_t first; // Expression
-            size_t last;  // Expression
+            size_t iterable;   // Expression
         };
         struct // ASSIGNMENT_STATEMENT
         {

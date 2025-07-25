@@ -191,6 +191,24 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
 
         break;
 
+    case RANGE_LITERAL:
+        PRINT("RANGE");
+        INDENT();
+
+        NEWLINE();
+        PRINT("first: ")
+        PRINT_EXPRESSION(apm, expr->first, source_text);
+
+        NEWLINE();
+        LAST_ON_LINE();
+        PRINT("last: ")
+        PRINT_EXPRESSION(apm, expr->last, source_text);
+
+        UNINDENT();
+        NEWLINE();
+
+        break;
+
     case BINARY_MULTIPLY:
     case BINARY_DIVIDE:
     case BINARY_REMAINDER:
@@ -273,12 +291,8 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         PRINT_VARIABLE(apm, stmt->iterator, source_text);
         NEWLINE();
 
-        PRINT("first: ");
-        PRINT_EXPRESSION(apm, stmt->first, source_text);
-        NEWLINE();
-
-        PRINT("last: ");
-        PRINT_EXPRESSION(apm, stmt->last, source_text);
+        PRINT("iterable: ");
+        PRINT_EXPRESSION(apm, stmt->iterable, source_text);
         NEWLINE();
 
         LAST_ON_LINE();

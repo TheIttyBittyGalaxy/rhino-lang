@@ -118,7 +118,7 @@ void dump_apm(Program *apm, const char *source_text)
             break;
 
         case FOR_LOOP:
-            printf("body %02d\titerator %02d\tfirst %02d\tlast %02d", stmt->body, stmt->iterator, stmt->first, stmt->last);
+            printf("body %02d\titerator %02d\titerable %02d", stmt->body, stmt->iterator, stmt->iterable);
             break;
 
         case ELSE_SEGMENT:
@@ -413,6 +413,9 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
 
     case INDEX_BY_FIELD:
         return PRECEDENCE_INDEX;
+
+    case RANGE_LITERAL:
+        return PRECEDENCE_RANGE;
 
     case BINARY_MULTIPLY:
     case BINARY_DIVIDE:

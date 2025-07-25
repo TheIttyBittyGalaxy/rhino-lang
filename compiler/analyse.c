@@ -116,6 +116,11 @@ void resolve_identity_literals_in_expression(Compiler *c, Program *apm, size_t e
         resolve_identity_literals_in_expression(c, apm, expr->subject, symbol_table);
         break;
 
+    case RANGE_LITERAL:
+        resolve_identity_literals_in_expression(c, apm, expr->first, symbol_table);
+        resolve_identity_literals_in_expression(c, apm, expr->last, symbol_table);
+        break;
+
     case BINARY_MULTIPLY:
     case BINARY_DIVIDE:
     case BINARY_REMAINDER:
@@ -173,8 +178,7 @@ void resolve_identity_literals(Compiler *c, Program *apm)
                 break;
 
             case FOR_LOOP:
-                resolve_identity_literals_in_expression(c, apm, stmt->first, symbol_table);
-                resolve_identity_literals_in_expression(c, apm, stmt->last, symbol_table);
+                resolve_identity_literals_in_expression(c, apm, stmt->iterable, symbol_table);
                 break;
 
             case BREAK_STATEMENT:

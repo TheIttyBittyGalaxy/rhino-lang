@@ -281,22 +281,31 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
     case FOR_LOOP:
     {
         Variable *iterator = get_variable(apm->variable, stmt->iterator);
+        Expression *iterable = get_expression(apm->expression, stmt->iterable);
 
-        EMIT("for (int ");
-        EMIT_SUBSTR(iterator->identity);
-        EMIT(" = ");
-        transpile_expression(t, apm, stmt->first);
-        EMIT("; ");
+        if (iterable->kind == RANGE_LITERAL)
+        {
+            EMIT("for (int ");
+            EMIT_SUBSTR(iterator->identity);
+            EMIT(" = ");
+            transpile_expression(t, apm, iterable->first);
+            EMIT("; ");
 
-        EMIT_SUBSTR(iterator->identity);
-        EMIT(" <= ");
-        transpile_expression(t, apm, stmt->last);
-        EMIT("; ++", stmt->last);
+            EMIT_SUBSTR(iterator->identity);
+            EMIT(" <= ");
+            transpile_expression(t, apm, iterable->last);
+            EMIT("; ++", iterable->last);
 
-        EMIT_SUBSTR(iterator->identity);
-        EMIT(")");
+            EMIT_SUBSTR(iterator->identity);
+            EMIT(")");
 
-        transpile_statement(t, apm, stmt->body);
+            transpile_statement(t, apm, stmt->body);
+        }
+        else
+        {
+            fatal_error("Could not transpile for loop with %s iterable.", expression_kind_string(iterable->kind));
+        }
+
         break;
     }
 

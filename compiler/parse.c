@@ -398,14 +398,10 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         c->in_scope_vars[c->in_scope_var_count].index = iterator;
         c->in_scope_var_count++;
 
-        // In range
+        // Iterable
         EAT(KEYWORD_IN);
-
-        size_t first = parse_expression(c, apm);
-        STATEMENT(stmt)->first = first;
-        EAT(TWO_DOT);
-        size_t last = parse_expression(c, apm);
-        STATEMENT(stmt)->last = last;
+        size_t iterable = parse_expression(c, apm);
+        STATEMENT(stmt)->iterable = iterable;
 
         // Body
         attempt_to_recover_at_next_code_block(c);
@@ -828,6 +824,17 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
 
             EXPRESSION(expr)->field = TOKEN_STRING();
             EAT(IDENTITY);
+        }
+
+        else if (PEEK(TWO_DOT) && LEFT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(RANGE_LITERAL), caller_precedence))
+        {
+            EXPRESSION(expr)->kind = RANGE_LITERAL;
+
+            ADVANCE();
+
+            EXPRESSION(expr)->first = lhs;
+            size_t last = parse_expression_with_precedence(c, apm, precedence_of(RANGE_LITERAL));
+            EXPRESSION(expr)->last = last;
         }
 
         // Factor (multiplication, division, remainder)
