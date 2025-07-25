@@ -348,6 +348,10 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
     case BINARY_LOGICAL_OR:
         result.sort = SORT_BOOL;
         break;
+
+    default:
+        fatal_error("Could not determine type of %s expression.", expression_kind_string(expr->kind));
+        break;
     }
 
     return result;
@@ -365,7 +369,7 @@ size_t get_enum_type_of_enum_value(Program *apm, size_t enum_value_index)
             return i;
     }
 
-    // FIXME: Unreachable, treat this as a fatal error
+    fatal_error("Could not determine index of enum value %d.", enum_value_index);
     return 0;
 }
 
@@ -450,8 +454,11 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
 
     case BINARY_LOGICAL_OR:
         return PRECEDENCE_LOGICAL_OR;
+
+    default:
+        fatal_error("Could not determine precedence of %s expression.", expr_kind);
+        break;
     }
 
-    // TODO: Ensure this is unreachable
     return PRECEDENCE_NONE;
 }
