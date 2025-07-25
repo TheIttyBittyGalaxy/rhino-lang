@@ -1,5 +1,6 @@
 #include "apm.h"
 #include <stdio.h>
+#include "../fatal_error.h"
 
 // ENUMS //
 
@@ -314,6 +315,10 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
         return get_variable(apm->variable, expr->variable)->type;
 
     // Numerical operations
+    case UNARY_POS:
+    case UNARY_NEG:
+        return get_expression_type(apm, expr->operand);
+
     case BINARY_DIVIDE:
         result.sort = SORT_NUM;
         break;
@@ -416,6 +421,10 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
 
     case RANGE_LITERAL:
         return PRECEDENCE_RANGE;
+
+    case UNARY_POS:
+    case UNARY_NEG:
+        return PRECEDENCE_UNARY;
 
     case BINARY_MULTIPLY:
     case BINARY_DIVIDE:

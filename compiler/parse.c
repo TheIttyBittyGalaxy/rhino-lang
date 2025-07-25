@@ -782,6 +782,22 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
         EXPRESSION(lhs)->string_value = str;
         ADVANCE();
     }
+    else if (PEEK(PLUS))
+    {
+        EXPRESSION(lhs)->kind = UNARY_POS;
+        ADVANCE();
+
+        size_t operand = parse_expression_with_precedence(c, apm, precedence_of(UNARY_POS));
+        EXPRESSION(lhs)->operand = operand;
+    }
+    else if (PEEK(MINUS))
+    {
+        EXPRESSION(lhs)->kind = UNARY_NEG;
+        ADVANCE();
+
+        size_t operand = parse_expression_with_precedence(c, apm, precedence_of(UNARY_NEG));
+        EXPRESSION(lhs)->operand = operand;
+    }
     else
     {
         EXPRESSION(lhs)->kind = INVALID_EXPRESSION;

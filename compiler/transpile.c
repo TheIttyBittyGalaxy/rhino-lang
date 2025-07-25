@@ -197,6 +197,19 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
         break;
     }
 
+    case UNARY_POS:
+    {
+        transpile_expression(t, apm, expr->operand);
+        break;
+    }
+
+    case UNARY_NEG:
+    {
+        EMIT("-");
+        transpile_expression(t, apm, expr->operand);
+        break;
+    }
+
     // FIXME: Rhino and C may treat precedence differently. Ensure we insert extra ()s where required
     //        so that the C code produces the correct Rhino semantics.
 #define CASE_BINARY(expr_kind, symbol)           \

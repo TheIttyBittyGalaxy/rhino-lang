@@ -122,6 +122,9 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
                                      \
     MACRO(RANGE_LITERAL)             \
                                      \
+    MACRO(UNARY_POS)                 \
+    MACRO(UNARY_NEG)                 \
+                                     \
     MACRO(BINARY_MULTIPLY)           \
     MACRO(BINARY_DIVIDE)             \
     MACRO(BINARY_REMAINDER)          \
@@ -196,6 +199,10 @@ typedef struct
         {
             size_t first; // Expression
             size_t last;  // Expression
+        };
+        struct // UNARY_*
+        {
+            size_t operand; // Expression
         };
         struct // BINARY_*
         {

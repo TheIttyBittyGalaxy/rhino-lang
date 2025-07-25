@@ -121,6 +121,11 @@ void resolve_identity_literals_in_expression(Compiler *c, Program *apm, size_t e
         resolve_identity_literals_in_expression(c, apm, expr->last, symbol_table);
         break;
 
+    case UNARY_POS:
+    case UNARY_NEG:
+        resolve_identity_literals_in_expression(c, apm, expr->operand, symbol_table);
+        break;
+
     case BINARY_MULTIPLY:
     case BINARY_DIVIDE:
     case BINARY_REMAINDER:
