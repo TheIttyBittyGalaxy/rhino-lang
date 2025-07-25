@@ -381,7 +381,6 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         EAT(KEYWORD_FOR);
 
         size_t iterator = add_variable(&apm->variable);
-        VARIABLE(iterator)->type.sort = SORT_INT;
         STATEMENT(stmt)->iterator = iterator;
 
         substr identity = TOKEN_STRING();

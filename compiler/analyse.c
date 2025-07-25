@@ -296,6 +296,35 @@ void resolve_variable_types(Compiler *c, Program *apm)
     }
 }
 
+void resolve_for_loop_iterator_types(Compiler *c, Program *apm)
+{
+    for (size_t i = 0; i < apm->statement.count; i++)
+    {
+        Statement *for_loop = get_statement(apm->statement, i);
+
+        if (for_loop->kind != FOR_LOOP)
+            continue;
+
+        Variable *iterator = get_variable(apm->variable, for_loop->iterator);
+        Expression *iterable = get_expression(apm->expression, for_loop->iterable);
+
+        if (iterable->kind == RANGE_LITERAL)
+        {
+            iterator->type.sort = SORT_INT;
+        }
+        else if (iterable->kind == TYPE_REFERENCE && iterable->type.sort == SORT_ENUM)
+        {
+            iterator->type.sort = SORT_ENUM;
+            iterator->type.index = iterable->type.index;
+        }
+        else
+        {
+            iterator->type.sort = INVALID_SORT;
+            // FIXME: Generate an error
+        }
+    }
+}
+
 // CHECK SEMANTICS //
 
 void check_conditions_are_booleans(Compiler *c, Program *apm)
@@ -397,6 +426,7 @@ void analyse(Compiler *c, Program *apm)
     resolve_identity_literals(c, apm);
     resolve_enum_values(c, apm);
     resolve_variable_types(c, apm);
+    resolve_for_loop_iterator_types(c, apm);
 
     check_conditions_are_booleans(c, apm);
     check_function_calls(c, apm);

@@ -300,12 +300,36 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
             EMIT(")");
 
             transpile_statement(t, apm, stmt->body);
-        }
-        else
-        {
-            fatal_error("Could not transpile for loop with %s iterable.", expression_kind_string(iterable->kind));
+            break;
         }
 
+        if (iterable->kind == TYPE_REFERENCE && iterable->type.sort == SORT_ENUM)
+        {
+            EnumType *enum_type = get_enum_type(apm->enum_type, iterable->type.index);
+
+            EMIT("for (");
+            EMIT_SUBSTR(enum_type->identity);
+            EMIT(" ");
+            EMIT_SUBSTR(iterator->identity);
+            EMIT(" = (");
+            EMIT_SUBSTR(enum_type->identity);
+            EMIT(")0; ");
+
+            EMIT_SUBSTR(iterator->identity);
+            EMIT(" < %d; ", enum_type->values.count);
+
+            EMIT_SUBSTR(iterator->identity);
+            EMIT(" = (");
+            EMIT_SUBSTR(enum_type->identity);
+            EMIT(")(");
+            EMIT_SUBSTR(iterator->identity);
+            EMIT(" + 1))");
+
+            transpile_statement(t, apm, stmt->body);
+            break;
+        }
+
+        fatal_error("Could not transpile for loop with %s iterable.", expression_kind_string(iterable->kind));
         break;
     }
 
