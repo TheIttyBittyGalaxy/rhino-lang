@@ -1,0 +1,14 @@
+fn main() {
+    > x;
+    x = bar;
+    > x;
+}
+
+def x = y;
+Thing y = foo;
+
+enum Thing { foo, bar, boo, far }
+
+// SUCCESS
+// foo
+// bar
