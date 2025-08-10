@@ -260,12 +260,13 @@ void resolve_enum_values(Compiler *c, Program *apm)
     }
 }
 
-void resolve_variable_types(Compiler *c, Program *apm)
+void infer_variable_types(Compiler *c, Program *apm)
 {
     for (size_t i = 0; i < apm->statement.count; i++)
     {
         Statement *stmt = get_statement(apm->statement, i);
 
+        // Variable declarations
         if (stmt->kind == VARIABLE_DECLARATION)
         {
             Variable *var = get_variable(apm->variable, stmt->variable);
@@ -298,34 +299,27 @@ void resolve_variable_types(Compiler *c, Program *apm)
                 //       found an inferred variable declaration defined without an initial value?
             }
         }
-    }
-}
 
-void resolve_for_loop_iterator_types(Compiler *c, Program *apm)
-{
-    for (size_t i = 0; i < apm->statement.count; i++)
-    {
-        Statement *for_loop = get_statement(apm->statement, i);
-
-        if (for_loop->kind != FOR_LOOP)
-            continue;
-
-        Variable *iterator = get_variable(apm->variable, for_loop->iterator);
-        Expression *iterable = get_expression(apm->expression, for_loop->iterable);
-
-        if (iterable->kind == RANGE_LITERAL)
+        // FOR LOOP ITERATORS
+        else if (stmt->kind == FOR_LOOP)
         {
-            iterator->type.sort = SORT_INT;
-        }
-        else if (iterable->kind == TYPE_REFERENCE && iterable->type.sort == SORT_ENUM)
-        {
-            iterator->type.sort = SORT_ENUM;
-            iterator->type.index = iterable->type.index;
-        }
-        else
-        {
-            iterator->type.sort = INVALID_SORT;
-            // FIXME: Generate an error
+            Variable *iterator = get_variable(apm->variable, stmt->iterator);
+            Expression *iterable = get_expression(apm->expression, stmt->iterable);
+
+            if (iterable->kind == RANGE_LITERAL)
+            {
+                iterator->type.sort = SORT_INT;
+            }
+            else if (iterable->kind == TYPE_REFERENCE && iterable->type.sort == SORT_ENUM)
+            {
+                iterator->type.sort = SORT_ENUM;
+                iterator->type.index = iterable->type.index;
+            }
+            else
+            {
+                iterator->type.sort = INVALID_SORT;
+                // FIXME: Generate an error
+            }
         }
     }
 }
@@ -384,17 +378,15 @@ void check_variable_assignments(Compiler *c, Program *apm)
     {
         Statement *stmt = get_statement(apm->statement, i);
 
-        if (stmt->kind == VARIABLE_DECLARATION)
+        if (stmt->kind == VARIABLE_DECLARATION && stmt->has_initial_value)
         {
-            if (!stmt->has_initial_value)
-                continue;
-
-            Variable *var = get_variable(apm->variable, stmt->variable);
+            RhinoType var_type = get_variable(apm->variable, stmt->variable)->type;
             RhinoType value_type = get_expression_type(apm, stmt->initial_value);
 
-            if (!can_assign_a_to_b(value_type, var->type))
+            if (!can_assign_a_to_b(value_type, var_type))
                 raise_compilation_error(c, RHS_TYPE_DOES_NOT_MATCH_LHS, stmt->span);
         }
+
         else if (stmt->kind == ASSIGNMENT_STATEMENT)
         {
             RhinoType lhs_type = get_expression_type(apm, stmt->assignment_lhs);
@@ -430,8 +422,8 @@ void analyse(Compiler *c, Program *apm)
 
     resolve_identity_literals(c, apm);
     resolve_enum_values(c, apm);
-    resolve_variable_types(c, apm);
-    resolve_for_loop_iterator_types(c, apm);
+
+    infer_variable_types(c, apm);
 
     check_conditions_are_booleans(c, apm);
     check_function_calls(c, apm);
