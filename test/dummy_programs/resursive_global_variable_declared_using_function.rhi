@@ -1,0 +1,7 @@
+fn main() {}
+
+fn get_foo() {
+    return foo;
+}
+
+def foo = get_foo();

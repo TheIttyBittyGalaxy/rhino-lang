@@ -1,0 +1,7 @@
+fn main() {
+    > x;
+    > y;
+}
+
+def x = y;
+def y = 1;
