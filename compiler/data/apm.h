@@ -9,6 +9,8 @@
 // Types
 #define LIST_RHINO_SORTS(MACRO) \
     MACRO(INVALID_SORT)         \
+    MACRO(ERROR_SORT)           \
+                                \
     MACRO(SORT_BOOL)            \
     MACRO(SORT_INT)             \
     MACRO(SORT_NUM)             \
@@ -344,7 +346,7 @@ RhinoType get_expression_type(Program *apm, size_t expr_index);
 size_t get_enum_type_of_enum_value(Program *apm, size_t enum_value_index);
 bool is_expression_boolean(Program *apm, size_t expr_index);
 bool are_types_equal(RhinoType a, RhinoType b);
-bool can_assign_a_to_b(RhinoType a, RhinoType b);
+bool allow_assign_a_to_b(RhinoType a, RhinoType b);
 
 // Expression precedence methods
 ExprPrecedence precedence_of(ExpressionKind expr_kind);

@@ -260,6 +260,8 @@ void resolve_enum_values(Compiler *c, Program *apm)
     }
 }
 
+// TYPE INFERENCE //
+
 void infer_variable_types(Compiler *c, Program *apm)
 {
     for (size_t i = 0; i < apm->statement.count; i++)
@@ -368,6 +370,7 @@ void check_function_calls(Compiler *c, Program *apm)
             continue;
         }
 
+        // FIXME: This is doing more than just "checking" semantics!
         funct_call->callee = callee_expr->function;
     }
 }
@@ -383,7 +386,7 @@ void check_variable_assignments(Compiler *c, Program *apm)
             RhinoType var_type = get_variable(apm->variable, stmt->variable)->type;
             RhinoType value_type = get_expression_type(apm, stmt->initial_value);
 
-            if (!can_assign_a_to_b(value_type, var_type))
+            if (!allow_assign_a_to_b(value_type, var_type))
                 raise_compilation_error(c, RHS_TYPE_DOES_NOT_MATCH_LHS, stmt->span);
         }
 
@@ -392,13 +395,13 @@ void check_variable_assignments(Compiler *c, Program *apm)
             RhinoType lhs_type = get_expression_type(apm, stmt->assignment_lhs);
             RhinoType rhs_type = get_expression_type(apm, stmt->assignment_rhs);
 
-            if (!can_assign_a_to_b(rhs_type, lhs_type))
+            if (!allow_assign_a_to_b(rhs_type, lhs_type))
                 raise_compilation_error(c, RHS_TYPE_DOES_NOT_MATCH_LHS, stmt->span);
         }
     }
 }
 
-void check_invalid_identity_literals(Compiler *c, Program *apm)
+void produce_errors_for_invalid_identity_literals(Compiler *c, Program *apm)
 {
     for (size_t i = 0; i < apm->expression.count; i++)
     {
@@ -411,6 +414,7 @@ void check_invalid_identity_literals(Compiler *c, Program *apm)
             continue;
 
         raise_compilation_error(c, IDENTITY_DOES_NOT_EXIST, identity_literal->span);
+        identity_literal->given_error = true;
     }
 }
 
@@ -429,5 +433,5 @@ void analyse(Compiler *c, Program *apm)
     check_function_calls(c, apm);
     check_variable_assignments(c, apm);
 
-    check_invalid_identity_literals(c, apm);
+    produce_errors_for_invalid_identity_literals(c, apm);
 }

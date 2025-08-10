@@ -278,14 +278,15 @@ size_t get_last_statement_in_code_block(Program *apm, Statement *code_block)
 RhinoType get_expression_type(Program *apm, size_t expr_index)
 {
     RhinoType result;
-    result.sort = INVALID_SORT;
-    result.index = 0;
-
     Expression *expr = get_expression(apm->expression, expr_index);
 
     switch (expr->kind)
     {
     // Literals
+    case IDENTITY_LITERAL:
+        result.sort = ERROR_SORT;
+        break;
+
     case BOOLEAN_LITERAL:
         result.sort = SORT_BOOL;
         break;
@@ -313,6 +314,14 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
     // Variables
     case VARIABLE_REFERENCE:
         return get_variable(apm->variable, expr->variable)->type;
+
+    // Index by field
+    case INDEX_BY_FIELD:
+    {
+        // TODO: If the subject can be indexed then return the type of the appropriate field
+        result.sort = ERROR_SORT;
+        break;
+    }
 
     // Numerical operations
     case UNARY_POS:
@@ -389,8 +398,11 @@ bool are_types_equal(RhinoType a, RhinoType b)
     return true;
 }
 
-bool can_assign_a_to_b(RhinoType a, RhinoType b)
+bool allow_assign_a_to_b(RhinoType a, RhinoType b)
 {
+    if (a.sort == ERROR_SORT || b.sort == ERROR_SORT)
+        return true;
+
     if (are_types_equal(a, b))
         return true;
 
