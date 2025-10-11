@@ -126,6 +126,8 @@ void resolve_identity_literals_in_expression(Compiler *c, Program *apm, size_t e
 
     case UNARY_POS:
     case UNARY_NEG:
+    case UNARY_INCREMENT:
+    case UNARY_DECREMENT:
         resolve_identity_literals_in_expression(c, apm, expr->operand, symbol_table);
         break;
 

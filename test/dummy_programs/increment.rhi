@@ -1,0 +1,8 @@
+fn main() {
+    def x = 0;
+    x++;
+    > x;
+}
+
+// SUCCESS
+// 1

@@ -21,6 +21,9 @@
     MACRO(CURLY_L)         \
     MACRO(CURLY_R)         \
                            \
+    MACRO(TWO_PLUS)        \
+    MACRO(TWO_MINUS)       \
+                           \
     MACRO(EQUAL)           \
     MACRO(PLUS)            \
     MACRO(MINUS)           \

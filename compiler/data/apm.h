@@ -99,7 +99,7 @@ DECLARE_LIST_TYPE(SymbolTable, symbol_table)
     MACRO(PRECEDENCE_RANGE)            \
     MACRO(PRECEDENCE_UNARY)            \
     MACRO(PRECEDENCE_INDEX)            \
-    MACRO(PRECEDENCE_CALL)
+    MACRO(PRECEDENCE_CALL_OR_INCREMENT)
 
 DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
 
@@ -126,6 +126,8 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
                                      \
     MACRO(UNARY_POS)                 \
     MACRO(UNARY_NEG)                 \
+    MACRO(UNARY_INCREMENT)           \
+    MACRO(UNARY_DECREMENT)           \
                                      \
     MACRO(BINARY_MULTIPLY)           \
     MACRO(BINARY_DIVIDE)             \

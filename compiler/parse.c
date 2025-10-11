@@ -812,7 +812,7 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
 
     END_SPAN(EXPRESSION(lhs));
 
-    // Infix and right-hand side expression
+    // Postfix operator OR infix operator and right-hand side expression
     while (true)
     {
         // Open `expr`
@@ -829,6 +829,22 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
             // TODO: Implement argument passing
             ADVANCE();
             EAT(PAREN_R);
+        }
+
+        // Increment
+        else if (PEEK(TWO_PLUS) && RIGHT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(UNARY_INCREMENT), caller_precedence))
+        {
+            EXPRESSION(expr)->kind = UNARY_INCREMENT;
+            EXPRESSION(expr)->operand = lhs;
+            ADVANCE();
+        }
+
+        // Decrement
+        else if (PEEK(TWO_MINUS) && RIGHT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(UNARY_DECREMENT), caller_precedence))
+        {
+            EXPRESSION(expr)->kind = UNARY_DECREMENT;
+            EXPRESSION(expr)->operand = lhs;
+            ADVANCE();
         }
 
         // Index by field

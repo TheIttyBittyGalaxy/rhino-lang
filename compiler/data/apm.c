@@ -450,8 +450,12 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
     case VARIABLE_REFERENCE:
         return PRECEDENCE_NONE;
 
+    case UNARY_INCREMENT:
+    case UNARY_DECREMENT:
+        return PRECEDENCE_CALL_OR_INCREMENT;
+
     case FUNCTION_CALL:
-        return PRECEDENCE_CALL;
+        return PRECEDENCE_CALL_OR_INCREMENT;
 
     case INDEX_BY_FIELD:
         return PRECEDENCE_INDEX;
