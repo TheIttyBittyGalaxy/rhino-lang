@@ -442,4 +442,17 @@ void resolve(Compiler *c, Program *apm)
     resolve_function_return_types(c, apm);
 
     infer_variable_types(c, apm);
+
+    // Produce errors for any remaining invalid identity literals
+    {
+        for (size_t i = 0; i < apm->expression.count; i++)
+        {
+            Expression *identity_literal = get_expression(apm->expression, i);
+            if (identity_literal->kind == IDENTITY_LITERAL && !identity_literal->given_error)
+            {
+                raise_compilation_error(c, IDENTITY_DOES_NOT_EXIST, identity_literal->span);
+                identity_literal->given_error = true;
+            }
+        }
+    }
 }
