@@ -85,12 +85,12 @@ enum LineStatus
 #define PRINT_APM print_parsed_apm
 #endif
 
-#ifdef PRINT_ANALYSED
-#define PRINT_EXPRESSION print_analysed_expression
-#define PRINT_STATEMENT print_analysed_statement
-#define PRINT_VARIABLE print_analysed_variable
-#define PRINT_ENUM_TYPE print_analysed_enum_type
-#define PRINT_APM print_analysed_apm
+#ifdef PRINT_RESOLVED
+#define PRINT_EXPRESSION print_resolved_expression
+#define PRINT_STATEMENT print_resolved_statement
+#define PRINT_VARIABLE print_resolved_variable
+#define PRINT_ENUM_TYPE print_resolved_enum_type
+#define PRINT_APM print_resolved_apm
 #endif
 
 // PRINT VARIABLE //
@@ -163,7 +163,7 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
         PRINT("callee: ");
         PRINT_EXPRESSION(apm, expr->callee, source_text);
 #endif
-#ifdef PRINT_ANALYSED
+#ifdef PRINT_RESOLVED
         PRINT("callee: %d", expr->callee);
 #endif
         NEWLINE();
@@ -420,7 +420,7 @@ void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text)
     }
 
 #endif
-#ifdef PRINT_ANALYSED
+#ifdef PRINT_RESOLVED
     PRINT("return_type: %s", rhino_type_string(apm, funct->return_type));
     NEWLINE();
 
@@ -471,13 +471,13 @@ void PRINT_APM(Program *apm, const char *source_text)
 #ifdef PRINT_PARSED
     PRINT("PARSED PROGRAM");
 #endif
-#ifdef PRINT_ANALYSED
-    PRINT("ANALYSED PROGRAM");
+#ifdef PRINT_RESOLVED
+    PRINT("RESOLVED PROGRAM");
 #endif
     INDENT();
     NEWLINE();
 
-#ifdef PRINT_ANALYSED
+#ifdef PRINT_RESOLVED
     PRINT("main: %d", apm->main);
     NEWLINE();
     NEWLINE();
@@ -518,4 +518,4 @@ void PRINT_APM(Program *apm, const char *source_text)
 #undef PRINT_APM
 
 #undef PRINT_PARSED
-#undef PRINT_ANALYSED
+#undef PRINT_RESOLVED

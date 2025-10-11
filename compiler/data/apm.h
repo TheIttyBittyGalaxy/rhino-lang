@@ -63,6 +63,7 @@ DECLARE_LIST_TYPE(Variable, variable)
 // Symbol table
 #define LIST_SYMBOL_TAG(MACRO) \
     MACRO(INVALID_SYMBOL)      \
+    MACRO(VARIABLE_SYMBOL)     \
     MACRO(FUNCTION_SYMBOL)     \
     MACRO(ENUM_TYPE_SYMBOL)
 
@@ -342,7 +343,7 @@ void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, size_
 const char *rhino_type_string(Program *apm, RhinoType ty);
 void dump_apm(Program *apm, const char *source_text);
 void print_parsed_apm(Program *apm, const char *source_text);
-void print_analysed_apm(Program *apm, const char *source_text);
+void print_resolved_apm(Program *apm, const char *source_text);
 
 // Access methods
 size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, size_t n);

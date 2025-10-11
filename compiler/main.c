@@ -2,7 +2,8 @@
 
 #include "tokenise.h"
 #include "parse.h"
-#include "analyse.h"
+#include "resolve.h"
+#include "check.h"
 #include "transpile.h"
 
 #include <stdbool.h>
@@ -51,7 +52,7 @@ char *read_file(const char *path)
 bool flag_test_mode = false;
 bool flag_token_dump = false;
 bool flag_parse_dump = false;
-bool flag_analyse_dump = false;
+bool flag_resolve_dump = false;
 bool flag_dump_tree = false;
 
 bool process_arguments(int argc, char *argv[])
@@ -67,8 +68,8 @@ bool process_arguments(int argc, char *argv[])
             flag_token_dump = true;
         else if ((strcmp(argv[i], "-p") == 0) || strcmp(argv[i], "-parse") == 0)
             flag_parse_dump = true;
-        else if ((strcmp(argv[i], "-a") == 0) || strcmp(argv[i], "-analyse") == 0)
-            flag_analyse_dump = true;
+        else if ((strcmp(argv[i], "-r") == 0) || strcmp(argv[i], "-resolve") == 0)
+            flag_resolve_dump = true;
         else if ((strcmp(argv[i], "-n") == 0) || strcmp(argv[i], "-nice") == 0)
             flag_dump_tree = true;
         else
@@ -84,7 +85,7 @@ int main(int argc, char *argv[])
     bool valid_arguments = process_arguments(argc, argv);
     if (!valid_arguments)
     {
-        fprintf(stderr, "Usage: %s <file_path> [-test] [-token] [-parse] [-analyse] [-nice]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <file_path> [-test] [-token] [-parse] [-resolve] [-nice]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
@@ -104,7 +105,8 @@ int main(int argc, char *argv[])
         Program apm;
         init_program(&apm);
         parse(&compiler, &apm);
-        analyse(&compiler, &apm);
+        resolve(&compiler, &apm);
+        check(&compiler, &apm);
 
         if (compiler.error_count > 0)
         {
@@ -165,15 +167,18 @@ int main(int argc, char *argv[])
             dump_apm(&apm, compiler.source_text);
     }
 
-    HEADING("Analyse");
-    analyse(&compiler, &apm);
-    if (flag_analyse_dump)
+    HEADING("Resolve");
+    resolve(&compiler, &apm);
+    if (flag_resolve_dump)
     {
         if (flag_dump_tree)
-            print_analysed_apm(&apm, compiler.source_text);
+            print_resolved_apm(&apm, compiler.source_text);
         else
             dump_apm(&apm, compiler.source_text);
     }
+
+    HEADING("Check");
+    check(&compiler, &apm);
 
     // Report errors
     if (compiler.error_count > 0)

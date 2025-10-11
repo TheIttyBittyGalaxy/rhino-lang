@@ -248,7 +248,7 @@ void dump_apm(Program *apm, const char *source_text)
 #define PRINT_PARSED
 #include "include/print-apm.c"
 
-#define PRINT_ANALYSED
+#define PRINT_RESOLVED
 #include "include/print-apm.c"
 
 // ACCESS METHODS //

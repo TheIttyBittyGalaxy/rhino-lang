@@ -122,8 +122,4 @@ void init_compiler(Compiler *c)
     c->error_capacity = 8;
     c->error_count = 0;
     c->errors = (CompilationError *)malloc(sizeof(CompilationError) * c->error_capacity);
-
-    c->in_scope_var_capacity = 64;
-    c->in_scope_var_count = 0;
-    c->in_scope_vars = (VariableData *)malloc(sizeof(VariableData) * c->in_scope_var_capacity);
 }

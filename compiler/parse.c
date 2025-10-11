@@ -397,16 +397,6 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         VARIABLE(iterator)->identity = identity;
         EAT(IDENTITY);
 
-        if (c->in_scope_var_count == c->in_scope_var_capacity)
-        {
-            c->in_scope_var_capacity = c->in_scope_var_capacity * 2;
-            c->in_scope_vars = (VariableData *)realloc(c->in_scope_vars, sizeof(VariableData) * c->in_scope_var_capacity);
-        }
-
-        c->in_scope_vars[c->in_scope_var_count].identity = identity;
-        c->in_scope_vars[c->in_scope_var_count].index = iterator;
-        c->in_scope_var_count++;
-
         // Iterable
         EAT(KEYWORD_IN);
         size_t iterable = parse_expression(c, apm);
@@ -432,7 +422,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         goto finish;
     }
 
-    // Inferred VARIABLE_DECLARATION
+    // VARIABLE_DECLARATION with inferred type
     if (PEEK(KEYWORD_DEF))
     {
         size_t var = add_variable(&apm->variable);
@@ -467,16 +457,6 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
 
         EAT(SEMI_COLON);
 
-        if (c->in_scope_var_count == c->in_scope_var_capacity)
-        {
-            c->in_scope_var_capacity = c->in_scope_var_capacity * 2;
-            c->in_scope_vars = (VariableData *)realloc(c->in_scope_vars, sizeof(VariableData) * c->in_scope_var_capacity);
-        }
-
-        c->in_scope_vars[c->in_scope_var_count].identity = identity;
-        c->in_scope_vars[c->in_scope_var_count].index = var;
-        c->in_scope_var_count++;
-
         goto finish;
     }
 
@@ -510,7 +490,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         goto finish;
     }
 
-    // EXPRESSION_STMT / ASSIGNMENT_STATEMENT / Typed VARIABLE_DECLARATION
+    // EXPRESSION_STMT / ASSIGNMENT_STATEMENT / VARIABLE_DECLARATION with stated type
     else if (peek_expression(c))
     {
         STATEMENT(stmt)->kind = EXPRESSION_STMT;
@@ -521,7 +501,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         if (c->parse_status == PANIC)
             goto recover;
 
-        if (peek_expression(c) && EXPRESSION(value)->kind == IDENTITY_LITERAL) // Typed VARIABLE_DECLARATION
+        if (peek_expression(c) && EXPRESSION(value)->kind == IDENTITY_LITERAL) // VARIABLE_DECLARATION with stated type
         {
             size_t var = add_variable(&apm->variable);
             VARIABLE(var)->type.sort = INVALID_SORT;
@@ -547,16 +527,6 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
 
                 STATEMENT(stmt)->has_initial_value = true;
             }
-
-            if (c->in_scope_var_count == c->in_scope_var_capacity)
-            {
-                c->in_scope_var_capacity = c->in_scope_var_capacity * 2;
-                c->in_scope_vars = (VariableData *)realloc(c->in_scope_vars, sizeof(VariableData) * c->in_scope_var_capacity);
-            }
-
-            c->in_scope_vars[c->in_scope_var_count].identity = identity;
-            c->in_scope_vars[c->in_scope_var_count].index = var;
-            c->in_scope_var_count++;
         }
         else if (PEEK(EQUAL)) // ASSIGNMENT_STATEMENT
         {
@@ -633,8 +603,6 @@ size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table)
     size_t first_statement = apm->statement.count;
     STATEMENT(code_block)->statements.first = first_statement;
 
-    size_t in_scope_var_count = c->in_scope_var_count;
-
     if (PEEK(COLON))
     {
         EAT(COLON);
@@ -687,8 +655,6 @@ size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table)
         recover_from_panic(c);
     }
 
-    c->in_scope_var_count = in_scope_var_count; // Discard variables that were declared in nested scopes
-
     size_t statement_count = apm->statement.count - first_statement;
     STATEMENT(code_block)->statements.count = statement_count;
 
@@ -727,26 +693,9 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
     // Left-hand side of expression
     if (PEEK(IDENTITY))
     {
-        size_t is_unknown_literal = true;
-        for (size_t i = 0; i < c->in_scope_var_count; i++)
-        {
-            size_t j = c->in_scope_var_count - 1 - i; // Start from the end of the array so that nested variables are checked first
-            if (substr_match(c->source_text, TOKEN_STRING(), c->in_scope_vars[j].identity))
-            {
-                EXPRESSION(lhs)->kind = VARIABLE_REFERENCE;
-                EXPRESSION(lhs)->variable = c->in_scope_vars[j].index;
-                is_unknown_literal = false;
-                break;
-            }
-        }
-
-        if (is_unknown_literal)
-        {
-            EXPRESSION(lhs)->kind = IDENTITY_LITERAL;
-            EXPRESSION(lhs)->identity = TOKEN_STRING();
-            EXPRESSION(lhs)->given_error = false;
-        }
-
+        EXPRESSION(lhs)->kind = IDENTITY_LITERAL;
+        EXPRESSION(lhs)->identity = TOKEN_STRING();
+        EXPRESSION(lhs)->given_error = false;
         ADVANCE();
     }
     else if (PEEK(KEYWORD_TRUE))
