@@ -369,6 +369,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
 
         substr identity = TOKEN_STRING();
         VARIABLE(iterator)->identity = identity;
+        VARIABLE(iterator)->type.sort = INVALID_SORT;
         EAT(IDENTITY);
 
         // Iterable

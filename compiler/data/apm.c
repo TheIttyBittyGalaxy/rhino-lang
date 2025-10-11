@@ -259,6 +259,8 @@ void dump_apm(Program *apm, const char *source_text)
 
 // ACCESS METHODS //
 
+// FIXME: Change "code_block" in each case here to just "block", as these methods also work for declaration blocks
+
 size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, size_t n)
 {
     if (code_block->statements.count == 0)
@@ -355,7 +357,13 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
 
     // Function call
     case FUNCTION_CALL:
-        return get_function(apm->function, expr->callee)->return_type;
+    {
+        Expression *callee = get_expression(apm->expression, expr->callee);
+        assert(callee->kind == FUNCTION_REFERENCE);
+
+        Function *funct = get_function(apm->function, callee->function);
+        return funct->return_type;
+    }
 
     // Index by field
     case INDEX_BY_FIELD:

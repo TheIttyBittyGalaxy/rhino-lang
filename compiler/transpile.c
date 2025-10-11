@@ -195,7 +195,8 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
 
     case FUNCTION_CALL:
     {
-        Function *callee = get_function(apm->function, expr->callee);
+        Expression *reference = get_expression(apm->expression, expr->callee);
+        Function *callee = get_function(apm->function, reference->function);
         EMIT_SUBSTR(callee->identity);
         EMIT("()");
         break;

@@ -154,11 +154,15 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
     }
 
     case VARIABLE_REFERENCE:
-        PRINT("v%02d", expr->variable);
+        PRINT("v<%02d>", expr->variable);
         break;
 
     case TYPE_REFERENCE:
         PRINT("t%s", rhino_type_string(apm, expr->type));
+        break;
+
+    case FUNCTION_REFERENCE:
+        PRINT("f<%02d>", expr->function);
         break;
 
     case FUNCTION_CALL:
@@ -168,13 +172,8 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
 
         LAST_ON_LINE();
 
-#ifdef PRINT_PARSED
         PRINT("callee: ");
         PRINT_EXPRESSION(apm, expr->callee, source_text);
-#endif
-#ifdef PRINT_RESOLVED
-        PRINT("callee: %d", expr->callee);
-#endif
         NEWLINE();
 
         UNINDENT();

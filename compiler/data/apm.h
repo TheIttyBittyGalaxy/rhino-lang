@@ -197,7 +197,7 @@ typedef struct
         };
         struct // FUNCTION_CALL
         {
-            size_t callee; // Expression -> Function
+            size_t callee; // Expression
         };
         struct // INDEX_BY_FIELD
         {

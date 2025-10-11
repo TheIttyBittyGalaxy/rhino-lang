@@ -2,9 +2,39 @@
 #include "fatal_error.h"
 #include <string.h>
 
-// CHECK //
+// CHECK EXPRESSIONS //
 
-void check(Compiler *c, Program *apm)
+void check_expressions(Compiler *c, Program *apm)
+{
+    for (size_t i = 0; i < apm->expression.count; i++)
+    {
+        Expression *expr = get_expression(apm->expression, i);
+
+        switch (expr->kind)
+        {
+        // Ensure function calls call function
+        case FUNCTION_CALL:
+        {
+            Expression *callee = get_expression(apm->expression, expr->callee);
+            if (callee->kind == IDENTITY_LITERAL)
+            {
+                raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, callee->span);
+                callee->given_error = true;
+            }
+            else if (callee->kind != FUNCTION_REFERENCE)
+            {
+                raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, callee->span);
+            }
+
+            break;
+        }
+        }
+    }
+}
+
+// CHECK STATEMENTS //
+
+void check_statements(Compiler *c, Program *apm)
 {
     for (size_t i = 0; i < apm->statement.count; i++)
     {
@@ -51,6 +81,27 @@ void check(Compiler *c, Program *apm)
 
             break;
         }
+        }
+    }
+}
+
+// CHECK //
+
+void check(Compiler *c, Program *apm)
+{
+    check_expressions(c, apm);
+    check_statements(c, apm);
+
+    // Produce errors for remaining identity literals
+    {
+        for (size_t i = 0; i < apm->expression.count; i++)
+        {
+            Expression *identity_literal = get_expression(apm->expression, i);
+            if (identity_literal->kind == IDENTITY_LITERAL && !identity_literal->given_error)
+            {
+                raise_compilation_error(c, IDENTITY_DOES_NOT_EXIST, identity_literal->span);
+                identity_literal->given_error = true;
+            }
         }
     }
 }
