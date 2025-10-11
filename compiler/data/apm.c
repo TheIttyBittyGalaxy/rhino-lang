@@ -267,19 +267,25 @@ size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, siz
     Statement *child = get_statement(apm->statement, code_block->statements.first + n);
     n++;
 
-    // FIXME: Code tidy, make this a switch statement
-    if (child->kind == CODE_BLOCK || child->kind == SINGLE_BLOCK)
+    switch (child->kind)
+    {
+    case DECLARATION_BLOCK:
+    case CODE_BLOCK:
+    case SINGLE_BLOCK:
         return n + child->statements.count;
-    else if (child->kind == IF_SEGMENT ||
-             child->kind == ELSE_IF_SEGMENT ||
-             child->kind == ELSE_SEGMENT ||
-             child->kind == BREAK_LOOP ||
-             child->kind == FOR_LOOP)
+
+    case IF_SEGMENT:
+    case ELSE_IF_SEGMENT:
+    case ELSE_SEGMENT:
+    case BREAK_LOOP:
+    case FOR_LOOP:
         return n + get_statement(apm->statement, child->body)->statements.count + 1;
-    else if (child->kind == FUNCTION_DECLARATION)
+
+    case FUNCTION_DECLARATION:
     {
         Function *funct = get_function(apm->function, child->function);
         return n + get_statement(apm->statement, funct->body)->statements.count + 1;
+    }
     }
 
     return n;
