@@ -156,6 +156,15 @@ void resolve_identity_literals_in_expression(Compiler *c, Program *apm, size_t e
 
 void resolve_identity_literals(Compiler *c, Program *apm)
 {
+    SymbolTable *global_symbol_table = get_symbol_table(apm->symbol_table, apm->global_symbol_table);
+
+    for (size_t i = 0; i < apm->function.count; i++)
+    {
+        Function *funct = get_function(apm->function, i);
+        if (funct->has_return_type_expression)
+            resolve_identity_literals_in_expression(c, apm, funct->return_type_expression, global_symbol_table);
+    }
+
     for (size_t i = 0; i < apm->statement.count; i++)
     {
         Statement *block = get_statement(apm->statement, i);
@@ -262,6 +271,37 @@ void resolve_enum_values(Compiler *c, Program *apm)
             continue;
 
         raise_compilation_error(c, ENUM_VALUE_DOES_NOT_EXIST, index_by_field->span);
+    }
+}
+
+void resolve_function_return_types(Compiler *c, Program *apm)
+{
+    for (size_t i = 0; i < apm->function.count; i++)
+    {
+        Function *funct = get_function(apm->function, i);
+
+        if (!funct->has_return_type_expression)
+        {
+            funct->return_type.sort = SORT_NONE;
+            continue;
+        }
+
+        // FIXME: This code is copy/pasted and modified from `infer_variable_types`
+        //        Should there be a "resolve type expression" method?
+        Expression *return_type_expression = get_expression(apm->expression, funct->return_type_expression);
+        if (return_type_expression->kind == TYPE_REFERENCE)
+        {
+            funct->return_type = return_type_expression->type;
+        }
+        else if (return_type_expression->kind == IDENTITY_LITERAL)
+        {
+            raise_compilation_error(c, TYPE_DOES_NOT_EXIST, return_type_expression->span);
+            return_type_expression->given_error = true;
+        }
+        else
+        {
+            raise_compilation_error(c, FUNCTION_RETURN_TYPE_IS_INVALID, return_type_expression->span);
+        }
     }
 }
 
@@ -431,6 +471,7 @@ void analyse(Compiler *c, Program *apm)
 
     resolve_identity_literals(c, apm);
     resolve_enum_values(c, apm);
+    resolve_function_return_types(c, apm);
 
     infer_variable_types(c, apm);
 

@@ -65,6 +65,7 @@
     MACRO(NO_MAIN_FUNCTION)                                         \
     MACRO(RHS_TYPE_DOES_NOT_MATCH_LHS)                              \
     MACRO(VARIABLE_TYPE_IS_INVALID)                                 \
+    MACRO(FUNCTION_RETURN_TYPE_IS_INVALID)                          \
                                                                     \
     MACRO(ENUM_VALUE_DOES_NOT_EXIST)                                \
     MACRO(FUNCTION_DOES_NOT_EXIST)                                  \

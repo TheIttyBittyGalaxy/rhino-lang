@@ -225,6 +225,9 @@ void parse_program(Compiler *c, Program *apm)
 size_t parse_function(Compiler *c, Program *apm, size_t symbol_table)
 {
     size_t funct = add_function(&apm->function);
+    FUNCTION(funct)->has_return_type_expression = false;
+    FUNCTION(funct)->return_type.sort = INVALID_SORT;
+
     START_SPAN(FUNCTION(funct));
 
     EAT(KEYWORD_FN);
@@ -237,7 +240,14 @@ size_t parse_function(Compiler *c, Program *apm, size_t symbol_table)
     assert(c->parse_status == OKAY);
 
     EAT(PAREN_L);
+    // TODO: Parse arguments
     EAT(PAREN_R);
+
+    if (peek_expression(c))
+    {
+        FUNCTION(funct)->has_return_type_expression = true;
+        FUNCTION(funct)->return_type_expression = parse_expression(c, apm);
+    }
 
     attempt_to_recover_at_next_code_block(c);
     size_t body = parse_code_block(c, apm, symbol_table);

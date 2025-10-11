@@ -11,6 +11,7 @@
     MACRO(INVALID_SORT)         \
     MACRO(ERROR_SORT)           \
                                 \
+    MACRO(SORT_NONE)            \
     MACRO(SORT_BOOL)            \
     MACRO(SORT_INT)             \
     MACRO(SORT_NUM)             \
@@ -281,8 +282,8 @@ typedef struct
             size_t variable;        // Variable
             size_t initial_value;   // Expression
             size_t type_expression; // Expression
-            bool has_initial_value;
             bool has_type_expression;
+            bool has_initial_value;
         };
         struct // OUTPUT_STATEMENT / EXPRESSION_STMT
         {
@@ -306,7 +307,11 @@ typedef struct
 {
     substr span;
     substr identity;
-    size_t body;
+    size_t body; // Statement
+
+    size_t return_type_expression; // Expression
+    bool has_return_type_expression;
+    RhinoType return_type;
 } Function;
 
 DECLARE_LIST_TYPE(Function, function)

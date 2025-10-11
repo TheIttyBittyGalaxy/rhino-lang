@@ -397,6 +397,24 @@ void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text)
     INDENT();
     NEWLINE();
 
+#ifdef PRINT_PARSED
+    PRINT("has_return_type_expression: %s", funct->has_return_type_expression ? "true" : "false");
+    NEWLINE();
+
+    if (funct->has_return_type_expression)
+    {
+        PRINT("return_type_expression: ");
+        PRINT_EXPRESSION(apm, funct->return_type_expression, source_text);
+        NEWLINE();
+    }
+
+#endif
+#ifdef PRINT_ANALYSED
+    PRINT("return_type: %s", rhino_type_string(apm, funct->return_type));
+    NEWLINE();
+
+#endif
+
     LAST_ON_LINE();
     PRINT("body: ");
     PRINT_STATEMENT(apm, funct->body, source_text);
