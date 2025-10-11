@@ -462,22 +462,20 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
             var->type.sort = INVALID_SORT;
 
             if (stmt->has_type_expression)
-            {
                 var->type = resolve_type_expression(c, apm, stmt->type_expression, symbol_table);
 
-                // FIXME: We should use the type of the variable to provide a type hint when resolving the type of the initial value
-                resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table);
-            }
-            else if (stmt->has_initial_value)
+            // FIXME: When the variable has a type expression, we should supply the type of
+            //        the variable as a type hint when resolving types in the initial value.
+            if (stmt->has_initial_value)
             {
                 resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table);
-                var->type = get_expression_type(apm, stmt->initial_value);
+
+                if (!stmt->has_type_expression)
+                    var->type = get_expression_type(apm, stmt->initial_value);
             }
-            else
-            {
-                // TODO: What should we do here? Presumably we can only reach this state if the parser
-                //       found an inferred variable declaration defined without an initial value?
-            }
+
+            // TODO: What should happen if we find am inferred variable
+            //       declaration that was defined without an initial value?
 
             break;
         }
