@@ -1,0 +1,10 @@
+fn foo() int:
+    return 42;
+
+fn main() {
+    def x = foo();
+    > x;
+}
+
+// SUCCESS
+// 42
