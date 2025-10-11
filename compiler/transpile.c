@@ -267,6 +267,13 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
     switch (stmt->kind)
     {
+
+    case FUNCTION_DECLARATION:
+        break;
+
+    case ENUM_TYPE_DECLARATION:
+        break;
+
     case CODE_BLOCK:
     case SINGLE_BLOCK:
     {
@@ -493,9 +500,6 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         EMIT_LINE(";");
         break;
     }
-
-    case FUNCTION_DECLARATION:
-        break;
 
     default:
         fatal_error("Could not transpile %s statement.", statement_kind_string(stmt->kind));
