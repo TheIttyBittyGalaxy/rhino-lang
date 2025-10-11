@@ -259,9 +259,7 @@ void dump_apm(Program *apm, const char *source_text)
 
 // ACCESS METHODS //
 
-// FIXME: Change "code_block" in each case here to just "block", as these methods also work for declaration blocks
-
-size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, size_t n)
+size_t get_next_statement_in_block(Program *apm, Statement *code_block, size_t n)
 {
     if (code_block->statements.count == 0)
         return 0;
@@ -293,12 +291,12 @@ size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, siz
     return n;
 }
 
-size_t get_first_statement_in_code_block(Program *apm, Statement *code_block)
+size_t get_first_statement_in_block(Program *apm, Statement *code_block)
 {
     return 0;
 }
 
-size_t get_last_statement_in_code_block(Program *apm, Statement *code_block)
+size_t get_last_statement_in_block(Program *apm, Statement *code_block)
 {
     if (code_block->statements.count == 0)
         return 0;
@@ -306,7 +304,7 @@ size_t get_last_statement_in_code_block(Program *apm, Statement *code_block)
     size_t n = 0;
     while (true)
     {
-        size_t next = get_next_statement_in_code_block(apm, code_block, n);
+        size_t next = get_next_statement_in_block(apm, code_block, n);
         if (next >= code_block->statements.count)
             return n;
         n = next;

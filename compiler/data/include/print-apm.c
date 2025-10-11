@@ -282,15 +282,15 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
 
     if (stmt->kind == DECLARATION_BLOCK)
     {
-        size_t last = get_last_statement_in_code_block(apm, stmt);
-        size_t n = get_first_statement_in_code_block(apm, stmt);
+        size_t last = get_last_statement_in_block(apm, stmt);
+        size_t n = get_first_statement_in_block(apm, stmt);
         while (n < stmt->statements.count)
         {
             if (n == last)
                 LAST_ON_LINE();
 
             PRINT_STATEMENT(apm, stmt->statements.first + n, source_text);
-            n = get_next_statement_in_code_block(apm, stmt, n);
+            n = get_next_statement_in_block(apm, stmt, n);
         }
 
         NEWLINE();
@@ -322,8 +322,8 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
     case CODE_BLOCK:
     case SINGLE_BLOCK:
     {
-        size_t last = get_last_statement_in_code_block(apm, stmt);
-        size_t n = get_first_statement_in_code_block(apm, stmt);
+        size_t last = get_last_statement_in_block(apm, stmt);
+        size_t n = get_first_statement_in_block(apm, stmt);
 
         if (stmt->statements.count > 1)
             NEWLINE();
@@ -334,7 +334,7 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
                 LAST_ON_LINE();
 
             PRINT_STATEMENT(apm, stmt->statements.first + n, source_text);
-            n = get_next_statement_in_code_block(apm, stmt, n);
+            n = get_next_statement_in_block(apm, stmt, n);
         }
 
         NEWLINE();

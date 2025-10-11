@@ -283,11 +283,11 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         // TODO: At the moment we are walking the APM as a tree. However, it is probably possible
         //       and also faster to just walk it as a list, where we create a "{" whenever we
         //       encounter a code block, and use a stack to track where we should insert the "}".
-        size_t n = get_first_statement_in_code_block(apm, stmt);
+        size_t n = get_first_statement_in_block(apm, stmt);
         while (n < stmt->statements.count)
         {
             transpile_statement(t, apm, stmt->statements.first + n);
-            n = get_next_statement_in_code_block(apm, stmt, n);
+            n = get_next_statement_in_block(apm, stmt, n);
         }
 
         EMIT_CLOSE_BRACE();

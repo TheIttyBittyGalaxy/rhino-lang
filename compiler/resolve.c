@@ -181,7 +181,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_in
     size_t n;
 
     // Add all functions to symbol table. This allows functions to recursively refer to each other.
-    n = get_first_statement_in_code_block(apm, block);
+    n = get_first_statement_in_block(apm, block);
     while (n < block->statements.count)
     {
         Statement *stmt = get_statement(apm->statement, block->statements.first + n);
@@ -192,11 +192,11 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_in
             append_symbol(apm, block->symbol_table, FUNCTION_SYMBOL, n, funct->identity);
         }
 
-        n = get_next_statement_in_code_block(apm, block, n);
+        n = get_next_statement_in_block(apm, block, n);
     }
 
     // Sequentially resolve identities in each statement, adding variables and types to the symbol table as they are encountered
-    n = get_first_statement_in_code_block(apm, block);
+    n = get_first_statement_in_block(apm, block);
     while (n < block->statements.count)
     {
         Statement *stmt = get_statement(apm->statement, block->statements.first + n);
@@ -281,7 +281,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_in
             break;
         }
 
-        n = get_next_statement_in_code_block(apm, block, n);
+        n = get_next_statement_in_block(apm, block, n);
     }
 }
 
@@ -306,7 +306,7 @@ void resolve_identities_in_declaration_block(Compiler *c, Program *apm, size_t b
     //       and we add all symbols to the symbol table during parsing.
     //       Presumably, this may change at some point in the future?
 
-    size_t n = get_first_statement_in_code_block(apm, block);
+    size_t n = get_first_statement_in_block(apm, block);
     while (n < block->statements.count)
     {
         Statement *stmt = get_statement(apm->statement, block->statements.first + n);
@@ -314,7 +314,7 @@ void resolve_identities_in_declaration_block(Compiler *c, Program *apm, size_t b
         if (stmt->kind == FUNCTION_DECLARATION)
             resolve_identities_in_function(c, apm, stmt->function, symbol_table);
 
-        n = get_next_statement_in_code_block(apm, block, n);
+        n = get_next_statement_in_block(apm, block, n);
     }
 }
 
@@ -424,7 +424,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
     assert(block->kind == CODE_BLOCK || block->kind == SINGLE_BLOCK);
 
     SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, block->symbol_table);
-    size_t n = get_first_statement_in_code_block(apm, block);
+    size_t n = get_first_statement_in_block(apm, block);
     while (n < block->statements.count)
     {
         Statement *stmt = get_statement(apm->statement, block->statements.first + n);
@@ -548,7 +548,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
             break;
         }
 
-        n = get_next_statement_in_code_block(apm, block, n);
+        n = get_next_statement_in_block(apm, block, n);
     }
 }
 
@@ -594,7 +594,7 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_
 
     SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, block->symbol_table);
 
-    size_t n = get_first_statement_in_code_block(apm, block);
+    size_t n = get_first_statement_in_block(apm, block);
     while (n < block->statements.count)
     {
         Statement *stmt = get_statement(apm->statement, block->statements.first + n);
@@ -602,7 +602,7 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_
         if (stmt->kind == FUNCTION_DECLARATION)
             resolve_types_in_function(c, apm, stmt->function, symbol_table);
 
-        n = get_next_statement_in_code_block(apm, block, n);
+        n = get_next_statement_in_block(apm, block, n);
     }
 }
 
