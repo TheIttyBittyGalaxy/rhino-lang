@@ -347,6 +347,8 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
     // Numerical operations
     case UNARY_POS:
     case UNARY_NEG:
+    case UNARY_INCREMENT:
+    case UNARY_DECREMENT:
         return get_expression_type(apm, expr->operand);
 
     case BINARY_DIVIDE:
