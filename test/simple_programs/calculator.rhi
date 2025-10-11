@@ -1,0 +1,121 @@
+// FIXME: The testing program currently cannot handle this
+
+struct Token {
+    enum Kind { NUM , ADD , SUB , MUL , DIV , OPEN , CLOSE , END }
+    Kind kind
+    num value
+}
+
+object parser {
+    Token[] tokens
+    int pos
+    str? error
+}
+
+fn flag_error(Parser parser, str error) {
+    if not parser.error:
+        parser.error = error;
+}
+
+fn parse(Parser parser, str expr) -> num? {
+    parser.tokens = [];
+    parser.pos = 0;
+    parser.error = null;
+
+    tokenise(parser, expr);
+    if parser.error: return;
+    parse_expr(parser);
+}
+
+fn tokenise(Parser parser, str expr) {
+    int i = 0;
+    while i < #expr {
+        Token t = { value: 0 };
+        match expr[i] {
+            "+": t.kind = ADD;
+            "-": t.kind = SUB;
+            "*": t.kind = MUL;
+            "/": t.kind = DIV;
+            "(": t.kind = OPEN;
+            ")": t.kind = CLOSE;
+            [0-9] {
+                int j = i + 1;
+                while expr[j] == [0-9]: j++;
+                j--;
+                t.value = str_to_int(expr[i:j]);
+            }
+            [%s]: continue;
+            else: {
+                flag_error(parser, "Unexpected '" + expr[i] + "'");
+                return;
+            }
+        }
+        insert(parser.tokens, t);
+    }
+    insert(parser.tokens, { kind: END , value: 0 });
+}
+
+// Grammar:
+// expr   -> term   (( + - ) term  )*
+// term   -> factor (( * / ) factor)*
+// factor -> NUM
+          -> "(" expr ")"
+
+fn parse_expr(Parser parser) {
+    def result = parse_term(parser)
+    loop {
+        match parser.tokens[parser.pos].kind:
+            ADD: result += parse_term(parser);
+            SUB: result -= parse_term(parser);
+            else: break;
+        parser.pos++;
+    }
+    return result;
+}
+
+fn parse_term(Parser parser) {
+    def result = parse_factor(parser)
+    loop {
+        match parser.tokens[parser.pos].kind {
+            MUL: result *= parse_factor(parser);
+            DIV: result /= parse_factor(parser);
+            else: break;
+        }
+        parser.pos++;
+    }
+    return result;
+}
+
+fn parse_factor(Parser parser) {
+    Token token = parser.tokens[parser.pos];
+    match token.kind {
+        NUM {
+            parser.pos++;
+            return token.value;
+        }
+        OPEN {
+            parser.pos++;
+            local result = parse_expr(parser)
+            if parser.tokens[parser.pos].kind != CLOSE:
+                flag_error(parser, "Missing ')'");
+            return result;
+        }
+        else {
+            flag_error("Unexpected " + token.kind);
+            return 0;
+        }
+    }
+}
+
+fn main() {
+    Parser parser;
+
+    loop {
+        def expression = input();
+        def result = parse(parser, expression);
+        if parser.error:
+            print(parser.error)
+        else:
+            print(result)
+    }
+}
