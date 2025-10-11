@@ -26,6 +26,8 @@
     MACRO(EXPECTED_PAREN_R)                                         \
     MACRO(EXPECTED_CURLY_L)                                         \
     MACRO(EXPECTED_CURLY_R)                                         \
+    MACRO(EXPECTED_TWO_PLUS)                                        \
+    MACRO(EXPECTED_TWO_MINUS)                                       \
     MACRO(EXPECTED_EQUAL)                                           \
     MACRO(EXPECTED_PLUS)                                            \
     MACRO(EXPECTED_MINUS)                                           \
