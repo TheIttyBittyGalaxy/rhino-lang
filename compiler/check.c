@@ -31,7 +31,8 @@ void check_statements(Compiler *c, Program *apm)
         case IF_SEGMENT:
         case ELSE_IF_SEGMENT:
         {
-            if (!is_expression_boolean(apm, stmt->condition))
+            RhinoSort condition_sort = get_expression_type(apm, stmt->condition).sort;
+            if (condition_sort != SORT_BOOL && condition_sort != ERROR_SORT)
             {
                 Expression *condition = get_expression(apm->expression, stmt->condition);
                 raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, condition->span);
