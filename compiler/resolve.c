@@ -127,8 +127,22 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_ind
         break;
 
     case FUNCTION_CALL:
+    {
         resolve_identities_in_expression(c, apm, expr->callee, symbol_table);
+
+        Expression *callee = get_expression(apm->expression, expr->callee);
+        if (callee->kind == IDENTITY_LITERAL)
+        {
+            raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, callee->span);
+            callee->given_error = true;
+        }
+        else if (callee->kind != FUNCTION_REFERENCE)
+        {
+            raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, callee->span);
+        }
+
         break;
+    }
 
     case INDEX_BY_FIELD:
         resolve_identities_in_expression(c, apm, expr->subject, symbol_table);

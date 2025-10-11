@@ -12,22 +12,6 @@ void check_expressions(Compiler *c, Program *apm)
 
         switch (expr->kind)
         {
-        // Ensure function calls call function
-        case FUNCTION_CALL:
-        {
-            Expression *callee = get_expression(apm->expression, expr->callee);
-            if (callee->kind == IDENTITY_LITERAL)
-            {
-                raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, callee->span);
-                callee->given_error = true;
-            }
-            else if (callee->kind != FUNCTION_REFERENCE)
-            {
-                raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, callee->span);
-            }
-
-            break;
-        }
         }
     }
 }
