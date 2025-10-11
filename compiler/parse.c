@@ -801,6 +801,8 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
     else
     {
         EXPRESSION(lhs)->kind = INVALID_EXPRESSION;
+        END_SPAN(EXPRESSION(lhs));
+
         raise_parse_error(c, EXPECTED_EXPRESSION);
 
         // NOTE: parse_expression can put the parser in panic mode and then return.

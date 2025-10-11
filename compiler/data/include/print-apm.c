@@ -209,6 +209,20 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
 
         break;
 
+    case UNARY_POS:
+    case UNARY_NEG:
+        PRINT(expression_kind_string(expr->kind));
+        INDENT();
+
+        NEWLINE();
+        LAST_ON_LINE();
+        PRINT_EXPRESSION(apm, expr->operand, source_text);
+
+        UNINDENT();
+        NEWLINE();
+
+        break;
+
     case BINARY_MULTIPLY:
     case BINARY_DIVIDE:
     case BINARY_REMAINDER:
@@ -236,6 +250,9 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
         NEWLINE();
 
         break;
+
+    default:
+        fatal_error("Could not pretty print %s expression", expression_kind_string(expr->kind));
     }
 }
 
@@ -247,6 +264,8 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
 
     if (stmt->kind == EXPRESSION_STMT)
         return PRINT_EXPRESSION(apm, stmt->expression, source_text);
+    else if (stmt->kind == FUNCTION_DECLARATION)
+        return; // skip
 
     PRINT("%s", statement_kind_string(stmt->kind));
     INDENT();
@@ -284,6 +303,9 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         PRINT_STATEMENT(apm, stmt->body, source_text);
         NEWLINE();
 
+        break;
+
+    case BREAK_LOOP:
         break;
 
     case FOR_LOOP:
@@ -348,6 +370,9 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         NEWLINE();
 
         break;
+
+    default:
+        fatal_error("Could not pretty print %s statement", statement_kind_string(stmt->kind));
     }
 
     UNINDENT();

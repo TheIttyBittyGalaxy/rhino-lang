@@ -170,6 +170,27 @@ void dump_apm(Program *apm, const char *source_text)
             printf("\tsubject: %02d\tfield: ", expr->subject);
             printf_substr(source_text, expr->field);
             break;
+
+        case UNARY_POS:
+        case UNARY_NEG:
+            printf("\toperand: %02d", expr->operand);
+            break;
+
+        case BINARY_MULTIPLY:
+        case BINARY_DIVIDE:
+        case BINARY_REMAINDER:
+        case BINARY_ADD:
+        case BINARY_SUBTRACT:
+        case BINARY_LESS_THAN:
+        case BINARY_GREATER_THAN:
+        case BINARY_LESS_THAN_EQUAL:
+        case BINARY_GREATER_THAN_EQUAL:
+        case BINARY_EQUAL:
+        case BINARY_NOT_EQUAL:
+        case BINARY_LOGICAL_AND:
+        case BINARY_LOGICAL_OR:
+            printf("\tlhs: %02d\trhs: %02d", expr->lhs, expr->rhs);
+            break;
         }
         printf("\n");
     }
