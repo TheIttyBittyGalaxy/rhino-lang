@@ -357,7 +357,8 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
     case FUNCTION_CALL:
     {
         Expression *callee = get_expression(apm->expression, expr->callee);
-        assert(callee->kind == FUNCTION_REFERENCE);
+        if (callee->kind != FUNCTION_REFERENCE)
+            fatal_error("Attempt to get type of function call whose callee is a %s.", expression_kind_string(callee->kind));
 
         Function *funct = get_function(apm->function, callee->function);
         return funct->return_type;
