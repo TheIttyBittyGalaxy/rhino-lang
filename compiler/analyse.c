@@ -30,6 +30,9 @@ void resolve_identity_literals_in_expression(Compiler *c, Program *apm, size_t e
 
     switch (expr->kind)
     {
+    case INVALID_EXPRESSION:
+        break;
+
     case IDENTITY_LITERAL:
     {
         // Primitive types
