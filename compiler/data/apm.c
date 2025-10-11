@@ -336,6 +336,10 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
     case VARIABLE_REFERENCE:
         return get_variable(apm->variable, expr->variable)->type;
 
+    // Function call
+    case FUNCTION_CALL:
+        return get_function(apm->function, expr->callee)->return_type;
+
     // Index by field
     case INDEX_BY_FIELD:
     {

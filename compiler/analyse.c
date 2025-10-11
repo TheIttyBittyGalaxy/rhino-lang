@@ -274,6 +274,35 @@ void resolve_enum_values(Compiler *c, Program *apm)
     }
 }
 
+void resolve_function_calls(Compiler *c, Program *apm)
+{
+    for (size_t i = 0; i < apm->expression.count; i++)
+    {
+        Expression *funct_call = get_expression(apm->expression, i);
+
+        if (funct_call->kind != FUNCTION_CALL)
+            continue;
+
+        Expression *callee_expr = get_expression(apm->expression, funct_call->callee);
+
+        if (callee_expr->kind != FUNCTION_REFERENCE)
+        {
+            if (callee_expr->kind == IDENTITY_LITERAL)
+            {
+                raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, callee_expr->span);
+                callee_expr->given_error = true;
+            }
+            else
+            {
+                raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, callee_expr->span);
+            }
+            continue;
+        }
+
+        funct_call->callee = callee_expr->function;
+    }
+}
+
 void resolve_function_return_types(Compiler *c, Program *apm)
 {
     for (size_t i = 0; i < apm->function.count; i++)
@@ -390,36 +419,6 @@ void check_conditions_are_booleans(Compiler *c, Program *apm)
     }
 }
 
-void check_function_calls(Compiler *c, Program *apm)
-{
-    for (size_t i = 0; i < apm->expression.count; i++)
-    {
-        Expression *funct_call = get_expression(apm->expression, i);
-
-        if (funct_call->kind != FUNCTION_CALL)
-            continue;
-
-        Expression *callee_expr = get_expression(apm->expression, funct_call->callee);
-
-        if (callee_expr->kind != FUNCTION_REFERENCE)
-        {
-            if (callee_expr->kind == IDENTITY_LITERAL)
-            {
-                raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, callee_expr->span);
-                callee_expr->given_error = true;
-            }
-            else
-            {
-                raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, callee_expr->span);
-            }
-            continue;
-        }
-
-        // FIXME: This is doing more than just "checking" semantics!
-        funct_call->callee = callee_expr->function;
-    }
-}
-
 void check_variable_assignments(Compiler *c, Program *apm)
 {
     for (size_t i = 0; i < apm->statement.count; i++)
@@ -471,12 +470,12 @@ void analyse(Compiler *c, Program *apm)
 
     resolve_identity_literals(c, apm);
     resolve_enum_values(c, apm);
+    resolve_function_calls(c, apm);
     resolve_function_return_types(c, apm);
 
     infer_variable_types(c, apm);
 
     check_conditions_are_booleans(c, apm);
-    check_function_calls(c, apm);
     check_variable_assignments(c, apm);
 
     produce_errors_for_invalid_identity_literals(c, apm);
