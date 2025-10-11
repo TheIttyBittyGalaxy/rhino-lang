@@ -114,6 +114,10 @@ void transpile_type(Transpiler *t, Program *apm, RhinoType rhino_type)
 {
     switch (rhino_type.sort)
     {
+    case SORT_NONE:
+        EMIT("void");
+        break;
+
     case SORT_BOOL:
         EMIT("bool");
         break;
@@ -495,7 +499,8 @@ void transpile_function_signature(Transpiler *t, Program *apm, size_t funct_inde
 {
     Function *funct = get_function(apm->function, funct_index);
 
-    EMIT("void ");
+    transpile_type(t, apm, funct->return_type);
+    EMIT(" ");
     EMIT_SUBSTR(funct->identity);
     EMIT("()");
 }
