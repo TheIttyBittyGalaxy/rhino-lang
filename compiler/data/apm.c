@@ -320,6 +320,10 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
 
     switch (expr->kind)
     {
+    case INVALID_EXPRESSION:
+        result.sort = ERROR_SORT;
+        break;
+
     // Literals
     case IDENTITY_LITERAL:
         result.sort = ERROR_SORT;
