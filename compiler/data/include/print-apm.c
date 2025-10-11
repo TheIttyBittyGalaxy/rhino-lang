@@ -356,6 +356,11 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         break;
 
     case BREAK_LOOP:
+        LAST_ON_LINE();
+        PRINT("body: ");
+        PRINT_STATEMENT(apm, stmt->body, source_text);
+        NEWLINE();
+
         break;
 
     case FOR_LOOP:
