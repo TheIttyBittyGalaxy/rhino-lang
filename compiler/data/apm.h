@@ -239,6 +239,7 @@ DECLARE_LIST_TYPE(Expression, expression)
                                 \
     MACRO(OUTPUT_STATEMENT)     \
     MACRO(EXPRESSION_STMT)      \
+    MACRO(RETURN_STATEMENT)     \
                                 \
     MACRO(FUNCTION_DECLARATION)
 
@@ -285,7 +286,7 @@ typedef struct
             bool has_type_expression;
             bool has_initial_value;
         };
-        struct // OUTPUT_STATEMENT / EXPRESSION_STMT
+        struct // OUTPUT_STATEMENT / EXPRESSION_STMT / RETURN_STATEMENT
         {
             size_t expression; // Expression
         };

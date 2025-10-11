@@ -495,6 +495,21 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         goto finish;
     }
 
+    // RETURN_STATEMENT
+    if (PEEK(KEYWORD_RETURN))
+    {
+        STATEMENT(stmt)->kind = RETURN_STATEMENT;
+
+        EAT(KEYWORD_RETURN);
+        size_t value = parse_expression(c, apm);
+        STATEMENT(stmt)->expression = value;
+        if (c->parse_status == PANIC)
+            goto recover;
+
+        EAT(SEMI_COLON);
+        goto finish;
+    }
+
     // EXPRESSION_STMT / ASSIGNMENT_STATEMENT / Typed VARIABLE_DECLARATION
     else if (peek_expression(c))
     {

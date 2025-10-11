@@ -51,6 +51,7 @@
     MACRO(KEYWORD_IN)      \
     MACRO(KEYWORD_LOOP)    \
     MACRO(KEYWORD_OR)      \
+    MACRO(KEYWORD_RETURN)  \
     MACRO(KEYWORD_TRUE)    \
     MACRO(KEYWORD_WHILE)   \
                            \

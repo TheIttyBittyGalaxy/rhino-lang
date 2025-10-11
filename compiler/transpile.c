@@ -486,6 +486,14 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         break;
     }
 
+    case RETURN_STATEMENT:
+    {
+        EMIT("return ");
+        transpile_expression(t, apm, stmt->expression);
+        EMIT_LINE(";");
+        break;
+    }
+
     case FUNCTION_DECLARATION:
         break;
 

@@ -382,6 +382,13 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
 
         break;
 
+    case RETURN_STATEMENT:
+        LAST_ON_LINE();
+        PRINT_EXPRESSION(apm, stmt->expression, source_text);
+        NEWLINE();
+
+        break;
+
     default:
         fatal_error("Could not pretty print %s statement", statement_kind_string(stmt->kind));
     }

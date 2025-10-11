@@ -220,6 +220,7 @@ void resolve_identity_literals(Compiler *c, Program *apm)
 
             case OUTPUT_STATEMENT:
             case EXPRESSION_STMT:
+            case RETURN_STATEMENT:
                 resolve_identity_literals_in_expression(c, apm, stmt->expression, symbol_table);
                 break;
 

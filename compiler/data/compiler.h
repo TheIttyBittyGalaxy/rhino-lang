@@ -53,6 +53,7 @@
     MACRO(EXPECTED_KEYWORD_IN)                                      \
     MACRO(EXPECTED_KEYWORD_LOOP)                                    \
     MACRO(EXPECTED_KEYWORD_OR)                                      \
+    MACRO(EXPECTED_KEYWORD_RETURN)                                  \
     MACRO(EXPECTED_KEYWORD_TRUE)                                    \
     MACRO(EXPECTED_KEYWORD_WHILE)                                   \
     MACRO(EXPECTED_IDENTITY)                                        \
