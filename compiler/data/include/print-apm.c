@@ -263,7 +263,12 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
     Statement *stmt = get_statement(apm->statement, stmt_index);
 
     if (stmt->kind == EXPRESSION_STMT)
-        return PRINT_EXPRESSION(apm, stmt->expression, source_text);
+    {
+        PRINT_EXPRESSION(apm, stmt->expression, source_text);
+        NEWLINE();
+        NEWLINE();
+        return;
+    }
     else if (stmt->kind == FUNCTION_DECLARATION)
         return; // skip
 
