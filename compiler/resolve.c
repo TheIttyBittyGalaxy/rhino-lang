@@ -178,6 +178,24 @@ void resolve_identity_literals_in_block(Compiler *c, Program *apm, size_t block_
         case INVALID_STATEMENT:
             break;
 
+        case VARIABLE_DECLARATION:
+        {
+            Variable *var = get_variable(apm->variable, stmt->variable);
+            append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, stmt->variable, var->identity);
+
+            if (stmt->has_initial_value)
+                resolve_identity_literals_in_expression(c, apm, stmt->initial_value, symbol_table);
+            if (stmt->has_type_expression)
+                resolve_identity_literals_in_expression(c, apm, stmt->type_expression, symbol_table);
+            break;
+        }
+
+        case FUNCTION_DECLARATION:
+            break;
+
+        case ENUM_TYPE_DECLARATION:
+            break;
+
         case CODE_BLOCK:
         case SINGLE_BLOCK:
             resolve_identity_literals_in_block(c, apm, block->statements.first + n);
@@ -215,25 +233,10 @@ void resolve_identity_literals_in_block(Compiler *c, Program *apm, size_t block_
             resolve_identity_literals_in_expression(c, apm, stmt->assignment_rhs, symbol_table);
             break;
 
-        case VARIABLE_DECLARATION:
-        {
-            Variable *var = get_variable(apm->variable, stmt->variable);
-            append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, stmt->variable, var->identity);
-
-            if (stmt->has_initial_value)
-                resolve_identity_literals_in_expression(c, apm, stmt->initial_value, symbol_table);
-            if (stmt->has_type_expression)
-                resolve_identity_literals_in_expression(c, apm, stmt->type_expression, symbol_table);
-            break;
-        }
-
         case OUTPUT_STATEMENT:
         case EXPRESSION_STMT:
         case RETURN_STATEMENT:
             resolve_identity_literals_in_expression(c, apm, stmt->expression, symbol_table);
-            break;
-
-        case FUNCTION_DECLARATION:
             break;
 
         default:

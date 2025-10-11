@@ -54,7 +54,13 @@ void init_program(Program *apm)
     add_symbol_table(&apm->symbol_table);
 }
 
-// APPEND TO SYMBOL TABLE //
+// SYMBOL TABLES //
+
+void init_symbol_table(SymbolTable *symbol_table)
+{
+    symbol_table->next = 0;
+    symbol_table->symbol_count = 0;
+}
 
 void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, size_t symbol_index, substr symbol_identity)
 {
@@ -261,15 +267,20 @@ size_t get_next_statement_in_code_block(Program *apm, Statement *code_block, siz
     Statement *child = get_statement(apm->statement, code_block->statements.first + n);
     n++;
 
+    // FIXME: Code tidy, make this a switch statement
     if (child->kind == CODE_BLOCK || child->kind == SINGLE_BLOCK)
         return n + child->statements.count;
     else if (child->kind == IF_SEGMENT ||
              child->kind == ELSE_IF_SEGMENT ||
              child->kind == ELSE_SEGMENT ||
              child->kind == BREAK_LOOP ||
-             child->kind == FOR_LOOP ||
-             child->kind == FUNCTION_DECLARATION)
+             child->kind == FOR_LOOP)
         return n + get_statement(apm->statement, child->body)->statements.count + 1;
+    else if (child->kind == FUNCTION_DECLARATION)
+    {
+        Function *funct = get_function(apm->function, child->function);
+        return n + get_statement(apm->statement, funct->body)->statements.count + 1;
+    }
 
     return n;
 }

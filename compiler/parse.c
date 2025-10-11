@@ -23,11 +23,12 @@ bool peek_statement(Compiler *c);
 // Parse APM
 void parse(Compiler *compiler, Program *apm);
 void parse_program(Compiler *c, Program *apm);
-size_t parse_function(Compiler *c, Program *apm, size_t symbol_table);
+void parse_function(Compiler *c, Program *apm, size_t symbol_table);
 void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table);
 
-size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table);
+size_t parse_declaration_block(Compiler *c, Program *apm, size_t symbol_table);
 size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table);
+size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table);
 size_t parse_expression(Compiler *c, Program *apm);
 
 // MACROS //
@@ -181,49 +182,14 @@ void parse_program(Compiler *c, Program *apm)
     SYMBOL_TABLE(apm->global_symbol_table)->symbol_count = 0;
 
     // Parse top-level of program
-    while (true)
-    {
-        if (PEEK(END_OF_FILE))
-            return;
-        else if (PEEK(KEYWORD_FN))
-            parse_function(c, apm, apm->global_symbol_table);
-        else if (PEEK(KEYWORD_ENUM))
-            parse_enum_type(c, apm, apm->global_symbol_table);
-        else
-        {
-            // FIXME: What is the appropriate error to express here?
-            raise_parse_error(c, EXPECTED_FUNCTION);
-
-            size_t depth = 0;
-            while (c->parse_status == PANIC)
-            {
-                if (PEEK(END_OF_FILE))
-                    return;
-
-                // FIXME: This method of tracking the depth works for multi statement `{}` blocks, but not for single statement `:` blocks
-                else if (PEEK(CURLY_L))
-                    depth++;
-                else if (PEEK(CURLY_R) && depth > 0)
-                    depth--;
-
-                if (PEEK(CURLY_R) && depth == 0)
-                    c->parse_status = RECOVERED;
-
-                ADVANCE();
-
-                if (PEEK(KEYWORD_FN))
-                    c->parse_status = RECOVERED;
-
-                if (PEEK(KEYWORD_ENUM))
-                    c->parse_status = RECOVERED;
-            }
-        }
-    }
+    apm->program_block = parse_declaration_block(c, apm, apm->global_symbol_table);
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
-size_t parse_function(Compiler *c, Program *apm, size_t symbol_table)
+void parse_function(Compiler *c, Program *apm, size_t symbol_table)
 {
+    size_t declaration = add_statement(&apm->statement);
+
     size_t funct = add_function(&apm->function);
     FUNCTION(funct)->has_return_type_expression = false;
     FUNCTION(funct)->return_type.sort = INVALID_SORT;
@@ -256,12 +222,16 @@ size_t parse_function(Compiler *c, Program *apm, size_t symbol_table)
     END_SPAN(FUNCTION(funct));
     append_symbol(apm, symbol_table, FUNCTION_SYMBOL, funct, identity);
 
-    return funct;
+    STATEMENT(declaration)->kind = FUNCTION_DECLARATION;
+    STATEMENT(declaration)->function = funct;
+    STATEMENT(declaration)->span = FUNCTION(funct)->span;
 }
 
 // TODO: Ensure this can only return with status OKAY or RECOVERED
 void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table)
 {
+    size_t declaration = add_statement(&apm->statement);
+
     size_t enum_type = add_enum_type(&apm->enum_type);
     START_SPAN(ENUM_TYPE(enum_type));
 
@@ -301,6 +271,10 @@ void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table)
 
     END_SPAN(ENUM_TYPE(enum_type));
     append_symbol(apm, symbol_table, ENUM_TYPE_SYMBOL, enum_type, identity);
+
+    STATEMENT(declaration)->kind = ENUM_TYPE_DECLARATION;
+    STATEMENT(declaration)->enum_type = enum_type;
+    STATEMENT(declaration)->span = ENUM_TYPE(enum_type)->span;
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
@@ -592,6 +566,71 @@ recover:
     return stmt;
 }
 
+size_t parse_declaration_block(Compiler *c, Program *apm, size_t symbol_table)
+{
+    size_t block_symbol_table = add_symbol_table(&apm->symbol_table);
+    init_symbol_table(SYMBOL_TABLE(block_symbol_table));
+
+    size_t block = add_statement(&apm->statement);
+    STATEMENT(block)->kind = DECLARATION_BLOCK;
+    STATEMENT(block)->symbol_table = block_symbol_table;
+    START_SPAN(STATEMENT(block));
+
+    size_t first_statement = apm->statement.count;
+    while (true)
+    {
+        if (PEEK(END_OF_FILE))
+            break;
+
+        else if (PEEK(KEYWORD_FN))
+            parse_function(c, apm, apm->global_symbol_table);
+
+        else if (PEEK(KEYWORD_ENUM))
+            parse_enum_type(c, apm, apm->global_symbol_table);
+
+        else
+        {
+            // FIXME: What is the appropriate error to express here?
+            raise_parse_error(c, EXPECTED_FUNCTION);
+
+            size_t depth = 0;
+            while (c->parse_status == PANIC)
+            {
+                if (PEEK(END_OF_FILE))
+                    break;
+
+                // FIXME: This method of tracking the depth works for multi statement `{}` blocks, but not for single statement `:` blocks
+                else if (PEEK(CURLY_L))
+                    depth++;
+                else if (PEEK(CURLY_R) && depth > 0)
+                    depth--;
+
+                if (PEEK(CURLY_R) && depth == 0)
+                    c->parse_status = RECOVERED;
+
+                ADVANCE();
+
+                if (PEEK(KEYWORD_FN))
+                    c->parse_status = RECOVERED;
+
+                if (PEEK(KEYWORD_ENUM))
+                    c->parse_status = RECOVERED;
+            }
+        }
+    }
+
+    STATEMENT(block)->statements.first = first_statement;
+    STATEMENT(block)->statements.count = apm->statement.count - first_statement;
+
+    size_t last_table = block_symbol_table;
+    while (SYMBOL_TABLE(last_table)->next)
+        last_table = SYMBOL_TABLE(last_table)->next;
+    SYMBOL_TABLE(last_table)->next = symbol_table;
+
+    END_SPAN(STATEMENT(block));
+    return block;
+}
+
 // NOTE: Can return with status OKAY or RECOVERED
 size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table)
 {
@@ -626,15 +665,7 @@ size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table)
         while (true)
         {
             if (PEEK(KEYWORD_FN))
-            {
-                size_t dec_stmt = add_statement(&apm->statement);
-                START_SPAN(STATEMENT(dec_stmt));
-                size_t funct = parse_function(c, apm, block_symbol_table); // Can return with status OKAY or RECOVERED
-                END_SPAN(STATEMENT(dec_stmt));
-
-                STATEMENT(dec_stmt)->kind = FUNCTION_DECLARATION;
-                STATEMENT(dec_stmt)->body = FUNCTION(funct)->body;
-            }
+                parse_function(c, apm, block_symbol_table); // Can return with status OKAY or RECOVERED
             else if (PEEK(KEYWORD_ENUM))
                 parse_enum_type(c, apm, block_symbol_table); // TODO: Do we need to handle a PANIC status?
             else if (peek_statement(c))

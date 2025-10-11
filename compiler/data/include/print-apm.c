@@ -93,6 +93,15 @@ enum LineStatus
 #define PRINT_APM print_resolved_apm
 #endif
 
+// FORWARD DECLARATIONS //
+
+void PRINT_VARIABLE(Program *apm, size_t var_index, const char *source_text);
+void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text);
+void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text);
+void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text);
+void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_text);
+void PRINT_APM(Program *apm, const char *source_text);
+
 // PRINT VARIABLE //
 
 void PRINT_VARIABLE(Program *apm, size_t var_index, const char *source_text)
@@ -271,8 +280,35 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         NEWLINE();
         return;
     }
-    else if (stmt->kind == FUNCTION_DECLARATION)
-        return; // skip
+
+    if (stmt->kind == DECLARATION_BLOCK)
+    {
+        size_t last = get_last_statement_in_code_block(apm, stmt);
+        size_t n = get_first_statement_in_code_block(apm, stmt);
+        while (n < stmt->statements.count)
+        {
+            if (n == last)
+                LAST_ON_LINE();
+
+            PRINT_STATEMENT(apm, stmt->statements.first + n, source_text);
+            n = get_next_statement_in_code_block(apm, stmt, n);
+        }
+
+        NEWLINE();
+        return;
+    }
+
+    if (stmt->kind == FUNCTION_DECLARATION)
+    {
+        PRINT_FUNCTION(apm, stmt->function, source_text);
+        return;
+    }
+
+    if (stmt->kind == ENUM_TYPE_DECLARATION)
+    {
+        PRINT_ENUM_TYPE(apm, stmt->enum_type, source_text);
+        return;
+    }
 
     PRINT("%s", statement_kind_string(stmt->kind));
     INDENT();
@@ -289,6 +325,10 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
     {
         size_t last = get_last_statement_in_code_block(apm, stmt);
         size_t n = get_first_statement_in_code_block(apm, stmt);
+
+        if (stmt->statements.count > 1)
+            NEWLINE();
+
         while (n < stmt->statements.count)
         {
             if (n == last)
@@ -470,33 +510,19 @@ void PRINT_APM(Program *apm, const char *source_text)
 
 #ifdef PRINT_PARSED
     PRINT("PARSED PROGRAM");
+    INDENT();
 #endif
 #ifdef PRINT_RESOLVED
     PRINT("RESOLVED PROGRAM");
-#endif
     INDENT();
-    NEWLINE();
 
-#ifdef PRINT_RESOLVED
+    NEWLINE();
     PRINT("main: %d", apm->main);
-    NEWLINE();
-    NEWLINE();
 #endif
 
-    for (size_t i = 0; i < apm->function.count; i++)
-    {
-        if (i == apm->function.count - 1 && apm->enum_type.count == 0)
-            LAST_ON_LINE();
-        PRINT_FUNCTION(apm, i, source_text);
-    }
-
-    for (size_t i = 0; i < apm->enum_type.count; i++)
-    {
-        if (i == apm->enum_type.count - 1)
-            LAST_ON_LINE();
-        PRINT_ENUM_TYPE(apm, i, source_text);
-    }
-
+    NEWLINE();
+    NEWLINE();
+    PRINT_STATEMENT(apm, apm->program_block, source_text);
     printf("\n");
 }
 

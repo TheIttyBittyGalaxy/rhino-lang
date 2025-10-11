@@ -88,6 +88,9 @@ typedef struct
 DECLARE_SLICE_TYPE(SymbolTable, symbol_table)
 DECLARE_LIST_TYPE(SymbolTable, symbol_table)
 
+void init_symbol_table(SymbolTable *symbol_table);
+void set_symbol_table_parent(SymbolTable *symbol_table, size_t parent_index);
+
 // Expression Precedence
 // Ordered from "happens last" to "happens first"
 #define LIST_EXPR_PRECEDENCE(MACRO)    \
@@ -221,28 +224,30 @@ typedef struct
 DECLARE_LIST_TYPE(Expression, expression)
 
 // Statement
-#define LIST_STATEMENTS(MACRO)  \
-    MACRO(INVALID_STATEMENT)    \
-                                \
-    MACRO(CODE_BLOCK)           \
-    MACRO(SINGLE_BLOCK)         \
-                                \
-    MACRO(IF_SEGMENT)           \
-    MACRO(ELSE_IF_SEGMENT)      \
-    MACRO(ELSE_SEGMENT)         \
-                                \
-    MACRO(BREAK_LOOP)           \
-    MACRO(FOR_LOOP)             \
-    MACRO(BREAK_STATEMENT)      \
-                                \
-    MACRO(ASSIGNMENT_STATEMENT) \
-    MACRO(VARIABLE_DECLARATION) \
-                                \
-    MACRO(OUTPUT_STATEMENT)     \
-    MACRO(EXPRESSION_STMT)      \
-    MACRO(RETURN_STATEMENT)     \
-                                \
-    MACRO(FUNCTION_DECLARATION)
+#define LIST_STATEMENTS(MACRO)   \
+    MACRO(INVALID_STATEMENT)     \
+                                 \
+    MACRO(FUNCTION_DECLARATION)  \
+    MACRO(ENUM_TYPE_DECLARATION) \
+    MACRO(VARIABLE_DECLARATION)  \
+                                 \
+    MACRO(DECLARATION_BLOCK)     \
+    MACRO(CODE_BLOCK)            \
+    MACRO(SINGLE_BLOCK)          \
+                                 \
+    MACRO(IF_SEGMENT)            \
+    MACRO(ELSE_IF_SEGMENT)       \
+    MACRO(ELSE_SEGMENT)          \
+                                 \
+    MACRO(BREAK_LOOP)            \
+    MACRO(FOR_LOOP)              \
+    MACRO(BREAK_STATEMENT)       \
+                                 \
+    MACRO(ASSIGNMENT_STATEMENT)  \
+                                 \
+    MACRO(OUTPUT_STATEMENT)      \
+    MACRO(EXPRESSION_STMT)       \
+    MACRO(RETURN_STATEMENT)
 
 DECLARE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
 
@@ -254,7 +259,23 @@ typedef struct
     substr span;
     union
     {
-        struct // CODE_BLOCK / SINGLE_BLOCK
+        struct // VARIABLE_DECLARATION
+        {
+            size_t variable;        // Variable
+            size_t initial_value;   // Expression
+            size_t type_expression; // Expression
+            bool has_type_expression;
+            bool has_initial_value;
+        };
+        struct // FUNCTION_DECLARATION
+        {
+            size_t function; // Function
+        };
+        struct // ENUM_TYPE_DECLARATION
+        {
+            size_t enum_type; // EnumType
+        };
+        struct // DECLARATION_BLOCK / CODE_BLOCK / SINGLE_BLOCK
         {
             StatementSlice statements;
             size_t symbol_table;
@@ -279,23 +300,9 @@ typedef struct
             size_t assignment_lhs; // Expression
             size_t assignment_rhs; // Expression
         };
-        struct // VARIABLE_DECLARATION
-        {
-            size_t variable;        // Variable
-            size_t initial_value;   // Expression
-            size_t type_expression; // Expression
-            bool has_type_expression;
-            bool has_initial_value;
-        };
         struct // OUTPUT_STATEMENT / EXPRESSION_STMT / RETURN_STATEMENT
         {
             size_t expression; // Expression
-        };
-
-        // NOTE: This only exists so that `get_next_statement_in_code_block` can know how to skip the body of a nested function
-        struct // FUNCTION_DECLARATION
-        {
-            size_t __funct_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
         };
     };
 } Statement;
@@ -330,9 +337,11 @@ typedef struct
     EnumValueList enum_value;
 
     SymbolTableList symbol_table;
-    size_t global_symbol_table;
 
-    size_t main;
+    size_t main; // Function
+
+    size_t program_block;       // Statement
+    size_t global_symbol_table; // SymbolTable
 } Program;
 
 void init_program(Program *apm);
