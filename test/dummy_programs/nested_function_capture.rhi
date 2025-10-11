@@ -1,0 +1,11 @@
+fn main() {
+    def x = 0;
+    fn increment() {
+        x++;
+    }
+    increment();
+    > x;
+}
+
+// SUCCESS
+// 1
