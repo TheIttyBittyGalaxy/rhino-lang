@@ -320,10 +320,31 @@ void resolve_identities_in_declaration_block(Compiler *c, Program *apm, size_t b
 
 // RESOLVE TYPES //
 
+RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table);
 void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table);
 void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index);
 void resolve_types_in_function(Compiler *c, Program *apm, size_t funct_index, SymbolTable *symbol_table);
 void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_index);
+
+RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table)
+{
+    Expression *expr = get_expression(apm->expression, expr_index);
+
+    if (expr->kind == TYPE_REFERENCE)
+        return expr->type;
+
+    if (expr->kind == IDENTITY_LITERAL)
+    {
+        raise_compilation_error(c, TYPE_DOES_NOT_EXIST, expr->span);
+        expr->given_error = true;
+    }
+    else
+    {
+        raise_compilation_error(c, TYPE_IS_INVALID, expr->span);
+    }
+
+    return (RhinoType){INVALID_SORT, 0};
+}
 
 void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table)
 {
@@ -442,24 +463,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
 
             if (stmt->has_type_expression)
             {
-                // FIXME: Really this should be `resolve_type_expression`, which should be reused for
-                //        function return types too. `resolve_type_expression` should return the type that
-                //        the expression resolves too. It can also handle raising an "invalid type" error.
-
-                Expression *type_expression = get_expression(apm->expression, stmt->type_expression);
-                if (type_expression->kind == TYPE_REFERENCE)
-                {
-                    var->type = type_expression->type;
-                }
-                else if (type_expression->kind == IDENTITY_LITERAL)
-                {
-                    raise_compilation_error(c, TYPE_DOES_NOT_EXIST, type_expression->span);
-                    type_expression->given_error = true;
-                }
-                else
-                {
-                    raise_compilation_error(c, VARIABLE_TYPE_IS_INVALID, type_expression->span);
-                }
+                var->type = resolve_type_expression(c, apm, stmt->type_expression, symbol_table);
 
                 // FIXME: We should use the type of the variable to provide a type hint when resolving the type of the initial value
                 resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table);
@@ -557,32 +561,9 @@ void resolve_types_in_function(Compiler *c, Program *apm, size_t funct_index, Sy
     Function *funct = get_function(apm->function, funct_index);
 
     if (funct->has_return_type_expression)
-    {
-        // FIXME: Really this should be `resolve_type_expression`, which should be reused for variable declarations
-        //        too. `resolve_type_expression` should return the type that the expression resolves too.
-        //        It can also handle raising an "invalid type" error.
-
-        Expression *return_type_expression = get_expression(apm->expression, funct->return_type_expression);
-
-        if (return_type_expression->kind == TYPE_REFERENCE)
-        {
-            funct->return_type = return_type_expression->type;
-        }
-        else if (return_type_expression->kind == IDENTITY_LITERAL)
-        {
-            raise_compilation_error(c, TYPE_DOES_NOT_EXIST, return_type_expression->span);
-            return_type_expression->given_error = true;
-        }
-        else
-        {
-            funct->return_type.sort = INVALID_SORT;
-            raise_compilation_error(c, FUNCTION_RETURN_TYPE_IS_INVALID, return_type_expression->span);
-        }
-    }
+        funct->return_type = resolve_type_expression(c, apm, funct->return_type_expression, symbol_table);
     else
-    {
         funct->return_type.sort = SORT_NONE;
-    }
 
     resolve_types_in_code_block(c, apm, funct->body);
 }

@@ -4,4 +4,4 @@ fn main() {
 }
 
 // ERRORS
-// VARIABLE_TYPE_IS_INVALID:2:5
+// TYPE_IS_INVALID:2:5
