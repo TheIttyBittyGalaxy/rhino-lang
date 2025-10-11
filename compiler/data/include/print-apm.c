@@ -280,6 +280,10 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
 
     switch (stmt->kind)
     {
+    case INVALID_STATEMENT:
+        PRINT("<INVALID_STMT>");
+        break;
+
     case CODE_BLOCK:
     case SINGLE_BLOCK:
     {

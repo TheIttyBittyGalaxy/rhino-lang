@@ -181,6 +181,9 @@ void resolve_identity_literals(Compiler *c, Program *apm)
             Statement *stmt = get_statement(apm->statement, block->statements.first + n);
             switch (stmt->kind)
             {
+            case INVALID_STATEMENT:
+                break;
+
             case CODE_BLOCK:
             case SINGLE_BLOCK:
                 break; // Nested blocks will be handled by the outer for loop of this function
