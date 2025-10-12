@@ -390,9 +390,12 @@ RhinoType get_expression_type(Program *apm, const char *source_text, size_t expr
         break;
     }
 
-    // Variables
+    // Variables and parameters
     case VARIABLE_REFERENCE:
         return get_variable(apm->variable, expr->variable)->type;
+
+    case PARAMETER_REFERENCE:
+        return get_parameter(apm->parameter, expr->parameter)->type;
 
     // Function call
     case FUNCTION_CALL:
