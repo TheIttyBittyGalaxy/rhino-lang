@@ -19,7 +19,7 @@ typedef struct
 void transpile_type(Transpiler *t, Program *apm, RhinoType rhino_type);
 void transpile_expression(Transpiler *t, Program *apm, Expression *expr);
 void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index);
-void transpile_function(Transpiler *t, Program *apm, size_t funct_index);
+void transpile_function(Transpiler *t, Program *apm, Function *funct);
 void transpile_program(Transpiler *t, Program *apm);
 
 // EMIT //
@@ -264,7 +264,7 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
     case FUNCTION_CALL:
     {
         Expression *reference = expr->callee;
-        Function *callee = get_function(apm->function, reference->function);
+        Function *callee = reference->function;
         EMIT_SUBSTR(callee->identity);
         EMIT("(");
         for (size_t i = 0; i < expr->arguments.count; i++)
@@ -584,10 +584,8 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
     }
 }
 
-void transpile_function_signature(Transpiler *t, Program *apm, size_t funct_index)
+void transpile_function_signature(Transpiler *t, Program *apm, Function *funct)
 {
-    Function *funct = get_function(apm->function, funct_index);
-
     transpile_type(t, apm, funct->return_type);
     EMIT(" ");
     EMIT_SUBSTR(funct->identity);
@@ -607,11 +605,9 @@ void transpile_function_signature(Transpiler *t, Program *apm, size_t funct_inde
     EMIT(")");
 }
 
-void transpile_function(Transpiler *t, Program *apm, size_t funct_index)
+void transpile_function(Transpiler *t, Program *apm, Function *funct)
 {
-    Function *funct = get_function(apm->function, funct_index);
-
-    transpile_function_signature(t, apm, funct_index);
+    transpile_function_signature(t, apm, funct);
     transpile_statement(t, apm, funct->body);
 }
 
@@ -719,8 +715,9 @@ void transpile_program(Transpiler *t, Program *apm)
     EMIT_NEWLINE();
 
     // Global variables
+    Statement *program_block = get_statement(apm->statement, apm->program_block);
+
     {
-        Statement *program_block = get_statement(apm->statement, apm->program_block);
         size_t i = get_first_statement_in_block(apm, program_block);
         while (i < program_block->statements.count)
         {
@@ -734,31 +731,45 @@ void transpile_program(Transpiler *t, Program *apm)
         }
     }
 
-    // Forward function declarations
-    for (size_t i = 0; i < apm->function.count; i++)
+    // Forward declarations for global functoins
     {
-        if (i == apm->main)
-            continue;
-        transpile_function_signature(t, apm, i);
-        EMIT_LINE(";");
+        size_t i = get_first_statement_in_block(apm, program_block);
+        while (i < program_block->statements.count)
+        {
+            size_t n = program_block->statements.first + i;
+            Statement *declaration = get_statement(apm->statement, n);
+
+            if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
+            {
+                transpile_function_signature(t, apm, declaration->function);
+                EMIT_LINE(";");
+            }
+
+            i = get_next_statement_in_block(apm, program_block, i);
+        }
     }
     EMIT_NEWLINE();
 
-    // Function definitions
-    for (size_t i = 0; i < apm->function.count; i++)
+    // Function definitions for global functoins
     {
-        if (i == apm->main)
-            continue;
-        transpile_function(t, apm, i);
-        EMIT_NEWLINE();
+        size_t i = get_first_statement_in_block(apm, program_block);
+        while (i < program_block->statements.count)
+        {
+            size_t n = program_block->statements.first + i;
+            Statement *declaration = get_statement(apm->statement, n);
+
+            if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
+                transpile_function(t, apm, declaration->function);
+
+            i = get_next_statement_in_block(apm, program_block, i);
+        }
     }
+    EMIT_NEWLINE();
 
     // Main
-    Function *main_funct = get_function(apm->function, apm->main);
-
     EMIT_LINE("int main(int argc, char *argv[])");
     EMIT_OPEN_BRACE();
-    transpile_statement(t, apm, main_funct->body);
+    transpile_statement(t, apm, apm->main->body);
     EMIT_CLOSE_BRACE();
 }
 

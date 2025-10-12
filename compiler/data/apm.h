@@ -10,6 +10,7 @@
 // Forward Declarations
 
 typedef struct Expression Expression;
+typedef struct Function Function;
 
 // Types
 #define LIST_RHINO_SORTS(MACRO) \
@@ -103,10 +104,21 @@ DECLARE_LIST_TYPE(Variable, variable)
 
 DECLARE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
+// FIXME: This is a hot patch while I rework how memory is managed in the compiler.
+//        In the long term I would hope to factor this out, or at least make it better.
+typedef struct
+{
+    union
+    {
+        size_t index;
+        Function *function;
+    };
+} SymbolPointer;
+
 typedef struct
 {
     SymbolTag tag;
-    size_t index;
+    SymbolPointer to;
     substr identity;
 } Symbol;
 
@@ -232,7 +244,7 @@ struct Expression
         };
         struct // FUNCTION_REFERENCE
         {
-            size_t function;
+            Function *function;
         };
         struct // PARAMETER_REFERENCE
         {
@@ -318,7 +330,7 @@ typedef struct
         };
         struct // FUNCTION_DECLARATION
         {
-            size_t function; // Function
+            Function *function;
         };
         struct // ENUM_TYPE_DECLARATION
         {
@@ -376,9 +388,7 @@ typedef struct
 DECLARE_LIST_TYPE(Parameter, parameter)
 
 // Function
-DECLARE_SLICE_TYPE(Function, function)
-
-typedef struct
+struct Function
 {
     substr span;
     substr identity;
@@ -389,14 +399,13 @@ typedef struct
     RhinoType return_type;
 
     ParameterSlice parameters;
-} Function;
+};
 
-DECLARE_LIST_TYPE(Function, function)
+DECLARE_ALLOCATOR(Function, function)
 
 // Program
 typedef struct
 {
-    FunctionList function;
     ParameterList parameter;
     ArgumentList argument;
 
@@ -411,7 +420,7 @@ typedef struct
 
     SymbolTableList symbol_table;
 
-    size_t main; // Function
+    Function *main;
 
     size_t program_block;       // Statement
     size_t global_symbol_table; // SymbolTable
@@ -419,7 +428,7 @@ typedef struct
 
 void init_program(Program *apm);
 
-void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, size_t symbol_index, substr symbol_identity);
+void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, SymbolPointer to, substr symbol_identity);
 
 // Display APM
 const char *rhino_type_string(Program *apm, RhinoType ty);

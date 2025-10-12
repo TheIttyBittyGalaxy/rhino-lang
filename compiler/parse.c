@@ -40,7 +40,6 @@ Expression *parse_expression(Compiler *c, Program *apm);
 #define EAT(token_kind) eat(c, token_kind)
 #define TOKEN_STRING() token_string(c)
 
-#define FUNCTION(index) get_function(apm->function, index)
 #define PARAMETER(index) get_parameter(apm->parameter, index)
 #define ARGUMENT(index) get_argument(apm->argument, index)
 #define ENUM_TYPE(index) get_enum_type(apm->enum_type, index)
@@ -194,23 +193,23 @@ void parse_function(Compiler *c, Program *apm, size_t symbol_table)
 {
     size_t declaration = add_statement(&apm->statement);
 
-    size_t funct = add_function(&apm->function);
-    FUNCTION(funct)->has_return_type_expression = false;
-    FUNCTION(funct)->return_type.sort = INVALID_SORT;
+    Function *funct = new_function();
+    funct->has_return_type_expression = false;
+    funct->return_type.sort = INVALID_SORT;
 
-    START_SPAN(FUNCTION(funct));
+    START_SPAN(funct);
 
     EAT(KEYWORD_FN);
 
     substr identity = TOKEN_STRING();
-    FUNCTION(funct)->identity = identity;
+    funct->identity = identity;
     EAT(IDENTITY);
 
     // TODO: Handle this scenario correctly
     assert(c->parse_status == OKAY);
 
     size_t first_parameter = apm->parameter.count;
-    FUNCTION(funct)->parameters.first = first_parameter;
+    funct->parameters.first = first_parameter;
 
     EAT(PAREN_L);
     while (peek_expression(c))
@@ -235,24 +234,24 @@ void parse_function(Compiler *c, Program *apm, size_t symbol_table)
     EAT(PAREN_R);
 
     size_t parameter_count = apm->parameter.count - first_parameter;
-    FUNCTION(funct)->parameters.count = parameter_count;
+    funct->parameters.count = parameter_count;
 
     if (peek_expression(c))
     {
-        FUNCTION(funct)->has_return_type_expression = true;
-        FUNCTION(funct)->return_type_expression = parse_expression(c, apm);
+        funct->has_return_type_expression = true;
+        funct->return_type_expression = parse_expression(c, apm);
     }
 
     attempt_to_recover_at_next_code_block(c);
     size_t body = parse_code_block(c, apm, symbol_table);
-    FUNCTION(funct)->body = body;
+    funct->body = body;
 
-    END_SPAN(FUNCTION(funct));
-    append_symbol(apm, symbol_table, FUNCTION_SYMBOL, funct, identity);
+    END_SPAN(funct);
+    append_symbol(apm, symbol_table, FUNCTION_SYMBOL, (SymbolPointer){.function = funct}, identity);
 
     STATEMENT(declaration)->kind = FUNCTION_DECLARATION;
     STATEMENT(declaration)->function = funct;
-    STATEMENT(declaration)->span = FUNCTION(funct)->span;
+    STATEMENT(declaration)->span = funct->span;
 }
 
 // TODO: Ensure this can only return with status OKAY or RECOVERED
@@ -298,7 +297,7 @@ void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table)
     ENUM_TYPE(enum_type)->values.count = value_count;
 
     END_SPAN(ENUM_TYPE(enum_type));
-    append_symbol(apm, symbol_table, ENUM_TYPE_SYMBOL, enum_type, identity);
+    append_symbol(apm, symbol_table, ENUM_TYPE_SYMBOL, (SymbolPointer){.index = enum_type}, identity);
 
     STATEMENT(declaration)->kind = ENUM_TYPE_DECLARATION;
     STATEMENT(declaration)->enum_type = enum_type;
@@ -386,7 +385,7 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
     SYMBOL_TABLE(last_table)->next = symbol_table;
 
     END_SPAN(STRUCT_TYPE(struct_type));
-    append_symbol(apm, symbol_table, STRUCT_TYPE_SYMBOL, struct_type, identity);
+    append_symbol(apm, symbol_table, STRUCT_TYPE_SYMBOL, (SymbolPointer){.index = struct_type}, identity);
 
     STATEMENT(declaration)->kind = STRUCT_TYPE_DECLARATION;
     STATEMENT(declaration)->struct_type = struct_type;
@@ -730,7 +729,7 @@ size_t parse_top_level_declarations(Compiler *c, Program *apm, size_t symbol_tab
             VARIABLE(var)->identity = identity;
             EAT(IDENTITY);
 
-            append_symbol(apm, symbol_table, VARIABLE_SYMBOL, var, identity);
+            append_symbol(apm, symbol_table, VARIABLE_SYMBOL, (SymbolPointer){.index = var}, identity);
 
             if (PEEK(EQUAL))
             {

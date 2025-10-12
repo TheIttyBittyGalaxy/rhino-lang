@@ -100,7 +100,7 @@ enum LineStatus
 void PRINT_VARIABLE(Program *apm, size_t var_index, const char *source_text);
 void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text);
 void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text);
-void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text);
+void PRINT_FUNCTION(Program *apm, Function *funct, const char *source_text);
 void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_text);
 void PRINT_STRUCT_TYPE(Program *apm, size_t struct_type_index, const char *source_text);
 void PRINT_APM(Program *apm, const char *source_text);
@@ -474,10 +474,8 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
 
 // PRINT FUNCTION //
 
-void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text)
+void PRINT_FUNCTION(Program *apm, Function *funct, const char *source_text)
 {
-    Function *funct = get_function(apm->function, funct_index);
-
     PRINT("FUNCTION ");
     PRINT_SUBSTR(funct->identity);
     INDENT();

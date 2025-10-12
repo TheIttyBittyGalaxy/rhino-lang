@@ -13,13 +13,13 @@ DEFINE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 // ALLOCATORS //
 
 DEFINE_ALLOCATOR(Expression, expression)
+DEFINE_ALLOCATOR(Function, function)
 
 // LIST TYPE //
 
 DEFINE_LIST_TYPE(Statement, statement)
 DEFINE_LIST_TYPE(Argument, argument)
 DEFINE_LIST_TYPE(Parameter, parameter)
-DEFINE_LIST_TYPE(Function, function)
 DEFINE_LIST_TYPE(Variable, variable)
 DEFINE_LIST_TYPE(EnumType, enum_type)
 DEFINE_LIST_TYPE(EnumValue, enum_value)
@@ -30,7 +30,6 @@ DEFINE_LIST_TYPE(SymbolTable, symbol_table)
 DEFINE_SLICE_TYPE(Statement, statement)
 DEFINE_SLICE_TYPE(Argument, argument)
 DEFINE_SLICE_TYPE(Parameter, parameter)
-DEFINE_SLICE_TYPE(Function, function)
 DEFINE_SLICE_TYPE(Variable, variable)
 DEFINE_SLICE_TYPE(EnumType, enum_type)
 DEFINE_SLICE_TYPE(EnumValue, enum_value)
@@ -50,7 +49,6 @@ const char *rhino_type_string(Program *apm, RhinoType ty)
 
 void init_program(Program *apm)
 {
-    init_function_list(&apm->function);
     init_parameter_list(&apm->parameter);
     init_argument_list(&apm->argument);
 
@@ -77,7 +75,7 @@ void init_symbol_table(SymbolTable *symbol_table)
     symbol_table->symbol_count = 0;
 }
 
-void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, size_t symbol_index, substr symbol_identity)
+void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, SymbolPointer to, substr symbol_identity)
 {
     SymbolTable *table = get_symbol_table(apm->symbol_table, table_index);
     while (table->symbol_count == SYMBOL_TABLE_SIZE && table->next)
@@ -96,14 +94,14 @@ void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, size_
 
         next->next = 0;
         next->symbol_count = 1;
-        next->symbol[0].index = symbol_index;
+        next->symbol[0].to = to;
         next->symbol[0].tag = symbol_tag;
         next->symbol[0].identity = symbol_identity;
         return;
     }
 
     size_t i = table->symbol_count++;
-    table->symbol[i].index = symbol_index;
+    table->symbol[i].to = to;
     table->symbol[i].tag = symbol_tag;
     table->symbol[i].identity = symbol_identity;
 }
@@ -112,6 +110,8 @@ void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, size_
 
 void dump_apm(Program *apm, const char *source_text)
 {
+    // TODO: Reimplement dumping all functions
+    /*
     printf("FUNCTIONS\n");
     for (size_t i = 0; i < apm->function.count; i++)
     {
@@ -121,6 +121,7 @@ void dump_apm(Program *apm, const char *source_text)
         printf("\tbody %02d\n", funct->body);
     }
     printf("\n");
+    */
 
     printf("STATEMENTS\n");
     for (size_t i = 0; i < apm->statement.count; i++)
@@ -157,9 +158,9 @@ void dump_apm(Program *apm, const char *source_text)
     }
     printf("\n");
 
-    printf("EXPRESSIONS\n");
     // TODO: Reimplement dumping all expressions
     /*
+    printf("EXPRESSIONS\n");
     for (size_t i = 0; i < apm->expression.count; i++)
     {
         Expression *expr = get_expression(apm->expression, i);
@@ -283,7 +284,7 @@ void dump_apm(Program *apm, const char *source_text)
         {
             printf("\n");
             Symbol symbol = symbol_table->symbol[i];
-            printf("\t%02d\t%s\t%02d\t", i, symbol_tag_string(symbol.tag), symbol.index);
+            printf("\t%02d\t%s\t%02d\t", i, symbol_tag_string(symbol.tag), symbol.to.index);
             printf_substr(source_text, symbol.identity);
         }
         printf("\n");
@@ -325,7 +326,7 @@ size_t get_next_statement_in_block(Program *apm, Statement *code_block, size_t n
 
     case FUNCTION_DECLARATION:
     {
-        Function *funct = get_function(apm->function, child->function);
+        Function *funct = child->function;
         return n + get_statement(apm->statement, funct->body)->statements.count + 1;
     }
 
@@ -417,7 +418,7 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
             break;
         }
 
-        Function *funct = get_function(apm->function, callee->function);
+        Function *funct = callee->function;
         return funct->return_type;
     }
 
