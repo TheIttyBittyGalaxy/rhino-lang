@@ -10,8 +10,8 @@ fn main() {
     card.suit = SPADES;
     card.value = 1;
 
-    > Card.suit;
-    > Card.value;
+    > card.suit;
+    > card.value;
 }
 
 // SUCCESS
