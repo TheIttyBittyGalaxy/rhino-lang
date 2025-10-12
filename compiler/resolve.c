@@ -631,11 +631,12 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
             break;
 
         case ASSIGNMENT_STATEMENT:
-            // TODO: Give a type hint to the RHS based on the type of the LHS
+        {
             resolve_types_in_expression(c, apm, stmt->assignment_lhs, symbol_table, (RhinoType){SORT_NONE});
-            resolve_types_in_expression(c, apm, stmt->assignment_rhs, symbol_table, (RhinoType){SORT_NONE});
+            RhinoType lhs_type = get_expression_type(apm, c->source_text, stmt->assignment_lhs);
+            resolve_types_in_expression(c, apm, stmt->assignment_rhs, symbol_table, lhs_type);
             break;
-
+        }
         case OUTPUT_STATEMENT:
         case EXPRESSION_STMT:
         case RETURN_STATEMENT:
