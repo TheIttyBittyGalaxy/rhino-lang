@@ -1,9 +1,9 @@
-enum Thing { foo, bar, boo, far }
+enum Suit { DIAMONDS , HEARTS , SPADES , CLUBS }
 
 fn main() {
-    Thing x = foo;
-    > x;
+    Suit suit = SPADES;
+    > suit;
 }
 
 // SUCCESS
-// foo
+// SPADES

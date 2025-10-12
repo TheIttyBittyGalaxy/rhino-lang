@@ -1,0 +1,19 @@
+enum Suit { DIAMONDS , HEARTS , SPADES , CLUBS }
+
+struct Card {
+    Suit suit;
+    int value;
+}
+
+fn main() {
+    Card card;
+    card.suit = SPADES;
+    card.value = 1;
+
+    > Card.suit;
+    > Card.value;
+}
+
+// SUCCESS
+// SPADES
+// 1
