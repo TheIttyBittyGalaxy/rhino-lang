@@ -341,6 +341,19 @@ typedef struct
 
 DECLARE_LIST_TYPE(Statement, statement)
 
+// Parameter
+DECLARE_SLICE_TYPE(Parameter, parameter)
+
+typedef struct
+{
+    substr span;
+    substr identity;
+    size_t type_expression;
+    RhinoType type;
+} Parameter;
+
+DECLARE_LIST_TYPE(Parameter, parameter)
+
 // Function
 DECLARE_SLICE_TYPE(Function, function)
 
@@ -353,6 +366,8 @@ typedef struct
     size_t return_type_expression; // Expression
     bool has_return_type_expression;
     RhinoType return_type;
+
+    ParameterSlice parameters;
 } Function;
 
 DECLARE_LIST_TYPE(Function, function)
@@ -361,6 +376,8 @@ DECLARE_LIST_TYPE(Function, function)
 typedef struct
 {
     FunctionList function;
+    ParameterList parameter;
+
     StatementList statement;
     ExpressionList expression;
     VariableList variable;

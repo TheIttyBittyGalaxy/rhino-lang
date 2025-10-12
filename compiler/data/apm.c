@@ -14,6 +14,7 @@ DEFINE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
 DEFINE_LIST_TYPE(Expression, expression)
 DEFINE_LIST_TYPE(Statement, statement)
+DEFINE_LIST_TYPE(Parameter, parameter)
 DEFINE_LIST_TYPE(Function, function)
 DEFINE_LIST_TYPE(Variable, variable)
 DEFINE_LIST_TYPE(EnumType, enum_type)
@@ -24,6 +25,7 @@ DEFINE_LIST_TYPE(SymbolTable, symbol_table)
 
 DEFINE_SLICE_TYPE(Expression, expression)
 DEFINE_SLICE_TYPE(Statement, statement)
+DEFINE_SLICE_TYPE(Parameter, parameter)
 DEFINE_SLICE_TYPE(Function, function)
 DEFINE_SLICE_TYPE(Variable, variable)
 DEFINE_SLICE_TYPE(EnumType, enum_type)
@@ -45,6 +47,8 @@ const char *rhino_type_string(Program *apm, RhinoType ty)
 void init_program(Program *apm)
 {
     init_function_list(&apm->function);
+    init_parameter_list(&apm->parameter);
+
     init_statement_list(&apm->statement);
     init_expression_list(&apm->expression);
     init_variable_list(&apm->variable);

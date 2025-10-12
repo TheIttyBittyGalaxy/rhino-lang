@@ -479,6 +479,31 @@ void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text)
 
 #endif
 
+    if (funct->parameters.count > 0)
+    {
+        PRINT("parameters:");
+        NEWLINE();
+        INDENT();
+        size_t last = funct->parameters.first + funct->parameters.count - 1;
+        for (size_t i = funct->parameters.first; i <= last; i++)
+        {
+            Parameter *parameter = get_parameter(apm->parameter, i);
+            if (i == last)
+                LAST_ON_LINE();
+#ifdef PRINT_PARSED
+            PRINT_EXPRESSION(apm, parameter->type_expression, source_text);
+            PRINT(" ");
+#endif
+#ifdef PRINT_RESOLVED
+            PRINT("%s ", rhino_type_string(apm, parameter->type));
+#endif
+
+            PRINT_SUBSTR(parameter->identity);
+            NEWLINE();
+        }
+        UNINDENT();
+    }
+
     LAST_ON_LINE();
     PRINT("body: ");
     PRINT_STATEMENT(apm, funct->body, source_text);

@@ -41,6 +41,7 @@ size_t parse_expression(Compiler *c, Program *apm);
 #define TOKEN_STRING() token_string(c)
 
 #define FUNCTION(index) get_function(apm->function, index)
+#define PARAMETER(index) get_parameter(apm->parameter, index)
 #define ENUM_TYPE(index) get_enum_type(apm->enum_type, index)
 #define ENUM_VALUE(index) get_enum_value(apm->enum_value, index)
 #define STRUCT_TYPE(index) get_struct_type(apm->struct_type, index)
@@ -208,9 +209,33 @@ void parse_function(Compiler *c, Program *apm, size_t symbol_table)
     // TODO: Handle this scenario correctly
     assert(c->parse_status == OKAY);
 
+    size_t first_parameter = apm->parameter.count;
+    FUNCTION(funct)->parameters.first = first_parameter;
+
     EAT(PAREN_L);
-    // TODO: Parse arguments
+    while (peek_expression(c))
+    {
+        size_t parameter = add_parameter(&apm->parameter);
+        START_SPAN(PARAMETER(parameter));
+
+        size_t type_expression = parse_expression(c, apm);
+        PARAMETER(parameter)->type_expression = type_expression;
+
+        substr identity = TOKEN_STRING();
+        PARAMETER(parameter)->identity = identity;
+        EAT(IDENTITY);
+
+        END_SPAN(PARAMETER(parameter));
+
+        if (!PEEK(COMMA))
+            break;
+
+        EAT(COMMA);
+    }
     EAT(PAREN_R);
+
+    size_t parameter_count = apm->parameter.count - first_parameter;
+    FUNCTION(funct)->parameters.count = parameter_count;
 
     if (peek_expression(c))
     {

@@ -325,6 +325,13 @@ void resolve_identities_in_function(Compiler *c, Program *apm, size_t funct_inde
     if (funct->has_return_type_expression)
         resolve_identities_in_expression(c, apm, funct->return_type_expression, symbol_table);
 
+    for (size_t i = 0; i < funct->parameters.count; i++)
+    {
+        Parameter *parameter = get_parameter_from_slice(apm->parameter, funct->parameters, i);
+        resolve_identities_in_expression(c, apm, parameter->type_expression, symbol_table);
+        // TODO: Declare parameters in symbol table
+    }
+
     resolve_identities_in_code_block(c, apm, funct->body);
 }
 
@@ -613,6 +620,12 @@ void resolve_types_in_function(Compiler *c, Program *apm, size_t funct_index, Sy
         funct->return_type = resolve_type_expression(c, apm, funct->return_type_expression, symbol_table);
     else
         funct->return_type.sort = SORT_NONE;
+
+    for (size_t i = 0; i < funct->parameters.count; i++)
+    {
+        Parameter *parameter = get_parameter_from_slice(apm->parameter, funct->parameters, i);
+        parameter->type = resolve_type_expression(c, apm, parameter->type_expression, symbol_table);
+    }
 
     resolve_types_in_code_block(c, apm, funct->body);
 }
