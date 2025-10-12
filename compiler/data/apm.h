@@ -91,6 +91,7 @@ DECLARE_LIST_TYPE(Variable, variable)
     MACRO(INVALID_SYMBOL)      \
     MACRO(VARIABLE_SYMBOL)     \
     MACRO(FUNCTION_SYMBOL)     \
+    MACRO(PARAMETER_SYMBOL)    \
     MACRO(ENUM_TYPE_SYMBOL)    \
     MACRO(STRUCT_TYPE_SYMBOL)
 
@@ -148,6 +149,7 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
                                      \
     MACRO(VARIABLE_REFERENCE)        \
     MACRO(FUNCTION_REFERENCE)        \
+    MACRO(PARAMETER_REFERENCE)       \
     MACRO(TYPE_REFERENCE)            \
                                      \
     MACRO(FUNCTION_CALL)             \
@@ -217,6 +219,10 @@ typedef struct
         struct // FUNCTION_REFERENCE
         {
             size_t function;
+        };
+        struct // PARAMETER_REFERENCE
+        {
+            size_t parameter;
         };
         struct // TYPE_REFERENCE
         {

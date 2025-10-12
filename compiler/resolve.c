@@ -86,6 +86,11 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_ind
                     expr->variable = s.index;
                     break;
 
+                case PARAMETER_SYMBOL:
+                    expr->kind = PARAMETER_REFERENCE;
+                    expr->variable = s.index;
+                    break;
+
                 case FUNCTION_SYMBOL:
                     expr->kind = FUNCTION_REFERENCE;
                     expr->function = s.index;
@@ -325,11 +330,13 @@ void resolve_identities_in_function(Compiler *c, Program *apm, size_t funct_inde
     if (funct->has_return_type_expression)
         resolve_identities_in_expression(c, apm, funct->return_type_expression, symbol_table);
 
+    size_t body_symbol_table = get_statement(apm->statement, funct->body)->symbol_table;
+
     for (size_t i = 0; i < funct->parameters.count; i++)
     {
         Parameter *parameter = get_parameter_from_slice(apm->parameter, funct->parameters, i);
         resolve_identities_in_expression(c, apm, parameter->type_expression, symbol_table);
-        // TODO: Declare parameters in symbol table
+        append_symbol(apm, body_symbol_table, PARAMETER_SYMBOL, funct->parameters.first + i, parameter->identity);
     }
 
     resolve_identities_in_code_block(c, apm, funct->body);
@@ -421,6 +428,7 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
 
     case VARIABLE_REFERENCE:
     case FUNCTION_REFERENCE:
+    case PARAMETER_REFERENCE:
     case TYPE_REFERENCE:
         break;
 

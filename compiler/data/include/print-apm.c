@@ -168,6 +168,10 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
         PRINT("f<%02d>", expr->function);
         break;
 
+    case PARAMETER_REFERENCE:
+        PRINT("p<%02d>", expr->parameter);
+        break;
+
     case FUNCTION_CALL:
         PRINT("FUNCTION_CALL");
         INDENT();
