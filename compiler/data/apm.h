@@ -9,6 +9,9 @@
 
 // Forward Declarations
 
+typedef struct EnumType EnumType;
+typedef struct StructType StructType;
+
 typedef struct Variable Variable;
 typedef struct Expression Expression;
 typedef struct Function Function;
@@ -31,7 +34,11 @@ DECLARE_ENUM(LIST_RHINO_SORTS, RhinoSort, rhino_sort)
 typedef struct
 {
     RhinoSort sort;
-    size_t index;
+    union
+    {
+        EnumType *enum_type;
+        StructType *struct_type;
+    };
 } RhinoType;
 
 // Enum value
@@ -41,21 +48,20 @@ typedef struct
 {
     substr span;
     substr identity;
+    EnumType *type_of_enum_value; // FIXME: I would like to not have this if possible
 } EnumValue;
 
 DECLARE_LIST_TYPE(EnumValue, enum_value)
 
 // Enum type
-DECLARE_SLICE_TYPE(EnumType, enum_type)
-
-typedef struct
+struct EnumType
 {
     substr span;
     substr identity;
     EnumValueSlice values;
-} EnumType;
+};
 
-DECLARE_LIST_TYPE(EnumType, enum_type)
+DECLARE_ALLOCATOR(EnumType, enum_type)
 
 // Property
 DECLARE_SLICE_TYPE(Property, property)
@@ -71,17 +77,15 @@ typedef struct
 DECLARE_LIST_TYPE(Property, property)
 
 // Struct type
-DECLARE_SLICE_TYPE(StructType, struct_type)
-
-typedef struct
+struct StructType
 {
     substr span;
     substr identity;
     PropertySlice properties;
     size_t declarations; // DECLARATION_BLOCK
-} StructType;
+};
 
-DECLARE_LIST_TYPE(StructType, struct_type)
+DECLARE_ALLOCATOR(StructType, struct_type)
 
 // Variable
 struct Variable
@@ -112,6 +116,8 @@ typedef struct
         size_t index;
         Function *function;
         Variable *variable;
+        EnumType *enum_type;
+        StructType *struct_type;
     };
 } SymbolPointer;
 
@@ -334,11 +340,11 @@ typedef struct
         };
         struct // ENUM_TYPE_DECLARATION
         {
-            size_t enum_type; // EnumType
+            EnumType *enum_type;
         };
         struct // STRUCT_TYPE_DECLARATION
         {
-            size_t struct_type; // StructType
+            StructType *struct_type;
         };
         struct // DECLARATION_BLOCK / CODE_BLOCK / SINGLE_BLOCK
         {
@@ -411,10 +417,8 @@ typedef struct
 
     StatementList statement;
 
-    EnumTypeList enum_type;
     EnumValueList enum_value;
 
-    StructTypeList struct_type;
     PropertyList property;
 
     SymbolTableList symbol_table;
@@ -442,7 +446,6 @@ size_t get_last_statement_in_block(Program *apm, Statement *code_block);
 
 // Type analysis methods
 RhinoType get_expression_type(Program *apm, const char *source_text, Expression *expr);
-size_t get_enum_type_of_enum_value(Program *apm, size_t enum_value_index);
 bool are_types_equal(RhinoType a, RhinoType b);
 bool allow_assign_a_to_b(RhinoType a, RhinoType b);
 

@@ -136,14 +136,14 @@ void transpile_type(Transpiler *t, Program *apm, RhinoType rhino_type)
 
     case SORT_ENUM:
     {
-        EnumType *enum_type = get_enum_type(apm->enum_type, rhino_type.index);
+        EnumType *enum_type = rhino_type.enum_type;
         EMIT_SUBSTR(enum_type->identity);
         break;
     }
 
     case SORT_STRUCT:
     {
-        StructType *struct_type = get_struct_type(apm->struct_type, rhino_type.index);
+        StructType *struct_type = rhino_type.struct_type;
         EMIT_SUBSTR(struct_type->identity);
         break;
     }
@@ -173,7 +173,7 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType rhino_type)
 
     case SORT_STRUCT:
     {
-        StructType *struct_type = get_struct_type(apm->struct_type, rhino_type.index);
+        StructType *struct_type = rhino_type.struct_type;
 
         EMIT("(");
         EMIT_SUBSTR(struct_type->identity);
@@ -197,7 +197,7 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType rhino_type)
     //        (Though, none is the default of noneable enums).
     case SORT_ENUM:
     {
-        EnumType *enum_type = get_enum_type(apm->enum_type, rhino_type.index);
+        EnumType *enum_type = rhino_type.enum_type;
         EMIT("(");
         EMIT_SUBSTR(enum_type->identity);
         EMIT(")0");
@@ -238,8 +238,7 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
     case ENUM_VALUE_LITERAL:
     {
         EnumValue *enum_value = get_enum_value(apm->enum_value, expr->enum_value);
-        size_t enum_type_index = get_enum_type_of_enum_value(apm, expr->enum_value);
-        EnumType *enum_type = get_enum_type(apm->enum_type, enum_type_index);
+        EnumType *enum_type = enum_value->type_of_enum_value;
 
         EMIT_SUBSTR(enum_type->identity);
         EMIT("__");
@@ -428,7 +427,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
         if (iterable->kind == TYPE_REFERENCE && iterable->type.sort == SORT_ENUM)
         {
-            EnumType *enum_type = get_enum_type(apm->enum_type, iterable->type.index);
+            EnumType *enum_type = iterable->type.enum_type;
 
             EMIT("for (");
             EMIT_SUBSTR(enum_type->identity);
@@ -546,7 +545,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
         case SORT_ENUM:
         {
-            EnumType *enum_type = get_enum_type(apm->enum_type, expr_type.index);
+            EnumType *enum_type = expr_type.enum_type;
 
             EMIT_ESCAPED("printf(\"%s\\n\", string_of_");
             EMIT_SUBSTR(enum_type->identity);
@@ -620,149 +619,162 @@ void transpile_program(Transpiler *t, Program *apm)
 #include "rhino/runtime_as_str.c"
     );
 
-    // Enum types
-    for (size_t i = 0; i < apm->enum_type.count; i++)
+    Statement *program_block = get_statement(apm->statement, apm->program_block);
+    size_t i;
+
+    // Global enum types
+    i = get_first_statement_in_block(apm, program_block);
+    while (i < program_block->statements.count)
     {
-        EnumType *enum_type = get_enum_type(apm->enum_type, i);
+        size_t n = program_block->statements.first + i;
+        Statement *declaration = get_statement(apm->statement, n);
 
-        // Enum declaration
-        EMIT("typedef enum { ");
-        for (size_t i = 0; i < enum_type->values.count; i++)
+        if (declaration->kind == ENUM_TYPE_DECLARATION)
         {
-            if (i > 0)
-                EMIT(", ");
+            EnumType *enum_type = declaration->enum_type;
 
-            EnumValue *enum_value = get_enum_value_from_slice(apm->enum_value, enum_type->values, i);
+            // Enum declaration
+            EMIT("typedef enum { ");
+            for (size_t i = 0; i < enum_type->values.count; i++)
+            {
+                if (i > 0)
+                    EMIT(", ");
+
+                EnumValue *enum_value = get_enum_value_from_slice(apm->enum_value, enum_type->values, i);
+                EMIT_SUBSTR(enum_type->identity);
+                EMIT("__");
+                EMIT_SUBSTR(enum_value->identity);
+            }
+
+            EMIT(" } ");
             EMIT_SUBSTR(enum_type->identity);
-            EMIT("__");
-            EMIT_SUBSTR(enum_value->identity);
+            EMIT_LINE(";");
+            EMIT_NEWLINE();
+
+            // To string function
+            EMIT("const char* string_of_");
+            EMIT_SUBSTR(enum_type->identity);
+            EMIT("(");
+            EMIT_SUBSTR(enum_type->identity);
+            EMIT(" value)");
+            EMIT_NEWLINE();
+
+            EMIT_OPEN_BRACE();
+            EMIT_LINE("switch(value)");
+            EMIT_OPEN_BRACE();
+            for (size_t i = 0; i < enum_type->values.count; i++)
+            {
+                EnumValue *enum_value = get_enum_value_from_slice(apm->enum_value, enum_type->values, i);
+                EMIT("case ");
+                EMIT_SUBSTR(enum_type->identity);
+                EMIT("__");
+                EMIT_SUBSTR(enum_value->identity);
+
+                EMIT(": return \"");
+                EMIT_SUBSTR(enum_value->identity);
+                EMIT_LINE("\";");
+            }
+            EMIT_CLOSE_BRACE();
+            EMIT_CLOSE_BRACE();
+            EMIT_NEWLINE();
         }
 
-        EMIT(" } ");
-        EMIT_SUBSTR(enum_type->identity);
-        EMIT_LINE(";");
-        EMIT_NEWLINE();
-
-        // To string function
-        EMIT("const char* string_of_");
-        EMIT_SUBSTR(enum_type->identity);
-        EMIT("(");
-        EMIT_SUBSTR(enum_type->identity);
-        EMIT(" value)");
-        EMIT_NEWLINE();
-
-        EMIT_OPEN_BRACE();
-        EMIT_LINE("switch(value)");
-        EMIT_OPEN_BRACE();
-        for (size_t i = 0; i < enum_type->values.count; i++)
-        {
-            EnumValue *enum_value = get_enum_value_from_slice(apm->enum_value, enum_type->values, i);
-            EMIT("case ");
-            EMIT_SUBSTR(enum_type->identity);
-            EMIT("__");
-            EMIT_SUBSTR(enum_value->identity);
-
-            EMIT(": return \"");
-            EMIT_SUBSTR(enum_value->identity);
-            EMIT_LINE("\";");
-        }
-        EMIT_CLOSE_BRACE();
-        EMIT_CLOSE_BRACE();
-        EMIT_NEWLINE();
+        i = get_next_statement_in_block(apm, program_block, i);
     }
     EMIT_NEWLINE();
 
-    // Struct types
-    for (size_t i = 0; i < apm->struct_type.count; i++)
+    // Global struct types
+    i = get_first_statement_in_block(apm, program_block);
+    while (i < program_block->statements.count)
     {
-        StructType *struct_type = get_struct_type(apm->struct_type, i);
+        size_t n = program_block->statements.first + i;
+        Statement *declaration = get_statement(apm->statement, n);
 
-        // Sstruct declaration
-        EMIT_LINE("typedef struct");
-        EMIT_OPEN_BRACE();
-
-        for (size_t i = 0; i < struct_type->properties.count; i++)
+        if (declaration->kind == STRUCT_TYPE_DECLARATION)
         {
-            Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
-            transpile_type(t, apm, property->type);
-            EMIT(" ");
-            EMIT_SUBSTR(property->identity);
+            StructType *struct_type = declaration->struct_type;
+
+            // Sstruct declaration
+            EMIT_LINE("typedef struct");
+            EMIT_OPEN_BRACE();
+
+            for (size_t i = 0; i < struct_type->properties.count; i++)
+            {
+                Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
+                transpile_type(t, apm, property->type);
+                EMIT(" ");
+                EMIT_SUBSTR(property->identity);
+                EMIT_LINE(";");
+            }
+
+            EMIT_CLOSE_BRACE();
+            EMIT_SUBSTR(struct_type->identity);
             EMIT_LINE(";");
+            EMIT_NEWLINE();
+
+            // To string function
+            EMIT("const char* string_of_");
+            EMIT_SUBSTR(struct_type->identity);
+            EMIT("(");
+            EMIT_SUBSTR(struct_type->identity);
+            EMIT(" value)");
+            EMIT_NEWLINE();
+
+            // TODO: Serialise the struct in some helpful way
+            EMIT_OPEN_BRACE();
+            EMIT("return \"");
+            EMIT_SUBSTR(struct_type->identity);
+            EMIT("\";");
+            EMIT_NEWLINE();
+            EMIT_CLOSE_BRACE();
+            EMIT_NEWLINE();
         }
 
-        EMIT_CLOSE_BRACE();
-        EMIT_SUBSTR(struct_type->identity);
-        EMIT_LINE(";");
-        EMIT_NEWLINE();
-
-        // To string function
-        EMIT("const char* string_of_");
-        EMIT_SUBSTR(struct_type->identity);
-        EMIT("(");
-        EMIT_SUBSTR(struct_type->identity);
-        EMIT(" value)");
-        EMIT_NEWLINE();
-
-        // TODO: Serialise the struct in some helpful way
-        EMIT_OPEN_BRACE();
-        EMIT("return \"");
-        EMIT_SUBSTR(struct_type->identity);
-        EMIT("\";");
-        EMIT_NEWLINE();
-        EMIT_CLOSE_BRACE();
-        EMIT_NEWLINE();
+        i = get_next_statement_in_block(apm, program_block, i);
     }
     EMIT_NEWLINE();
 
     // Global variables
-    Statement *program_block = get_statement(apm->statement, apm->program_block);
-
+    i = get_first_statement_in_block(apm, program_block);
+    while (i < program_block->statements.count)
     {
-        size_t i = get_first_statement_in_block(apm, program_block);
-        while (i < program_block->statements.count)
-        {
-            size_t n = program_block->statements.first + i;
-            Statement *declaration = get_statement(apm->statement, n);
+        size_t n = program_block->statements.first + i;
+        Statement *declaration = get_statement(apm->statement, n);
 
-            if (declaration->kind == VARIABLE_DECLARATION)
-                transpile_statement(t, apm, n);
+        if (declaration->kind == VARIABLE_DECLARATION)
+            transpile_statement(t, apm, n);
 
-            i = get_next_statement_in_block(apm, program_block, i);
-        }
+        i = get_next_statement_in_block(apm, program_block, i);
     }
 
     // Forward declarations for global functoins
+    i = get_first_statement_in_block(apm, program_block);
+    while (i < program_block->statements.count)
     {
-        size_t i = get_first_statement_in_block(apm, program_block);
-        while (i < program_block->statements.count)
+        size_t n = program_block->statements.first + i;
+        Statement *declaration = get_statement(apm->statement, n);
+
+        if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
         {
-            size_t n = program_block->statements.first + i;
-            Statement *declaration = get_statement(apm->statement, n);
-
-            if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
-            {
-                transpile_function_signature(t, apm, declaration->function);
-                EMIT_LINE(";");
-            }
-
-            i = get_next_statement_in_block(apm, program_block, i);
+            transpile_function_signature(t, apm, declaration->function);
+            EMIT_LINE(";");
         }
+
+        i = get_next_statement_in_block(apm, program_block, i);
     }
     EMIT_NEWLINE();
 
     // Function definitions for global functoins
+    i = get_first_statement_in_block(apm, program_block);
+    while (i < program_block->statements.count)
     {
-        size_t i = get_first_statement_in_block(apm, program_block);
-        while (i < program_block->statements.count)
-        {
-            size_t n = program_block->statements.first + i;
-            Statement *declaration = get_statement(apm->statement, n);
+        size_t n = program_block->statements.first + i;
+        Statement *declaration = get_statement(apm->statement, n);
 
-            if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
-                transpile_function(t, apm, declaration->function);
+        if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
+            transpile_function(t, apm, declaration->function);
 
-            i = get_next_statement_in_block(apm, program_block, i);
-        }
+        i = get_next_statement_in_block(apm, program_block, i);
     }
     EMIT_NEWLINE();
 

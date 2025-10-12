@@ -15,24 +15,22 @@ DEFINE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 DEFINE_ALLOCATOR(Expression, expression)
 DEFINE_ALLOCATOR(Function, function)
 DEFINE_ALLOCATOR(Variable, variable)
+DEFINE_ALLOCATOR(EnumType, enum_type)
+DEFINE_ALLOCATOR(StructType, struct_type)
 
 // LIST TYPE //
 
 DEFINE_LIST_TYPE(Statement, statement)
 DEFINE_LIST_TYPE(Argument, argument)
 DEFINE_LIST_TYPE(Parameter, parameter)
-DEFINE_LIST_TYPE(EnumType, enum_type)
 DEFINE_LIST_TYPE(EnumValue, enum_value)
-DEFINE_LIST_TYPE(StructType, struct_type)
 DEFINE_LIST_TYPE(Property, property)
 DEFINE_LIST_TYPE(SymbolTable, symbol_table)
 
 DEFINE_SLICE_TYPE(Statement, statement)
 DEFINE_SLICE_TYPE(Argument, argument)
 DEFINE_SLICE_TYPE(Parameter, parameter)
-DEFINE_SLICE_TYPE(EnumType, enum_type)
 DEFINE_SLICE_TYPE(EnumValue, enum_value)
-DEFINE_SLICE_TYPE(StructType, struct_type)
 DEFINE_SLICE_TYPE(Property, property)
 DEFINE_SLICE_TYPE(SymbolTable, symbol_table)
 
@@ -53,10 +51,8 @@ void init_program(Program *apm)
 
     init_statement_list(&apm->statement);
 
-    init_enum_type_list(&apm->enum_type);
     init_enum_value_list(&apm->enum_value);
 
-    init_struct_type_list(&apm->struct_type);
     init_property_list(&apm->property);
 
     init_symbol_table_list(&apm->symbol_table);
@@ -233,6 +229,8 @@ void dump_apm(Program *apm, const char *source_text)
     printf("\n");
     */
 
+    // TODO: Reimplement dumping all types
+    /*
     printf("ENUM TYPES\n");
     for (size_t i = 0; i < apm->enum_type.count; i++)
     {
@@ -243,6 +241,7 @@ void dump_apm(Program *apm, const char *source_text)
         printf("\n");
     }
     printf("\n");
+    */
 
     printf("ENUM VALUES\n");
     for (size_t i = 0; i < apm->enum_value.count; i++)
@@ -254,6 +253,8 @@ void dump_apm(Program *apm, const char *source_text)
     }
     printf("\n");
 
+    // TODO: Reimplement dumping all types
+    /*
     printf("STRUCT TYPES\n");
     for (size_t i = 0; i < apm->struct_type.count; i++)
     {
@@ -264,6 +265,7 @@ void dump_apm(Program *apm, const char *source_text)
         printf("\n");
     }
     printf("\n");
+    */
 
     printf("PROPERTIES\n");
     for (size_t i = 0; i < apm->property.count; i++)
@@ -333,7 +335,7 @@ size_t get_next_statement_in_block(Program *apm, Statement *code_block, size_t n
 
     case STRUCT_TYPE_DECLARATION:
     {
-        StructType *struct_type = get_struct_type(apm->struct_type, child->struct_type);
+        StructType *struct_type = child->struct_type;
         return n + get_statement(apm->statement, struct_type->declarations)->statements.count + 1;
     }
     }
@@ -397,7 +399,7 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
     case ENUM_VALUE_LITERAL:
     {
         result.sort = SORT_ENUM;
-        result.index = get_enum_type_of_enum_value(apm, expr->enum_value);
+        result.enum_type = get_enum_value(apm->enum_value, expr->enum_value)->type_of_enum_value;
         break;
     }
 
@@ -429,7 +431,7 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
         RhinoType subject_type = get_expression_type(apm, source_text, expr->subject);
         if (subject_type.sort == SORT_STRUCT)
         {
-            StructType *struct_type = get_struct_type(apm->struct_type, subject_type.index);
+            StructType *struct_type = subject_type.struct_type;
             for (size_t i = 0; i < struct_type->properties.count; i++)
             {
                 Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
@@ -487,28 +489,15 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
     return result;
 }
 
-size_t get_enum_type_of_enum_value(Program *apm, size_t enum_value_index)
-{
-    size_t last = 0;
-    for (size_t i = 0; i < apm->enum_type.count; i++)
-    {
-        EnumType *enum_type = get_enum_type(apm->enum_type, i);
-        last += enum_type->values.count;
-
-        if (enum_value_index < last)
-            return i;
-    }
-
-    fatal_error("Could not determine index of enum value %d.", enum_value_index);
-    return 0;
-}
-
 bool are_types_equal(RhinoType a, RhinoType b)
 {
     if (a.sort != b.sort)
         return false;
 
-    if (a.sort == SORT_ENUM && a.index != b.index)
+    if (a.sort == SORT_ENUM && a.enum_type != b.enum_type)
+        return false;
+
+    if (a.sort == SORT_STRUCT && a.enum_type != b.enum_type)
         return false;
 
     return true;

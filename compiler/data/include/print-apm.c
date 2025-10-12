@@ -101,8 +101,8 @@ void PRINT_VARIABLE(Program *apm, Variable *var, const char *source_text);
 void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text);
 void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text);
 void PRINT_FUNCTION(Program *apm, Function *funct, const char *source_text);
-void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_text);
-void PRINT_STRUCT_TYPE(Program *apm, size_t struct_type_index, const char *source_text);
+void PRINT_ENUM_TYPE(Program *apm, EnumType *enum_type, const char *source_text);
+void PRINT_STRUCT_TYPE(Program *apm, StructType *struct_type, const char *source_text);
 void PRINT_APM(Program *apm, const char *source_text);
 
 // PRINT VARIABLE //
@@ -532,10 +532,8 @@ void PRINT_FUNCTION(Program *apm, Function *funct, const char *source_text)
 
 // PRINT ENUM //
 
-void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_text)
+void PRINT_ENUM_TYPE(Program *apm, EnumType *enum_type, const char *source_text)
 {
-    EnumType *enum_type = get_enum_type(apm->enum_type, enum_type_index);
-
     PRINT("ENUM ");
     PRINT_SUBSTR(enum_type->identity);
 
@@ -559,10 +557,8 @@ void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_te
 
 // PRINT STRUCT //
 
-void PRINT_STRUCT_TYPE(Program *apm, size_t struct_type_index, const char *source_text)
+void PRINT_STRUCT_TYPE(Program *apm, StructType *struct_type, const char *source_text)
 {
-    StructType *struct_type = get_struct_type(apm->struct_type, struct_type_index);
-
     PRINT("STRUCT ");
     PRINT_SUBSTR(struct_type->identity);
     INDENT();

@@ -42,9 +42,7 @@ Expression *parse_expression(Compiler *c, Program *apm);
 
 #define PARAMETER(index) get_parameter(apm->parameter, index)
 #define ARGUMENT(index) get_argument(apm->argument, index)
-#define ENUM_TYPE(index) get_enum_type(apm->enum_type, index)
 #define ENUM_VALUE(index) get_enum_value(apm->enum_value, index)
-#define STRUCT_TYPE(index) get_struct_type(apm->struct_type, index)
 #define PROPERTY(index) get_property(apm->property, index)
 #define STATEMENT(index) get_statement(apm->statement, index)
 #define SYMBOL_TABLE(index) get_symbol_table(apm->symbol_table, index)
@@ -258,25 +256,26 @@ void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table)
 {
     size_t declaration = add_statement(&apm->statement);
 
-    size_t enum_type = add_enum_type(&apm->enum_type);
-    START_SPAN(ENUM_TYPE(enum_type));
+    EnumType *enum_type = new_enum_type();
+    START_SPAN(enum_type);
 
     EAT(KEYWORD_ENUM);
 
     substr identity = TOKEN_STRING();
-    ENUM_TYPE(enum_type)->identity = identity;
+    enum_type->identity = identity;
     EAT(IDENTITY);
 
     // TODO: Handle this scenario correctly
     assert(c->parse_status == OKAY);
 
     size_t first_value = apm->enum_value.count;
-    ENUM_TYPE(enum_type)->values.first = first_value;
+    enum_type->values.first = first_value;
 
     EAT(CURLY_L);
     while (true)
     {
         size_t enum_value = add_enum_value(&apm->enum_value);
+        ENUM_VALUE(enum_value)->type_of_enum_value = enum_type;
         START_SPAN(ENUM_VALUE(enum_value));
 
         substr identity = TOKEN_STRING();
@@ -293,14 +292,14 @@ void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table)
     EAT(CURLY_R);
 
     size_t value_count = apm->enum_value.count - first_value;
-    ENUM_TYPE(enum_type)->values.count = value_count;
+    enum_type->values.count = value_count;
 
-    END_SPAN(ENUM_TYPE(enum_type));
-    append_symbol(apm, symbol_table, ENUM_TYPE_SYMBOL, (SymbolPointer){.index = enum_type}, identity);
+    END_SPAN(enum_type);
+    append_symbol(apm, symbol_table, ENUM_TYPE_SYMBOL, (SymbolPointer){.enum_type = enum_type}, identity);
 
     STATEMENT(declaration)->kind = ENUM_TYPE_DECLARATION;
     STATEMENT(declaration)->enum_type = enum_type;
-    STATEMENT(declaration)->span = ENUM_TYPE(enum_type)->span;
+    STATEMENT(declaration)->span = enum_type->span;
 }
 
 // TODO: Ensure this can only return with status OKAY or RECOVERED
@@ -308,12 +307,12 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
 {
     size_t declaration = add_statement(&apm->statement);
 
-    size_t struct_type = add_struct_type(&apm->struct_type);
-    START_SPAN(STRUCT_TYPE(struct_type));
+    StructType *struct_type = new_struct_type();
+    START_SPAN(struct_type);
 
     EAT(KEYWORD_STRUCT);
     substr identity = TOKEN_STRING();
-    STRUCT_TYPE(struct_type)->identity = identity;
+    struct_type->identity = identity;
     EAT(IDENTITY);
 
     // TODO: Handle this scenario correctly
@@ -328,10 +327,10 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
     START_SPAN(STATEMENT(declarations));
 
     size_t first_statement = apm->statement.count;
-    STRUCT_TYPE(struct_type)->declarations = declarations;
+    struct_type->declarations = declarations;
 
     size_t first_property = apm->property.count;
-    STRUCT_TYPE(struct_type)->properties.first = first_property;
+    struct_type->properties.first = first_property;
 
     EAT(CURLY_L);
     while (!PEEK(CURLY_R))
@@ -372,7 +371,7 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
     EAT(CURLY_R);
 
     size_t property_count = apm->property.count - first_property;
-    STRUCT_TYPE(struct_type)->properties.count = property_count;
+    struct_type->properties.count = property_count;
 
     STATEMENT(declarations)->statements.first = first_statement;
     STATEMENT(declarations)->statements.count = apm->statement.count - first_statement;
@@ -383,12 +382,12 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
         last_table = SYMBOL_TABLE(last_table)->next;
     SYMBOL_TABLE(last_table)->next = symbol_table;
 
-    END_SPAN(STRUCT_TYPE(struct_type));
-    append_symbol(apm, symbol_table, STRUCT_TYPE_SYMBOL, (SymbolPointer){.index = struct_type}, identity);
+    END_SPAN(struct_type);
+    append_symbol(apm, symbol_table, STRUCT_TYPE_SYMBOL, (SymbolPointer){.struct_type = struct_type}, identity);
 
     STATEMENT(declaration)->kind = STRUCT_TYPE_DECLARATION;
     STATEMENT(declaration)->struct_type = struct_type;
-    STATEMENT(declaration)->span = STRUCT_TYPE(struct_type)->span;
+    STATEMENT(declaration)->span = struct_type->span;
 }
 
 // NOTE: Can return with status OKAY or RECOVERED

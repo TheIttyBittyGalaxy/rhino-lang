@@ -38,7 +38,7 @@ void determine_main_function(Compiler *c, Program *apm)
 void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table);
 void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_index);
 void resolve_identities_in_function(Compiler *c, Program *apm, Function *funct, SymbolTable *symbol_table);
-void resolve_identities_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table);
+void resolve_identities_in_struct_type(Compiler *c, Program *apm, StructType *struct_type, SymbolTable *symbol_table);
 void resolve_identities_in_declaration_block(Compiler *c, Program *apm, size_t block_index);
 
 void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table)
@@ -105,13 +105,13 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *exp
                 case ENUM_TYPE_SYMBOL:
                     expr->kind = TYPE_REFERENCE;
                     expr->type.sort = SORT_ENUM;
-                    expr->type.index = s.to.index;
+                    expr->type.enum_type = s.to.enum_type;
                     break;
 
                 case STRUCT_TYPE_SYMBOL:
                     expr->kind = TYPE_REFERENCE;
                     expr->type.sort = SORT_STRUCT;
-                    expr->type.index = s.to.index;
+                    expr->type.struct_type = s.to.struct_type;
                     break;
 
                 default:
@@ -265,8 +265,8 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_in
 
         case ENUM_TYPE_DECLARATION:
         {
-            EnumType *enum_type = get_enum_type(apm->enum_type, stmt->enum_type);
-            append_symbol(apm, block->symbol_table, ENUM_TYPE_SYMBOL, (SymbolPointer){.index = stmt->enum_type}, enum_type->identity);
+            EnumType *enum_type = stmt->enum_type;
+            append_symbol(apm, block->symbol_table, ENUM_TYPE_SYMBOL, (SymbolPointer){.enum_type = stmt->enum_type}, enum_type->identity);
 
             break;
         }
@@ -275,8 +275,8 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_in
         {
             resolve_identities_in_struct_type(c, apm, stmt->struct_type, symbol_table);
 
-            StructType *struct_type = get_struct_type(apm->struct_type, stmt->struct_type);
-            append_symbol(apm, block->symbol_table, STRUCT_TYPE_SYMBOL, (SymbolPointer){.index = stmt->struct_type}, struct_type->identity);
+            StructType *struct_type = stmt->struct_type;
+            append_symbol(apm, block->symbol_table, STRUCT_TYPE_SYMBOL, (SymbolPointer){.struct_type = stmt->struct_type}, struct_type->identity);
 
             break;
         }
@@ -352,9 +352,8 @@ void resolve_identities_in_function(Compiler *c, Program *apm, Function *funct, 
     resolve_identities_in_code_block(c, apm, funct->body);
 }
 
-void resolve_identities_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table)
+void resolve_identities_in_struct_type(Compiler *c, Program *apm, StructType *struct_type, SymbolTable *symbol_table)
 {
-    StructType *struct_type = get_struct_type(apm->struct_type, struct_type_index);
     Statement *declarations = get_statement(apm->statement, struct_type->declarations);
     SymbolTable *declarations_symbol_table = get_symbol_table(apm->symbol_table, declarations->symbol_table);
 
@@ -405,7 +404,7 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, S
 void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table);
 void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index);
 void resolve_types_in_function(Compiler *c, Program *apm, Function *funct, SymbolTable *symbol_table);
-void resolve_types_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table);
+void resolve_types_in_struct_type(Compiler *c, Program *apm, StructType *struct_type, SymbolTable *symbol_table);
 void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_index);
 
 RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table)
@@ -429,7 +428,7 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, S
 
         if (subject_type.sort == SORT_STRUCT)
         {
-            StructType *struct_type = get_struct_type(apm->struct_type, subject_type.index);
+            StructType *struct_type = subject_type.struct_type;
             Statement *declarations = get_statement(apm->statement, struct_type->declarations);
             SymbolTable *current_table = get_symbol_table(apm->symbol_table, declarations->symbol_table);
 
@@ -447,15 +446,15 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, S
                     case ENUM_TYPE_SYMBOL:
                         expr->kind = TYPE_REFERENCE;
                         expr->type.sort = SORT_ENUM;
-                        expr->type.index = s.to.index;
-                        return (RhinoType){SORT_ENUM, s.to.index};
+                        expr->type.enum_type = s.to.enum_type;
+                        return expr->type;
                         break;
 
                     case STRUCT_TYPE_SYMBOL:
                         expr->kind = TYPE_REFERENCE;
                         expr->type.sort = SORT_STRUCT;
-                        expr->type.index = s.to.index;
-                        return (RhinoType){SORT_STRUCT, s.to.index};
+                        expr->type.struct_type = s.to.struct_type;
+                        return expr->type;
                         break;
 
                     default:
@@ -489,7 +488,7 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
     {
         if (type_hint.sort == SORT_ENUM)
         {
-            EnumType *enum_type = get_enum_type(apm->enum_type, type_hint.index);
+            EnumType *enum_type = type_hint.enum_type;
             for (size_t n = enum_type->values.first; n < enum_type->values.first + enum_type->values.count; n++)
             {
                 EnumValue *enum_value = get_enum_value(apm->enum_value, n);
@@ -543,7 +542,7 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
         if (subject->type.sort != SORT_ENUM)
             return;
 
-        EnumType *enum_type = get_enum_type(apm->enum_type, subject->type.index);
+        EnumType *enum_type = subject->type.enum_type;
         for (size_t n = enum_type->values.first; n < enum_type->values.first + enum_type->values.count; n++)
         {
             EnumValue *enum_value = get_enum_value(apm->enum_value, n);
@@ -681,7 +680,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
             else if (iterable->kind == TYPE_REFERENCE && iterable->type.sort == SORT_ENUM)
             {
                 iterator->type.sort = SORT_ENUM;
-                iterator->type.index = iterable->type.index;
+                iterator->type.enum_type = iterable->type.enum_type;
             }
             else
             {
@@ -734,9 +733,8 @@ void resolve_types_in_function(Compiler *c, Program *apm, Function *funct, Symbo
     resolve_types_in_code_block(c, apm, funct->body);
 }
 
-void resolve_types_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table)
+void resolve_types_in_struct_type(Compiler *c, Program *apm, StructType *struct_type, SymbolTable *symbol_table)
 {
-    StructType *struct_type = get_struct_type(apm->struct_type, struct_type_index);
     Statement *declarations = get_statement(apm->statement, struct_type->declarations);
     SymbolTable *declarations_symbol_table = get_symbol_table(apm->symbol_table, declarations->symbol_table);
 
