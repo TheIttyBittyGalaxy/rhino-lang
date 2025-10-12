@@ -593,7 +593,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         if (c->parse_status == PANIC)
             goto recover;
 
-        if (peek_expression(c) && EXPRESSION(value)->kind == IDENTITY_LITERAL) // VARIABLE_DECLARATION with stated type
+        if (PEEK(IDENTITY)) // VARIABLE_DECLARATION with stated type
         {
             size_t var = add_variable(&apm->variable);
             VARIABLE(var)->type.sort = INVALID_SORT;

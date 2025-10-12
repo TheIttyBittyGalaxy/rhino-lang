@@ -404,13 +404,65 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, 
     {
         raise_compilation_error(c, TYPE_DOES_NOT_EXIST, expr->span);
         expr->given_error = true;
-    }
-    else
-    {
-        raise_compilation_error(c, TYPE_IS_INVALID, expr->span);
+        return (RhinoType){ERROR_SORT, 0};
     }
 
-    return (RhinoType){INVALID_SORT, 0};
+    if (expr->kind == INDEX_BY_FIELD)
+    {
+        RhinoType subject_type = resolve_type_expression(c, apm, expr->subject, symbol_table);
+
+        if (subject_type.sort == ERROR_SORT)
+            return (RhinoType){ERROR_SORT, 0}; // Return immediately, no need to produce an additional error
+
+        if (subject_type.sort == SORT_STRUCT)
+        {
+            StructType *struct_type = get_struct_type(apm->struct_type, subject_type.index);
+            Statement *declarations = get_statement(apm->statement, struct_type->declarations);
+            SymbolTable *current_table = get_symbol_table(apm->symbol_table, declarations->symbol_table);
+
+            while (true)
+            {
+                for (size_t i = 0; i < current_table->symbol_count; i++)
+                {
+                    Symbol s = current_table->symbol[i];
+
+                    if (!substr_match(c->source_text, s.identity, expr->field))
+                        continue;
+
+                    switch (s.tag)
+                    {
+                    case ENUM_TYPE_SYMBOL:
+                        expr->kind = TYPE_REFERENCE;
+                        expr->type.sort = SORT_ENUM;
+                        expr->type.index = s.index;
+                        return (RhinoType){SORT_ENUM, s.index};
+                        break;
+
+                    case STRUCT_TYPE_SYMBOL:
+                        expr->kind = TYPE_REFERENCE;
+                        expr->type.sort = SORT_STRUCT;
+                        expr->type.index = s.index;
+                        return (RhinoType){SORT_STRUCT, s.index};
+                        break;
+
+                    default:
+                        fatal_error("Could not resolve IDENTITY_LITERAL that mapped to %s symbol inside of struct type.", symbol_tag_string(s.tag));
+                    }
+                }
+
+                if (current_table->next == 0)
+                    break;
+
+                current_table = get_symbol_table(apm->symbol_table, current_table->next);
+            }
+
+            raise_compilation_error(c, TYPE_DOES_NOT_EXIST, expr->span);
+            return (RhinoType){ERROR_SORT, 0};
+        }
+    }
+
+    raise_compilation_error(c, TYPE_IS_INVALID, expr->span);
+    return (RhinoType){ERROR_SORT, 0};
 }
 
 void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table, RhinoType type_hint)
