@@ -9,4 +9,3 @@ fn main() {
 
 // ERRORS
 // TYPE_DOES_NOT_EXIST:6:5
-// IDENTITY_DOES_NOT_EXIST:6:15
