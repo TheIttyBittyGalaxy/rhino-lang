@@ -379,6 +379,15 @@ void resolve_identities_in_declaration_block(Compiler *c, Program *apm, size_t b
             resolve_identities_in_function(c, apm, stmt->function, symbol_table);
         else if (stmt->kind == STRUCT_TYPE_DECLARATION)
             resolve_identities_in_struct_type(c, apm, stmt->function, symbol_table);
+        else if (stmt->kind == VARIABLE_DECLARATION)
+        {
+            // TODO: This is copy/pasted and modified from resolve_identities_in_code_block.
+            //       Find an effective way to tidy.
+            if (stmt->has_initial_value)
+                resolve_identities_in_expression(c, apm, stmt->initial_value, symbol_table);
+            if (stmt->has_type_expression)
+                resolve_identities_in_expression(c, apm, stmt->type_expression, symbol_table);
+        }
 
         n = get_next_statement_in_block(apm, block, n);
     }
@@ -754,6 +763,32 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_
             resolve_types_in_function(c, apm, stmt->function, symbol_table);
         if (stmt->kind == STRUCT_TYPE_DECLARATION)
             resolve_types_in_struct_type(c, apm, stmt->struct_type, symbol_table);
+        if (stmt->kind == VARIABLE_DECLARATION)
+        {
+            // TODO: This is copy/pasted and modified from resolve_types_in_code_block.
+            //       Find an effective way to tidy.
+
+            Variable *var = get_variable(apm->variable, stmt->variable);
+            var->type.sort = INVALID_SORT;
+
+            if (stmt->has_type_expression)
+            {
+                var->type = resolve_type_expression(c, apm, stmt->type_expression, symbol_table);
+
+                if (stmt->has_initial_value)
+                    resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table, var->type);
+            }
+            else if (stmt->has_initial_value)
+            {
+                resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table, (RhinoType){SORT_NONE});
+                var->type = get_expression_type(apm, c->source_text, stmt->initial_value);
+            }
+            else
+            {
+                // TODO: What should happen if we find am inferred variable
+                //       declaration that was defined without an initial value?
+            }
+        }
 
         n = get_next_statement_in_block(apm, block, n);
     }

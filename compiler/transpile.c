@@ -722,6 +722,22 @@ void transpile_program(Transpiler *t, Program *apm)
     }
     EMIT_NEWLINE();
 
+    // Global variables
+    {
+        Statement *program_block = get_statement(apm->statement, apm->program_block);
+        size_t i = get_first_statement_in_block(apm, program_block);
+        while (i < program_block->statements.count)
+        {
+            size_t n = program_block->statements.first + i;
+            Statement *declaration = get_statement(apm->statement, n);
+
+            if (declaration->kind == VARIABLE_DECLARATION)
+                transpile_statement(t, apm, n);
+
+            i = get_next_statement_in_block(apm, program_block, i);
+        }
+    }
+
     // Forward function declarations
     for (size_t i = 0; i < apm->function.count; i++)
     {

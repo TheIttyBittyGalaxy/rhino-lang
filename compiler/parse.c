@@ -27,7 +27,7 @@ void parse_function(Compiler *c, Program *apm, size_t symbol_table);
 void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table);
 void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table);
 
-size_t parse_declaration_block(Compiler *c, Program *apm, size_t symbol_table);
+size_t parse_top_level_declarations(Compiler *c, Program *apm, size_t symbol_table);
 size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table);
 size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table);
 size_t parse_expression(Compiler *c, Program *apm);
@@ -187,7 +187,7 @@ void parse_program(Compiler *c, Program *apm)
     SYMBOL_TABLE(apm->global_symbol_table)->symbol_count = 0;
 
     // Parse top-level of program
-    apm->program_block = parse_declaration_block(c, apm, apm->global_symbol_table);
+    apm->program_block = parse_top_level_declarations(c, apm, apm->global_symbol_table);
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
@@ -684,7 +684,7 @@ recover:
     return stmt;
 }
 
-size_t parse_declaration_block(Compiler *c, Program *apm, size_t symbol_table)
+size_t parse_top_level_declarations(Compiler *c, Program *apm, size_t symbol_table)
 {
     size_t block_symbol_table = add_symbol_table(&apm->symbol_table);
     init_symbol_table(SYMBOL_TABLE(block_symbol_table));
@@ -702,10 +702,93 @@ size_t parse_declaration_block(Compiler *c, Program *apm, size_t symbol_table)
 
         else if (PEEK(KEYWORD_FN))
             parse_function(c, apm, apm->global_symbol_table);
+
         else if (PEEK(KEYWORD_ENUM))
             parse_enum_type(c, apm, apm->global_symbol_table);
+
         else if (PEEK(KEYWORD_STRUCT))
             parse_struct_type(c, apm, apm->global_symbol_table);
+
+        else if (PEEK(KEYWORD_DEF))
+        {
+            // TODO: This is mostly copy/pasted from parse_statement, though with
+            //       some modifications. Find an effective way to clean up?
+
+            size_t stmt = add_statement(&apm->statement);
+            START_SPAN(STATEMENT(stmt));
+
+            size_t var = add_variable(&apm->variable);
+            VARIABLE(var)->type.sort = INVALID_SORT;
+
+            STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
+            STATEMENT(stmt)->variable = var;
+            STATEMENT(stmt)->has_initial_value = false;
+            STATEMENT(stmt)->has_type_expression = false;
+
+            EAT(KEYWORD_DEF);
+
+            substr identity = TOKEN_STRING();
+            VARIABLE(var)->identity = identity;
+            EAT(IDENTITY);
+
+            append_symbol(apm, symbol_table, VARIABLE_SYMBOL, var, identity);
+
+            if (PEEK(EQUAL))
+            {
+                EAT(EQUAL);
+
+                size_t initial_value = parse_expression(c, apm);
+                STATEMENT(stmt)->initial_value = initial_value;
+                if (c->parse_status == PANIC)
+                {
+                    while (c->parse_status == PANIC)
+                    {
+                        if (PEEK(END_OF_FILE))
+                        {
+                            c->parse_status = RECOVERED;
+                        }
+
+                        else if (PEEK(SEMI_COLON))
+                        {
+                            ADVANCE();
+                            c->parse_status = OKAY;
+                        }
+
+                        // TODO: If we stored where newlines appears in the program, something like this would allow for better recovery
+                        // else if (peek_newline) {
+                        //     c->parse_status = RECOVERED;
+                        // }
+
+                        else if (PEEK(CURLY_R))
+                        {
+                            ADVANCE();
+                            c->parse_status = OKAY;
+                        }
+
+                        else if (PEEK(CURLY_L))
+                        {
+                            ADVANCE();
+                            c->parse_status = RECOVERED;
+                        }
+
+                        else
+                        {
+                            ADVANCE();
+                        }
+                    }
+
+                    continue;
+                }
+
+                STATEMENT(stmt)->has_initial_value = true;
+            }
+            else
+            {
+                // TODO: Error
+            }
+
+            EAT(SEMI_COLON);
+        }
 
         else
         {
