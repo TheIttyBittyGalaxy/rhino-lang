@@ -1,0 +1,12 @@
+struct Foo {
+    enum Bar { BAZ }
+}
+
+fn main() {
+    int.NotAllowed thing1;
+    Foo.Bar.NotAllowed thing2;
+}
+
+// ERRORS
+// TYPE_IS_INVALID:6:5
+// TYPE_IS_INVALID:7:5

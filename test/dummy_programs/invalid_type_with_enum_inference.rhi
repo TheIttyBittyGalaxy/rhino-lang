@@ -1,0 +1,8 @@
+enum Suit { DIAMONDS , HEARTS , SPADES , CLUBS }
+
+fn main() {
+    OppsITypoedSuit suit = DIAMONDS; // This should not give a `IDENTITY_DOES_NOT_EXIST` error, because we are already giving a `TYPE_DOES_NOT_EXIST` error.
+}
+
+// ERRORS
+// TYPE_DOES_NOT_EXIST:4:5
