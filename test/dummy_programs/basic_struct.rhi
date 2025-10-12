@@ -7,3 +7,6 @@ fn main() {
     t.value = 2;
     > t.value;
 }
+
+// SUCCESS
+// 2

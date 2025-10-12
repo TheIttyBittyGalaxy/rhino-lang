@@ -7,3 +7,6 @@ fn main() {
     t.value = "hiiii :D";
     > t.value;
 }
+
+// SUCCESS
+// hiiii :D
