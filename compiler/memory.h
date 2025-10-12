@@ -8,9 +8,18 @@ void *allocate_bucket();
 // FIXME: I'm not confident that this formula correctly accounts for alignment?
 #define ITEMS_PER_BUCKET(T) (BUCKET_SIZE - sizeof(size_t) - sizeof(void *)) / sizeof(T)
 
-#define DECLARE_ALLOCATOR(T, snake_name)  \
-    void init_##snake_name##_allocator(); \
-    T *new_##snake_name();
+#define DECLARE_ALLOCATOR(T, snake_name)         \
+    void init_##snake_name##_allocator();        \
+    T *new_##snake_name();                       \
+                                                 \
+    typedef struct                               \
+    {                                            \
+        size_t index;                            \
+        void *bucket;                            \
+    } T##Iterator;                               \
+                                                 \
+    T##Iterator begin_##snake_name##_iterator(); \
+    T *advance_##snake_name##_iterator(T##Iterator *it);
 
 #define DEFINE_ALLOCATOR(T, snake_name)                                                \
     typedef struct T##Bucket T##Bucket;                                                \
@@ -48,6 +57,31 @@ void *allocate_bucket();
         }                                                                              \
                                                                                        \
         return &next_##snake_name##_bucket->item[next_##snake_name##_bucket->count++]; \
+    }                                                                                  \
+                                                                                       \
+    T##Iterator begin_##snake_name##_iterator()                                        \
+    {                                                                                  \
+        return {                                                                       \
+            .index = 0,                                                                \
+            .bucket = (void *)first_##snake_name##_bucket,                             \
+        };                                                                             \
+    }                                                                                  \
+                                                                                       \
+    T *advance_##snake_name##_iterator(T##Iterator *it)                                \
+    {                                                                                  \
+        if (it->bucket == NULL)                                                        \
+            return NULL;                                                               \
+                                                                                       \
+        T##Bucket *bucket = (T##Bucket *)(it->bucket);                                 \
+        if (it->index == bucket->count)                                                \
+        {                                                                              \
+            it->bucket = (void *)bucket->next;                                         \
+            it->index = 0;                                                             \
+            if (it->bucket == NULL)                                                    \
+                return NULL;                                                           \
+        }                                                                              \
+                                                                                       \
+        return &((T##Bucket *)it->bucket)->item[it->index++];                          \
     }
 
 #endif

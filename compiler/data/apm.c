@@ -104,18 +104,18 @@ void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, Symbo
 
 void dump_apm(Program *apm, const char *source_text)
 {
-    // TODO: Reimplement dumping all functions
-    /*
     printf("FUNCTIONS\n");
-    for (size_t i = 0; i < apm->function.count; i++)
+    Function *funct;
+    size_t funct_i = 0;
+    for (
+        FunctionIterator it = begin_function_iterator();
+        funct = advance_function_iterator(&it); funct_i++)
     {
-        Function *funct = get_function(apm->function, i);
-        printf("%02d\t%03d %02d\t", i, funct->span.pos, funct->span.len);
+        printf("%02d\t%03d %02d\t", funct_i, funct->span.pos, funct->span.len);
         printf_substr(source_text, funct->identity);
         printf("\tbody %02d\n", funct->body);
     }
     printf("\n");
-    */
 
     printf("STATEMENTS\n");
     for (size_t i = 0; i < apm->statement.count; i++)
@@ -152,13 +152,14 @@ void dump_apm(Program *apm, const char *source_text)
     }
     printf("\n");
 
-    // TODO: Reimplement dumping all expressions
-    /*
     printf("EXPRESSIONS\n");
-    for (size_t i = 0; i < apm->expression.count; i++)
+    Expression *expr;
+    size_t expr_i = 0;
+    for (
+        ExpressionIterator it = begin_expression_iterator();
+        expr = advance_expression_iterator(&it); expr_i++)
     {
-        Expression *expr = get_expression(apm->expression, i);
-        printf("%02d\t%03d %02d\t%s\t", i, expr->span.pos, expr->span.len, expression_kind_string(expr->kind));
+        printf("%02d\t%03d %02d\t%s\t", expr_i, expr->span.pos, expr->span.len, expression_kind_string(expr->kind));
         switch (expr->kind)
         {
         case IDENTITY_LITERAL:
@@ -214,34 +215,33 @@ void dump_apm(Program *apm, const char *source_text)
         printf("\n");
     }
     printf("\n");
-    */
 
-    // TODO: Reimplement dumping all variables
-    /*
     printf("VARIABLES\n");
-    for (size_t i = 0; i < apm->variable.count; i++)
+    Variable *var;
+    size_t var_i = 0;
+    for (
+        VariableIterator it = begin_variable_iterator();
+        var = advance_variable_iterator(&it); var_i++)
     {
-        Variable *var = get_variable(apm->variable, i);
-        printf("%02d\t", i);
+        printf("%02d\t", var_i);
         printf_substr(source_text, var->identity);
         printf("\t%s\n", rhino_type_string(apm, var->type));
     }
     printf("\n");
-    */
 
-    // TODO: Reimplement dumping all types
-    /*
     printf("ENUM TYPES\n");
-    for (size_t i = 0; i < apm->enum_type.count; i++)
+    EnumType *enum_type;
+    size_t enum_type_i = 0;
+    for (
+        EnumTypeIterator it = begin_enum_type_iterator();
+        enum_type = advance_enum_type_iterator(&it); enum_type_i++)
     {
-        EnumType *enum_type = get_enum_type(apm->enum_type, i);
-        printf("%02d\t", i);
+        printf("%02d\t", enum_type_i);
         printf_substr(source_text, enum_type->identity);
         printf("\tfirst %02d\tlast %02d", enum_type->values.first, enum_type->values.first + enum_type->values.count - 1);
         printf("\n");
     }
     printf("\n");
-    */
 
     printf("ENUM VALUES\n");
     for (size_t i = 0; i < apm->enum_value.count; i++)
@@ -253,19 +253,19 @@ void dump_apm(Program *apm, const char *source_text)
     }
     printf("\n");
 
-    // TODO: Reimplement dumping all types
-    /*
     printf("STRUCT TYPES\n");
-    for (size_t i = 0; i < apm->struct_type.count; i++)
+    StructType *struct_type;
+    size_t struct_type_i = 0;
+    for (
+        StructTypeIterator it = begin_struct_type_iterator();
+        struct_type = advance_struct_type_iterator(&it); struct_type_i++)
     {
-        StructType *struct_type = get_struct_type(apm->struct_type, i);
-        printf("%02d\t", i);
+        printf("%02d\t", struct_type_i);
         printf_substr(source_text, struct_type->identity);
         printf("\tfirst %02d\tlast %02d", struct_type->properties.first, struct_type->properties.first + struct_type->properties.count - 1);
         printf("\n");
     }
     printf("\n");
-    */
 
     printf("PROPERTIES\n");
     for (size_t i = 0; i < apm->property.count; i++)
