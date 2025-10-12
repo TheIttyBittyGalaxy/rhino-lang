@@ -128,6 +128,7 @@ void dump_apm(Program *apm, const char *source_text)
         printf("%02d\t%03d %02d\t%-21s\t", i, stmt->span.pos, stmt->span.len, statement_kind_string(stmt->kind));
         switch (stmt->kind)
         {
+        case DECLARATION_BLOCK:
         case CODE_BLOCK:
         case SINGLE_BLOCK:
             printf("first %02d\tlast %02d\tsymbol table %02d", stmt->statements.first, stmt->statements.first + stmt->statements.count - 1, stmt->symbol_table);
@@ -322,6 +323,12 @@ size_t get_next_statement_in_block(Program *apm, Statement *code_block, size_t n
     {
         Function *funct = get_function(apm->function, child->function);
         return n + get_statement(apm->statement, funct->body)->statements.count + 1;
+    }
+
+    case STRUCT_TYPE_DECLARATION:
+    {
+        StructType *struct_type = get_struct_type(apm->struct_type, child->struct_type);
+        return n + get_statement(apm->statement, struct_type->declarations)->statements.count + 1;
     }
     }
 

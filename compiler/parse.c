@@ -315,7 +315,6 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
     START_SPAN(STRUCT_TYPE(struct_type));
 
     EAT(KEYWORD_STRUCT);
-
     substr identity = TOKEN_STRING();
     STRUCT_TYPE(struct_type)->identity = identity;
     EAT(IDENTITY);
@@ -323,38 +322,69 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
     // TODO: Handle this scenario correctly
     assert(c->parse_status == OKAY);
 
+    size_t declarations_symbol_table = add_symbol_table(&apm->symbol_table);
+    init_symbol_table(SYMBOL_TABLE(declarations_symbol_table));
+
+    size_t declarations = add_statement(&apm->statement);
+    STATEMENT(declarations)->kind = DECLARATION_BLOCK;
+    STATEMENT(declarations)->symbol_table = declarations_symbol_table;
+    START_SPAN(STATEMENT(declarations));
+
+    size_t first_statement = apm->statement.count;
+    STRUCT_TYPE(struct_type)->declarations = declarations;
+
     size_t first_property = apm->property.count;
     STRUCT_TYPE(struct_type)->properties.first = first_property;
 
     EAT(CURLY_L);
     while (!PEEK(CURLY_R))
     {
-        if (!peek_expression(c))
+        if (peek_expression(c))
+        {
+
+            size_t property = add_property(&apm->property);
+            START_SPAN(PROPERTY(property));
+
+            size_t type_expression = parse_expression(c, apm);
+            PROPERTY(property)->type_expression = type_expression;
+
+            substr identity = TOKEN_STRING();
+            PROPERTY(property)->identity = identity;
+            EAT(IDENTITY);
+
+            END_SPAN(PROPERTY(property));
+
+            EAT(SEMI_COLON);
+        }
+        else if (PEEK(KEYWORD_ENUM))
+        {
+            parse_enum_type(c, apm, declarations_symbol_table);
+        }
+        else if (PEEK(KEYWORD_STRUCT))
+        {
+            parse_struct_type(c, apm, declarations_symbol_table);
+        }
+        else
         {
             raise_parse_error(c, EXPECTED_TYPE_EXPRESSION);
             c->parse_status = PANIC;
             // TODO: Recover to end of line
             break;
         }
-
-        size_t property = add_property(&apm->property);
-        START_SPAN(PROPERTY(property));
-
-        size_t type_expression = parse_expression(c, apm);
-        PROPERTY(property)->type_expression = type_expression;
-
-        substr identity = TOKEN_STRING();
-        PROPERTY(property)->identity = identity;
-        EAT(IDENTITY);
-
-        END_SPAN(PROPERTY(property));
-
-        EAT(SEMI_COLON);
     }
     EAT(CURLY_R);
 
     size_t property_count = apm->property.count - first_property;
     STRUCT_TYPE(struct_type)->properties.count = property_count;
+
+    STATEMENT(declarations)->statements.first = first_statement;
+    STATEMENT(declarations)->statements.count = apm->statement.count - first_statement;
+    END_SPAN(STATEMENT(declarations));
+
+    size_t last_table = declarations_symbol_table;
+    while (SYMBOL_TABLE(last_table)->next)
+        last_table = SYMBOL_TABLE(last_table)->next;
+    SYMBOL_TABLE(last_table)->next = symbol_table;
 
     END_SPAN(STRUCT_TYPE(struct_type));
     append_symbol(apm, symbol_table, STRUCT_TYPE_SYMBOL, struct_type, identity);
@@ -748,7 +778,6 @@ size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table)
         size_t block_symbol_table = add_symbol_table(&apm->symbol_table);
         SYMBOL_TABLE(block_symbol_table)->next = 0;
         SYMBOL_TABLE(block_symbol_table)->symbol_count = 0;
-
         STATEMENT(code_block)->symbol_table = block_symbol_table;
 
         while (true)
@@ -765,13 +794,10 @@ size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table)
                 break;
         }
 
-        {
-            size_t last_table = block_symbol_table;
-            while (SYMBOL_TABLE(last_table)->next)
-                last_table = SYMBOL_TABLE(last_table)->next;
-
-            SYMBOL_TABLE(last_table)->next = symbol_table;
-        }
+        size_t last_table = block_symbol_table;
+        while (SYMBOL_TABLE(last_table)->next)
+            last_table = SYMBOL_TABLE(last_table)->next;
+        SYMBOL_TABLE(last_table)->next = symbol_table;
 
         EAT(CURLY_R);
         recover_from_panic(c);

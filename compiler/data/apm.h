@@ -71,6 +71,7 @@ typedef struct
     substr span;
     substr identity;
     PropertySlice properties;
+    size_t declarations; // DECLARATION_BLOCK
 } StructType;
 
 DECLARE_LIST_TYPE(StructType, struct_type)

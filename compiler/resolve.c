@@ -349,11 +349,13 @@ void resolve_identities_in_function(Compiler *c, Program *apm, size_t funct_inde
 void resolve_identities_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table)
 {
     StructType *struct_type = get_struct_type(apm->struct_type, struct_type_index);
+    Statement *declarations = get_statement(apm->statement, struct_type->declarations);
+    SymbolTable *declarations_symbol_table = get_symbol_table(apm->symbol_table, declarations->symbol_table);
 
     for (size_t i = 0; i < struct_type->properties.count; i++)
     {
         Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
-        resolve_identities_in_expression(c, apm, property->type_expression, symbol_table);
+        resolve_identities_in_expression(c, apm, property->type_expression, declarations_symbol_table);
     }
 }
 
@@ -674,11 +676,13 @@ void resolve_types_in_function(Compiler *c, Program *apm, size_t funct_index, Sy
 void resolve_types_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table)
 {
     StructType *struct_type = get_struct_type(apm->struct_type, struct_type_index);
+    Statement *declarations = get_statement(apm->statement, struct_type->declarations);
+    SymbolTable *declarations_symbol_table = get_symbol_table(apm->symbol_table, declarations->symbol_table);
 
     for (size_t i = 0; i < struct_type->properties.count; i++)
     {
         Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
-        property->type = resolve_type_expression(c, apm, property->type_expression, symbol_table);
+        property->type = resolve_type_expression(c, apm, property->type_expression, declarations_symbol_table);
     }
 }
 

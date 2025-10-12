@@ -571,10 +571,21 @@ void PRINT_STRUCT_TYPE(Program *apm, size_t struct_type_index, const char *sourc
 
     PRINT("STRUCT ");
     PRINT_SUBSTR(struct_type->identity);
+    INDENT();
+
+    Statement *declarations = get_statement(apm->statement, struct_type->declarations);
+    if (declarations->statements.count > 0)
+    {
+        NEWLINE();
+        PRINT("DECLARATIONS")
+        INDENT();
+        NEWLINE();
+        PRINT_STATEMENT(apm, struct_type->declarations, source_text);
+        UNINDENT();
+    }
 
     if (struct_type->properties.count > 0)
     {
-        INDENT();
         NEWLINE();
         size_t last = struct_type->properties.first + struct_type->properties.count - 1;
         for (size_t n = struct_type->properties.first; n <= last; n++)
@@ -587,8 +598,9 @@ void PRINT_STRUCT_TYPE(Program *apm, size_t struct_type_index, const char *sourc
             PRINT_SUBSTR(property->identity);
             NEWLINE();
         }
-        UNINDENT();
     }
+
+    UNINDENT();
     NEWLINE();
 }
 
