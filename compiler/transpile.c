@@ -192,6 +192,18 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType rhino_type)
         break;
     }
 
+    // FIXME: This is a bodge job just to get things working for now.
+    //        The language semantics prohibit a default value for enums.
+    //        (Though, none is the default of noneable enums).
+    case SORT_ENUM:
+    {
+        EnumType *enum_type = get_enum_type(apm->enum_type, rhino_type.index);
+        EMIT("(");
+        EMIT_SUBSTR(enum_type->identity);
+        EMIT(")0");
+        break;
+    }
+
     default:
         fatal_error("Could not transpile default value for value of type %s.", rhino_type_string(apm, rhino_type));
     }
