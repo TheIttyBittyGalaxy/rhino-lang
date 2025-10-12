@@ -157,7 +157,7 @@ CommandResult run_rhino_compiler_cmd(Results *result, size_t active_path_len)
         return COULD_NOT_RUN_COMMAND;
 
     // Determine the outcome
-    char buffer[1024];
+    char buffer[2048];
     if (fgets(buffer, sizeof(buffer), stream) != NULL)
     {
         if (buffer[0] == 'S')
@@ -325,7 +325,7 @@ void test_program_at_active_path(size_t active_path_len)
 
     if (!test_passed)
     {
-        Page *error_info = create_page(1024);
+        Page *error_info = create_page(4096);
         current_page->next_page = error_info;
         current_page = error_info;
 
