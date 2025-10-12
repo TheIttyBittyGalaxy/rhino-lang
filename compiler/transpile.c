@@ -17,7 +17,7 @@ typedef struct
 // FORWARD DECLARATIONS //
 
 void transpile_type(Transpiler *t, Program *apm, RhinoType rhino_type);
-void transpile_expression(Transpiler *t, Program *apm, size_t expr_index);
+void transpile_expression(Transpiler *t, Program *apm, Expression *expr);
 void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index);
 void transpile_function(Transpiler *t, Program *apm, size_t funct_index);
 void transpile_program(Transpiler *t, Program *apm);
@@ -209,10 +209,8 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType rhino_type)
     }
 }
 
-void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
+void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
 {
-    Expression *expr = get_expression(apm->expression, expr_index);
-
     switch (expr->kind)
     {
     case IDENTITY_LITERAL:
@@ -265,7 +263,7 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
 
     case FUNCTION_CALL:
     {
-        Expression *reference = get_expression(apm->expression, expr->callee);
+        Expression *reference = expr->callee;
         Function *callee = get_function(apm->function, reference->function);
         EMIT_SUBSTR(callee->identity);
         EMIT("(");
@@ -406,7 +404,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
     case FOR_LOOP:
     {
         Variable *iterator = get_variable(apm->variable, stmt->iterator);
-        Expression *iterable = get_expression(apm->expression, stmt->iterable);
+        Expression *iterable = stmt->iterable;
 
         if (iterable->kind == RANGE_LITERAL)
         {
@@ -493,8 +491,8 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
     case OUTPUT_STATEMENT:
     {
-        size_t expr_index = stmt->expression;
-        RhinoType expr_type = get_expression_type(apm, t->source_text, expr_index);
+        Expression *expr = stmt->expression;
+        RhinoType expr_type = get_expression_type(apm, t->source_text, expr);
 
         switch (expr_type.sort)
         {
@@ -502,15 +500,13 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         case SORT_BOOL:
         {
             EMIT_ESCAPED("printf(\"%s\\n\", (");
-            transpile_expression(t, apm, expr_index);
+            transpile_expression(t, apm, expr);
             EMIT_LINE(") ? \"true\" : \"false\");");
             break;
         }
 
         case SORT_STR:
         {
-            Expression *expr = get_expression(apm->expression, expr_index);
-
             if (expr->kind == STRING_LITERAL)
             {
                 EMIT("printf(\"");
@@ -520,7 +516,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
             else
             {
                 EMIT_ESCAPED("printf(\"%s\\n\", ");
-                transpile_expression(t, apm, expr_index);
+                transpile_expression(t, apm, expr);
                 EMIT_LINE(");");
             }
             break;
@@ -529,7 +525,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         case SORT_INT:
         {
             EMIT_ESCAPED("printf(\"%d\\n\", ");
-            transpile_expression(t, apm, expr_index);
+            transpile_expression(t, apm, expr);
             EMIT_LINE(");");
             break;
         }
@@ -539,7 +535,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
             EMIT_OPEN_BRACE();
 
             EMIT("float_to_str(");
-            transpile_expression(t, apm, expr_index);
+            transpile_expression(t, apm, expr);
             EMIT_LINE(");");
 
             EMIT_ESCAPED("printf(\"%s\\n\", __to_str_buffer);");
@@ -555,7 +551,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
             EMIT_ESCAPED("printf(\"%s\\n\", string_of_");
             EMIT_SUBSTR(enum_type->identity);
             EMIT("(");
-            transpile_expression(t, apm, expr_index);
+            transpile_expression(t, apm, expr);
             EMIT_LINE("));");
             break;
         }

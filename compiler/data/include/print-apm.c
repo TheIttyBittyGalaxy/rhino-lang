@@ -98,7 +98,7 @@ enum LineStatus
 // FORWARD DECLARATIONS //
 
 void PRINT_VARIABLE(Program *apm, size_t var_index, const char *source_text);
-void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text);
+void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text);
 void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text);
 void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text);
 void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_text);
@@ -117,10 +117,8 @@ void PRINT_VARIABLE(Program *apm, size_t var_index, const char *source_text)
 
 // PRINT EXPRESSION //
 
-void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
+void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text)
 {
-    Expression *expr = get_expression(apm->expression, expr_index);
-
     switch (expr->kind)
     {
     case INVALID_EXPRESSION:

@@ -3,8 +3,13 @@
 
 #include "list.h"
 #include "macro.h"
+#include "../memory.h"
 #include "substr.h"
 #include <stdbool.h>
+
+// Forward Declarations
+
+typedef struct Expression Expression;
 
 // Types
 #define LIST_RHINO_SORTS(MACRO) \
@@ -57,7 +62,7 @@ typedef struct
 {
     substr span;
     substr identity;
-    size_t type_expression;
+    Expression *type_expression;
     RhinoType type;
 } Property;
 
@@ -125,7 +130,7 @@ DECLARE_SLICE_TYPE(Argument, argument)
 
 typedef struct
 {
-    size_t expr;
+    Expression *expr;
 } Argument;
 
 DECLARE_LIST_TYPE(Argument, argument)
@@ -190,9 +195,7 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
 
 DECLARE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 
-DECLARE_SLICE_TYPE(Expression, expression)
-
-typedef struct
+struct Expression
 {
     ExpressionKind kind;
     substr span;
@@ -241,32 +244,32 @@ typedef struct
         };
         struct // FUNCTION_CALL
         {
-            size_t callee; // Expression
+            Expression *callee;
             ArgumentSlice arguments;
         };
         struct // INDEX_BY_FIELD
         {
-            size_t subject; // Expression
+            Expression *subject;
             substr field;
         };
         struct // RANGE
         {
-            size_t first; // Expression
-            size_t last;  // Expression
+            Expression *first;
+            Expression *last;
         };
         struct // UNARY_*
         {
-            size_t operand; // Expression
+            Expression *operand;
         };
         struct // BINARY_*
         {
-            size_t lhs; // Expression
-            size_t rhs; // Expression
+            Expression *lhs;
+            Expression *rhs;
         };
     };
-} Expression;
+};
 
-DECLARE_LIST_TYPE(Expression, expression)
+DECLARE_ALLOCATOR(Expression, expression)
 
 // Statement
 #define LIST_STATEMENTS(MACRO)     \
@@ -307,9 +310,9 @@ typedef struct
     {
         struct // VARIABLE_DECLARATION
         {
-            size_t variable;        // Variable
-            size_t initial_value;   // Expression
-            size_t type_expression; // Expression
+            size_t variable; // Variable
+            Expression *initial_value;
+            Expression *type_expression;
             bool has_type_expression;
             bool has_initial_value;
         };
@@ -332,8 +335,8 @@ typedef struct
         };
         struct // IF_SEGMENT / ELSE_IF_SEGMENT / ELSE_SEGMENT
         {
-            size_t body;      // Statement
-            size_t condition; // Expression
+            size_t body; // Statement
+            Expression *condition;
         };
         struct // BREAK_LOOP
         {
@@ -343,16 +346,16 @@ typedef struct
         {
             size_t __for_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
             size_t iterator;   // Variable
-            size_t iterable;   // Expression
+            Expression *iterable;
         };
         struct // ASSIGNMENT_STATEMENT
         {
-            size_t assignment_lhs; // Expression
-            size_t assignment_rhs; // Expression
+            Expression *assignment_lhs;
+            Expression *assignment_rhs;
         };
         struct // OUTPUT_STATEMENT / EXPRESSION_STMT / RETURN_STATEMENT
         {
-            size_t expression; // Expression
+            Expression *expression;
         };
     };
 } Statement;
@@ -366,7 +369,7 @@ typedef struct
 {
     substr span;
     substr identity;
-    size_t type_expression;
+    Expression *type_expression;
     RhinoType type;
 } Parameter;
 
@@ -381,7 +384,7 @@ typedef struct
     substr identity;
     size_t body; // Statement
 
-    size_t return_type_expression; // Expression
+    Expression *return_type_expression;
     bool has_return_type_expression;
     RhinoType return_type;
 
@@ -398,7 +401,6 @@ typedef struct
     ArgumentList argument;
 
     StatementList statement;
-    ExpressionList expression;
     VariableList variable;
 
     EnumTypeList enum_type;
@@ -431,7 +433,7 @@ size_t get_first_statement_in_block(Program *apm, Statement *code_block);
 size_t get_last_statement_in_block(Program *apm, Statement *code_block);
 
 // Type analysis methods
-RhinoType get_expression_type(Program *apm, const char *source_text, size_t expr_index);
+RhinoType get_expression_type(Program *apm, const char *source_text, Expression *expr);
 size_t get_enum_type_of_enum_value(Program *apm, size_t enum_value_index);
 bool are_types_equal(RhinoType a, RhinoType b);
 bool allow_assign_a_to_b(RhinoType a, RhinoType b);

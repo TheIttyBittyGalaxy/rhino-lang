@@ -25,16 +25,14 @@ void determine_main_function(Compiler *c, Program *apm)
 // This is the first pass for resolving literals.
 // Other identity literals may be resolved in later passes.
 
-void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table);
+void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table);
 void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_index);
 void resolve_identities_in_function(Compiler *c, Program *apm, size_t funct_index, SymbolTable *symbol_table);
 void resolve_identities_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table);
 void resolve_identities_in_declaration_block(Compiler *c, Program *apm, size_t block_index);
 
-void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table)
+void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table)
 {
-    Expression *expr = get_expression(apm->expression, expr_index);
-
     switch (expr->kind)
     {
     case INVALID_EXPRESSION:
@@ -142,7 +140,7 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_ind
     {
         resolve_identities_in_expression(c, apm, expr->callee, symbol_table);
 
-        Expression *callee = get_expression(apm->expression, expr->callee);
+        Expression *callee = expr->callee;
         if (callee->kind == IDENTITY_LITERAL)
         {
             raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, callee->span);
@@ -395,17 +393,15 @@ void resolve_identities_in_declaration_block(Compiler *c, Program *apm, size_t b
 
 // RESOLVE TYPES //
 
-RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table);
-void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table);
+RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table);
+void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table);
 void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index);
 void resolve_types_in_function(Compiler *c, Program *apm, size_t funct_index, SymbolTable *symbol_table);
 void resolve_types_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table);
 void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_index);
 
-RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table)
+RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table)
 {
-    Expression *expr = get_expression(apm->expression, expr_index);
-
     if (expr->kind == TYPE_REFERENCE)
         return expr->type;
 
@@ -474,10 +470,8 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, 
     return (RhinoType){ERROR_SORT, 0};
 }
 
-void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table, RhinoType type_hint)
+void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table, RhinoType type_hint)
 {
-    Expression *expr = get_expression(apm->expression, expr_index);
-
     switch (expr->kind)
     {
     case INVALID_EXPRESSION:
@@ -534,7 +528,7 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
         resolve_types_in_expression(c, apm, expr->subject, symbol_table, (RhinoType){SORT_NONE});
 
         // Resolve enum values
-        Expression *subject = get_expression(apm->expression, expr->subject);
+        Expression *subject = expr->subject;
         if (subject->kind != TYPE_REFERENCE)
             return;
 
@@ -671,7 +665,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
             resolve_types_in_expression(c, apm, stmt->iterable, symbol_table, (RhinoType){SORT_NONE});
 
             Variable *iterator = get_variable(apm->variable, stmt->iterator);
-            Expression *iterable = get_expression(apm->expression, stmt->iterable);
+            Expression *iterable = stmt->iterable;
             if (iterable->kind == RANGE_LITERAL)
             {
                 iterator->type.sort = SORT_INT;

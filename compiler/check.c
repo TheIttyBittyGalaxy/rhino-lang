@@ -2,20 +2,6 @@
 #include "fatal_error.h"
 #include <string.h>
 
-// CHECK EXPRESSIONS //
-
-void check_expressions(Compiler *c, Program *apm)
-{
-    for (size_t i = 0; i < apm->expression.count; i++)
-    {
-        Expression *expr = get_expression(apm->expression, i);
-
-        switch (expr->kind)
-        {
-        }
-    }
-}
-
 // CHECK STATEMENTS //
 
 void check_statements(Compiler *c, Program *apm)
@@ -34,7 +20,7 @@ void check_statements(Compiler *c, Program *apm)
             RhinoSort condition_sort = get_expression_type(apm, c->source_text, stmt->condition).sort;
             if (condition_sort != SORT_BOOL && condition_sort != ERROR_SORT)
             {
-                Expression *condition = get_expression(apm->expression, stmt->condition);
+                Expression *condition = stmt->condition;
                 raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, condition->span);
             }
             break;
@@ -74,19 +60,19 @@ void check_statements(Compiler *c, Program *apm)
 
 void check(Compiler *c, Program *apm)
 {
-    check_expressions(c, apm);
     check_statements(c, apm);
 
     // Produce errors for remaining identity literals
-    {
-        for (size_t i = 0; i < apm->expression.count; i++)
-        {
-            Expression *identity_literal = get_expression(apm->expression, i);
-            if (identity_literal->kind == IDENTITY_LITERAL && !identity_literal->given_error)
-            {
-                raise_compilation_error(c, IDENTITY_DOES_NOT_EXIST, identity_literal->span);
-                identity_literal->given_error = true;
-            }
-        }
-    }
+    // TODO: Reimplement this as part of the tree walk
+    // {
+    //     for (size_t i = 0; i < apm->expression.count; i++)
+    //     {
+    //         Expression *identity_literal = get_expression(apm->expression, i);
+    //         if (identity_literal->kind == IDENTITY_LITERAL && !identity_literal->given_error)
+    //         {
+    //             raise_compilation_error(c, IDENTITY_DOES_NOT_EXIST, identity_literal->span);
+    //             identity_literal->given_error = true;
+    //         }
+    //     }
+    // }
 }

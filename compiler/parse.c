@@ -30,7 +30,7 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table);
 size_t parse_top_level_declarations(Compiler *c, Program *apm, size_t symbol_table);
 size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table);
 size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table);
-size_t parse_expression(Compiler *c, Program *apm);
+Expression *parse_expression(Compiler *c, Program *apm);
 
 // MACROS //
 
@@ -48,7 +48,6 @@ size_t parse_expression(Compiler *c, Program *apm);
 #define STRUCT_TYPE(index) get_struct_type(apm->struct_type, index)
 #define PROPERTY(index) get_property(apm->property, index)
 #define STATEMENT(index) get_statement(apm->statement, index)
-#define EXPRESSION(index) get_expression(apm->expression, index)
 #define VARIABLE(index) get_variable(apm->variable, index)
 #define SYMBOL_TABLE(index) get_symbol_table(apm->symbol_table, index)
 
@@ -219,7 +218,7 @@ void parse_function(Compiler *c, Program *apm, size_t symbol_table)
         size_t parameter = add_parameter(&apm->parameter);
         START_SPAN(PARAMETER(parameter));
 
-        size_t type_expression = parse_expression(c, apm);
+        Expression *type_expression = parse_expression(c, apm);
         PARAMETER(parameter)->type_expression = type_expression;
 
         substr identity = TOKEN_STRING();
@@ -345,7 +344,7 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
             size_t property = add_property(&apm->property);
             START_SPAN(PROPERTY(property));
 
-            size_t type_expression = parse_expression(c, apm);
+            Expression *type_expression = parse_expression(c, apm);
             PROPERTY(property)->type_expression = type_expression;
 
             substr identity = TOKEN_STRING();
@@ -411,7 +410,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         STATEMENT(stmt)->kind = IF_SEGMENT;
 
         EAT(KEYWORD_IF);
-        size_t condition = parse_expression(c, apm);
+        Expression *condition = parse_expression(c, apm);
         STATEMENT(stmt)->condition = condition;
 
         attempt_to_recover_at_next_code_block(c);
@@ -434,7 +433,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
 
                 STATEMENT(segment_stmt)->kind = ELSE_IF_SEGMENT;
 
-                size_t condition = parse_expression(c, apm);
+                Expression *condition = parse_expression(c, apm);
                 STATEMENT(segment_stmt)->condition = condition;
 
                 attempt_to_recover_at_next_code_block(c);
@@ -491,7 +490,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
 
         // Iterable
         EAT(KEYWORD_IN);
-        size_t iterable = parse_expression(c, apm);
+        Expression *iterable = parse_expression(c, apm);
         STATEMENT(stmt)->iterable = iterable;
 
         // Body
@@ -535,7 +534,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         {
             EAT(EQUAL);
 
-            size_t initial_value = parse_expression(c, apm);
+            Expression *initial_value = parse_expression(c, apm);
             STATEMENT(stmt)->initial_value = initial_value;
             if (c->parse_status == PANIC)
                 goto recover;
@@ -558,7 +557,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         STATEMENT(stmt)->kind = OUTPUT_STATEMENT;
 
         EAT(ARROW_R);
-        size_t value = parse_expression(c, apm);
+        Expression *value = parse_expression(c, apm);
         STATEMENT(stmt)->expression = value;
         if (c->parse_status == PANIC)
             goto recover;
@@ -573,7 +572,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         STATEMENT(stmt)->kind = RETURN_STATEMENT;
 
         EAT(KEYWORD_RETURN);
-        size_t value = parse_expression(c, apm);
+        Expression *value = parse_expression(c, apm);
         STATEMENT(stmt)->expression = value;
         if (c->parse_status == PANIC)
             goto recover;
@@ -588,7 +587,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         STATEMENT(stmt)->kind = EXPRESSION_STMT;
 
         // EXPRESSION_STMT
-        size_t value = parse_expression(c, apm);
+        Expression *value = parse_expression(c, apm);
         STATEMENT(stmt)->expression = value;
         if (c->parse_status == PANIC)
             goto recover;
@@ -612,7 +611,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
             {
                 EAT(EQUAL);
 
-                size_t initial_value = parse_expression(c, apm);
+                Expression *initial_value = parse_expression(c, apm);
                 STATEMENT(stmt)->initial_value = initial_value;
                 if (c->parse_status == PANIC)
                     goto recover;
@@ -627,7 +626,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
 
             EAT(EQUAL);
 
-            size_t rhs = parse_expression(c, apm);
+            Expression *rhs = parse_expression(c, apm);
             STATEMENT(stmt)->assignment_rhs = rhs;
             if (c->parse_status == PANIC)
                 goto recover;
@@ -737,7 +736,7 @@ size_t parse_top_level_declarations(Compiler *c, Program *apm, size_t symbol_tab
             {
                 EAT(EQUAL);
 
-                size_t initial_value = parse_expression(c, apm);
+                Expression *initial_value = parse_expression(c, apm);
                 STATEMENT(stmt)->initial_value = initial_value;
                 if (c->parse_status == PANIC)
                 {
@@ -894,9 +893,9 @@ size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table)
 }
 
 // NOTE: Can return with status OKAY, RECOVERED, or PANIC
-size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedence caller_precedence);
+Expression *parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedence caller_precedence);
 
-size_t parse_expression(Compiler *c, Program *apm)
+Expression *parse_expression(Compiler *c, Program *apm)
 {
     return parse_expression_with_precedence(c, apm, PRECEDENCE_NONE);
 }
@@ -907,38 +906,38 @@ size_t parse_expression(Compiler *c, Program *apm)
 #define PARSE_BINARY_OPERATION(token_kind, expr_kind)                                                          \
     else if (PEEK(token_kind) && LEFT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(expr_kind), caller_precedence)) \
     {                                                                                                          \
-        EXPRESSION(expr)->kind = expr_kind;                                                                    \
+        expr->kind = expr_kind;                                                                                \
                                                                                                                \
         ADVANCE();                                                                                             \
                                                                                                                \
-        EXPRESSION(expr)->lhs = lhs;                                                                           \
-        size_t rhs = parse_expression_with_precedence(c, apm, precedence_of(expr_kind));                       \
-        EXPRESSION(expr)->rhs = rhs;                                                                           \
+        expr->lhs = lhs;                                                                                       \
+        Expression *rhs = parse_expression_with_precedence(c, apm, precedence_of(expr_kind));                  \
+        expr->rhs = rhs;                                                                                       \
     }
 
-size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedence caller_precedence)
+Expression *parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedence caller_precedence)
 {
-    size_t lhs = add_expression(&apm->expression);
-    START_SPAN(EXPRESSION(lhs));
+    Expression *lhs = new_expression();
+    START_SPAN(lhs);
 
     // Left-hand side of expression
     if (PEEK(IDENTITY))
     {
-        EXPRESSION(lhs)->kind = IDENTITY_LITERAL;
-        EXPRESSION(lhs)->identity = TOKEN_STRING();
-        EXPRESSION(lhs)->given_error = false;
+        lhs->kind = IDENTITY_LITERAL;
+        lhs->identity = TOKEN_STRING();
+        lhs->given_error = false;
         ADVANCE();
     }
     else if (PEEK(KEYWORD_TRUE))
     {
-        EXPRESSION(lhs)->kind = BOOLEAN_LITERAL;
-        EXPRESSION(lhs)->bool_value = true;
+        lhs->kind = BOOLEAN_LITERAL;
+        lhs->bool_value = true;
         ADVANCE();
     }
     else if (PEEK(KEYWORD_FALSE))
     {
-        EXPRESSION(lhs)->kind = BOOLEAN_LITERAL;
-        EXPRESSION(lhs)->bool_value = false;
+        lhs->kind = BOOLEAN_LITERAL;
+        lhs->bool_value = false;
         ADVANCE();
     }
     else if (PEEK(INTEGER))
@@ -949,8 +948,8 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
         for (size_t i = str.pos; i < str.pos + str.len; i++)
             num = num * 10 + (c->source_text[i] - 48);
 
-        EXPRESSION(lhs)->kind = INTEGER_LITERAL;
-        EXPRESSION(lhs)->integer_value = num;
+        lhs->kind = INTEGER_LITERAL;
+        lhs->integer_value = num;
         ADVANCE();
     }
     else if (PEEK(RATIONAL))
@@ -973,8 +972,8 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
             float_part = (float_part + (c->source_text[i] - 48)) / 10;
         }
 
-        EXPRESSION(lhs)->kind = FLOAT_LITERAL;
-        EXPRESSION(lhs)->float_value = int_part + float_part;
+        lhs->kind = FLOAT_LITERAL;
+        lhs->float_value = int_part + float_part;
         ADVANCE();
     }
     else if (PEEK(STRING) || PEEK(BROKEN_STRING))
@@ -983,30 +982,30 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
         str.pos++;
         str.len -= PEEK(STRING) ? 2 : 1;
 
-        EXPRESSION(lhs)->kind = STRING_LITERAL;
-        EXPRESSION(lhs)->string_value = str;
+        lhs->kind = STRING_LITERAL;
+        lhs->string_value = str;
         ADVANCE();
     }
     else if (PEEK(PLUS))
     {
-        EXPRESSION(lhs)->kind = UNARY_POS;
+        lhs->kind = UNARY_POS;
         ADVANCE();
 
-        size_t operand = parse_expression_with_precedence(c, apm, precedence_of(UNARY_POS));
-        EXPRESSION(lhs)->operand = operand;
+        Expression *operand = parse_expression_with_precedence(c, apm, precedence_of(UNARY_POS));
+        lhs->operand = operand;
     }
     else if (PEEK(MINUS))
     {
-        EXPRESSION(lhs)->kind = UNARY_NEG;
+        lhs->kind = UNARY_NEG;
         ADVANCE();
 
-        size_t operand = parse_expression_with_precedence(c, apm, precedence_of(UNARY_NEG));
-        EXPRESSION(lhs)->operand = operand;
+        Expression *operand = parse_expression_with_precedence(c, apm, precedence_of(UNARY_NEG));
+        lhs->operand = operand;
     }
     else
     {
-        EXPRESSION(lhs)->kind = INVALID_EXPRESSION;
-        END_SPAN(EXPRESSION(lhs));
+        lhs->kind = INVALID_EXPRESSION;
+        END_SPAN(lhs);
 
         raise_parse_error(c, EXPECTED_EXPRESSION);
 
@@ -1015,23 +1014,23 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
         return lhs;
     }
 
-    END_SPAN(EXPRESSION(lhs));
+    END_SPAN(lhs);
 
     // Postfix operator OR infix operator and right-hand side expression
     while (true)
     {
         // Open `expr`
-        size_t expr = add_expression(&apm->expression);
-        EXPRESSION(expr)->span.pos = EXPRESSION(lhs)->span.pos;
+        Expression *expr = new_expression();
+        expr->span.pos = lhs->span.pos;
 
         // Function call
         if (PEEK(PAREN_L) && LEFT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(FUNCTION_CALL), caller_precedence))
         {
-            EXPRESSION(expr)->kind = FUNCTION_CALL;
-            EXPRESSION(expr)->callee = lhs;
+            expr->kind = FUNCTION_CALL;
+            expr->callee = lhs;
 
             size_t first_argument = apm->argument.count;
-            EXPRESSION(expr)->arguments.first = first_argument;
+            expr->arguments.first = first_argument;
 
             ADVANCE();
             while (peek_expression(c))
@@ -1047,46 +1046,46 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
             EAT(PAREN_R);
 
             size_t argument_count = apm->argument.count - first_argument;
-            EXPRESSION(expr)->arguments.count = argument_count;
+            expr->arguments.count = argument_count;
         }
 
         // Increment
         else if (PEEK(TWO_PLUS) && RIGHT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(UNARY_INCREMENT), caller_precedence))
         {
-            EXPRESSION(expr)->kind = UNARY_INCREMENT;
-            EXPRESSION(expr)->operand = lhs;
+            expr->kind = UNARY_INCREMENT;
+            expr->operand = lhs;
             ADVANCE();
         }
 
         // Decrement
         else if (PEEK(TWO_MINUS) && RIGHT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(UNARY_DECREMENT), caller_precedence))
         {
-            EXPRESSION(expr)->kind = UNARY_DECREMENT;
-            EXPRESSION(expr)->operand = lhs;
+            expr->kind = UNARY_DECREMENT;
+            expr->operand = lhs;
             ADVANCE();
         }
 
         // Index by field
         else if (PEEK(DOT) && LEFT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(INDEX_BY_FIELD), caller_precedence))
         {
-            EXPRESSION(expr)->kind = INDEX_BY_FIELD;
-            EXPRESSION(expr)->subject = lhs;
+            expr->kind = INDEX_BY_FIELD;
+            expr->subject = lhs;
 
             ADVANCE();
 
-            EXPRESSION(expr)->field = TOKEN_STRING();
+            expr->field = TOKEN_STRING();
             EAT(IDENTITY);
         }
 
         else if (PEEK(TWO_DOT) && LEFT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(RANGE_LITERAL), caller_precedence))
         {
-            EXPRESSION(expr)->kind = RANGE_LITERAL;
+            expr->kind = RANGE_LITERAL;
 
             ADVANCE();
 
-            EXPRESSION(expr)->first = lhs;
-            size_t last = parse_expression_with_precedence(c, apm, precedence_of(RANGE_LITERAL));
-            EXPRESSION(expr)->last = last;
+            expr->first = lhs;
+            Expression *last = parse_expression_with_precedence(c, apm, precedence_of(RANGE_LITERAL));
+            expr->last = last;
         }
 
         // Factor (multiplication, division, remainder)
@@ -1117,12 +1116,14 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
         // Discard `expr` and finish parsing expression
         else
         {
-            apm->expression.count--;
+            // NOTE: We don't actually make the memory that was reserved available again.
+            //       We _could_ do this, but it's enough of an edge case I don't think it's needed.
+            expr->kind = INVALID_EXPRESSION;
             break;
         }
 
         // Close `expr` and continue parsing expression
-        END_SPAN(EXPRESSION(expr));
+        END_SPAN(expr);
         recover_from_panic(c);
         lhs = expr;
     }

@@ -10,9 +10,12 @@ DEFINE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 DEFINE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
 DEFINE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
+// ALLOCATORS //
+
+DEFINE_ALLOCATOR(Expression, expression)
+
 // LIST TYPE //
 
-DEFINE_LIST_TYPE(Expression, expression)
 DEFINE_LIST_TYPE(Statement, statement)
 DEFINE_LIST_TYPE(Argument, argument)
 DEFINE_LIST_TYPE(Parameter, parameter)
@@ -24,7 +27,6 @@ DEFINE_LIST_TYPE(StructType, struct_type)
 DEFINE_LIST_TYPE(Property, property)
 DEFINE_LIST_TYPE(SymbolTable, symbol_table)
 
-DEFINE_SLICE_TYPE(Expression, expression)
 DEFINE_SLICE_TYPE(Statement, statement)
 DEFINE_SLICE_TYPE(Argument, argument)
 DEFINE_SLICE_TYPE(Parameter, parameter)
@@ -53,7 +55,6 @@ void init_program(Program *apm)
     init_argument_list(&apm->argument);
 
     init_statement_list(&apm->statement);
-    init_expression_list(&apm->expression);
     init_variable_list(&apm->variable);
 
     init_enum_type_list(&apm->enum_type);
@@ -157,6 +158,8 @@ void dump_apm(Program *apm, const char *source_text)
     printf("\n");
 
     printf("EXPRESSIONS\n");
+    // TODO: Reimplement dumping all expressions
+    /*
     for (size_t i = 0; i < apm->expression.count; i++)
     {
         Expression *expr = get_expression(apm->expression, i);
@@ -216,6 +219,7 @@ void dump_apm(Program *apm, const char *source_text)
         printf("\n");
     }
     printf("\n");
+    */
 
     printf("VARIABLES\n");
     for (size_t i = 0; i < apm->variable.count; i++)
@@ -357,10 +361,9 @@ size_t get_last_statement_in_block(Program *apm, Statement *code_block)
 
 // TYPE ANALYSIS METHODS //
 
-RhinoType get_expression_type(Program *apm, const char *source_text, size_t expr_index)
+RhinoType get_expression_type(Program *apm, const char *source_text, Expression *expr)
 {
     RhinoType result;
-    Expression *expr = get_expression(apm->expression, expr_index);
 
     switch (expr->kind)
     {
@@ -391,9 +394,8 @@ RhinoType get_expression_type(Program *apm, const char *source_text, size_t expr
 
     case ENUM_VALUE_LITERAL:
     {
-        Expression *enum_value_literal = get_expression(apm->expression, expr_index);
         result.sort = SORT_ENUM;
-        result.index = get_enum_type_of_enum_value(apm, enum_value_literal->enum_value);
+        result.index = get_enum_type_of_enum_value(apm, expr->enum_value);
         break;
     }
 
@@ -407,7 +409,7 @@ RhinoType get_expression_type(Program *apm, const char *source_text, size_t expr
     // Function call
     case FUNCTION_CALL:
     {
-        Expression *callee = get_expression(apm->expression, expr->callee);
+        Expression *callee = expr->callee;
 
         if (callee->kind != FUNCTION_REFERENCE)
         {
