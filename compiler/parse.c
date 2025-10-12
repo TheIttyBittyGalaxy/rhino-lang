@@ -42,6 +42,7 @@ size_t parse_expression(Compiler *c, Program *apm);
 
 #define FUNCTION(index) get_function(apm->function, index)
 #define PARAMETER(index) get_parameter(apm->parameter, index)
+#define ARGUMENT(index) get_argument(apm->argument, index)
 #define ENUM_TYPE(index) get_enum_type(apm->enum_type, index)
 #define ENUM_VALUE(index) get_enum_value(apm->enum_value, index)
 #define STRUCT_TYPE(index) get_struct_type(apm->struct_type, index)
@@ -918,12 +919,26 @@ size_t parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedenc
         if (PEEK(PAREN_L) && LEFT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(FUNCTION_CALL), caller_precedence))
         {
             EXPRESSION(expr)->kind = FUNCTION_CALL;
-
             EXPRESSION(expr)->callee = lhs;
 
-            // TODO: Implement argument passing
+            size_t first_argument = apm->argument.count;
+            EXPRESSION(expr)->arguments.first = first_argument;
+
             ADVANCE();
+            while (peek_expression(c))
+            {
+                size_t arg = add_argument(&apm->argument);
+                ARGUMENT(arg)->expr = parse_expression(c, apm);
+
+                if (!PEEK(COMMA))
+                    break;
+
+                EAT(COMMA);
+            }
             EAT(PAREN_R);
+
+            size_t argument_count = apm->argument.count - first_argument;
+            EXPRESSION(expr)->arguments.count = argument_count;
         }
 
         // Increment

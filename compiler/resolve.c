@@ -155,6 +155,13 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_ind
             raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, callee->span);
         }
 
+        size_t last = expr->arguments.first + expr->arguments.count - 1;
+        for (size_t n = expr->arguments.first; n <= last; n++)
+        {
+            Argument *arg = get_argument(apm->argument, n);
+            resolve_identities_in_expression(c, apm, arg->expr, symbol_table);
+        }
+
         break;
     }
 
@@ -433,8 +440,18 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
         break;
 
     case FUNCTION_CALL:
+    {
         resolve_types_in_expression(c, apm, expr->callee, symbol_table);
+
+        size_t last = expr->arguments.first + expr->arguments.count - 1;
+        for (size_t n = expr->arguments.first; n <= last; n++)
+        {
+            Argument *arg = get_argument(apm->argument, n);
+            resolve_types_in_expression(c, apm, arg->expr, symbol_table);
+        }
+
         break;
+    }
 
     case INDEX_BY_FIELD:
     {

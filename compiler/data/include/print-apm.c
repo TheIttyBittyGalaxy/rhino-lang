@@ -177,11 +177,31 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
         INDENT();
         NEWLINE();
 
-        LAST_ON_LINE();
+        if (expr->arguments.count == 0)
+            LAST_ON_LINE();
 
         PRINT("callee: ");
         PRINT_EXPRESSION(apm, expr->callee, source_text);
         NEWLINE();
+
+        if (expr->arguments.count > 0)
+        {
+            LAST_ON_LINE();
+            PRINT("arguments:");
+            NEWLINE();
+            INDENT();
+            size_t last = expr->arguments.first + expr->arguments.count - 1;
+            for (size_t i = expr->arguments.first; i <= last; i++)
+            {
+                Argument *arg = get_argument(apm->argument, i);
+
+                if (i == last)
+                    LAST_ON_LINE();
+                PRINT_EXPRESSION(apm, arg->expr, source_text);
+                NEWLINE();
+            }
+            UNINDENT();
+        }
 
         UNINDENT();
         NEWLINE();

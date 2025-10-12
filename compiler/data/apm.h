@@ -119,6 +119,16 @@ DECLARE_LIST_TYPE(SymbolTable, symbol_table)
 void init_symbol_table(SymbolTable *symbol_table);
 void set_symbol_table_parent(SymbolTable *symbol_table, size_t parent_index);
 
+// Argument
+DECLARE_SLICE_TYPE(Argument, argument)
+
+typedef struct
+{
+    size_t expr;
+} Argument;
+
+DECLARE_LIST_TYPE(Argument, argument)
+
 // Expression Precedence
 // Ordered from "happens last" to "happens first"
 #define LIST_EXPR_PRECEDENCE(MACRO)    \
@@ -231,6 +241,7 @@ typedef struct
         struct // FUNCTION_CALL
         {
             size_t callee; // Expression
+            ArgumentSlice arguments;
         };
         struct // INDEX_BY_FIELD
         {
@@ -383,6 +394,7 @@ typedef struct
 {
     FunctionList function;
     ParameterList parameter;
+    ArgumentList argument;
 
     StatementList statement;
     ExpressionList expression;
