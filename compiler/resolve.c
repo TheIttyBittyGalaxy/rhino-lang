@@ -155,10 +155,9 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_ind
             raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, callee->span);
         }
 
-        size_t last = expr->arguments.first + expr->arguments.count - 1;
-        for (size_t n = expr->arguments.first; n <= last; n++)
+        for (size_t i = 0; i < expr->arguments.count; i++)
         {
-            Argument *arg = get_argument(apm->argument, n);
+            Argument *arg = get_argument_from_slice(apm->argument, expr->arguments, i);
             resolve_identities_in_expression(c, apm, arg->expr, symbol_table);
         }
 
@@ -443,10 +442,9 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
     {
         resolve_types_in_expression(c, apm, expr->callee, symbol_table);
 
-        size_t last = expr->arguments.first + expr->arguments.count - 1;
-        for (size_t n = expr->arguments.first; n <= last; n++)
+        for (size_t i = 0; i < expr->arguments.count; i++)
         {
-            Argument *arg = get_argument(apm->argument, n);
+            Argument *arg = get_argument_from_slice(apm->argument, expr->arguments, i);
             resolve_types_in_expression(c, apm, arg->expr, symbol_table);
         }
 
@@ -467,14 +465,13 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
 
         EnumType *enum_type = get_enum_type(apm->enum_type, subject->type.index);
 
-        size_t last = enum_type->values.first + enum_type->values.count - 1;
-        for (size_t i = enum_type->values.first; i <= last; i++)
+        for (size_t n = enum_type->values.first; n < enum_type->values.first + enum_type->values.count; n++)
         {
-            EnumValue *enum_value = get_enum_value(apm->enum_value, i);
+            EnumValue *enum_value = get_enum_value(apm->enum_value, n);
             if (substr_match(c->source_text, expr->field, enum_value->identity))
             {
                 expr->kind = ENUM_VALUE_LITERAL;
-                expr->enum_value = i;
+                expr->enum_value = n;
                 return;
             }
         }

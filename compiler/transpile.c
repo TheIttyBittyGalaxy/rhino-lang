@@ -179,13 +179,13 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType rhino_type)
         EMIT_SUBSTR(struct_type->identity);
         EMIT("){ ");
 
-        size_t last = struct_type->properties.first + struct_type->properties.count - 1;
-        for (size_t i = struct_type->properties.first; i <= last; i++)
+        for (size_t i = 0; i < struct_type->properties.count; i++)
         {
-            Property *property = get_property(apm->property, i);
-            transpile_default_value(t, apm, property->type);
-            if (i < last)
+            if (i > 0)
                 EMIT(", ");
+
+            Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
+            transpile_default_value(t, apm, property->type);
         }
 
         EMIT(" }");
@@ -257,13 +257,13 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
         Function *callee = get_function(apm->function, reference->function);
         EMIT_SUBSTR(callee->identity);
         EMIT("(");
-        size_t last = expr->arguments.first + expr->arguments.count - 1;
-        for (size_t n = expr->arguments.first; n <= last; n++)
+        for (size_t i = 0; i < expr->arguments.count; i++)
         {
-            Argument *arg = get_argument(apm->argument, n);
-            transpile_expression(t, apm, arg->expr);
-            if (n < last)
+            if (i > 0)
                 EMIT(",");
+
+            Argument *arg = get_argument_from_slice(apm->argument, expr->arguments, i);
+            transpile_expression(t, apm, arg->expr);
         }
         EMIT(")");
         break;
@@ -585,17 +585,15 @@ void transpile_function_signature(Transpiler *t, Program *apm, size_t funct_inde
     EMIT_SUBSTR(funct->identity);
     EMIT("(");
 
-    size_t last = funct->parameters.first + funct->parameters.count - 1;
-    for (size_t n = funct->parameters.first; n <= last; n++)
+    for (size_t i = 0; i < funct->parameters.count; i++)
     {
-        Parameter *parameter = get_parameter(apm->parameter, n);
+        if (i > 0)
+            EMIT(", ");
 
+        Parameter *parameter = get_parameter_from_slice(apm->parameter, funct->parameters, i);
         transpile_type(t, apm, parameter->type);
         EMIT(" ");
         EMIT_SUBSTR(parameter->identity);
-
-        if (n < last)
-            EMIT(", ");
     }
 
     EMIT(")");
@@ -625,15 +623,15 @@ void transpile_program(Transpiler *t, Program *apm)
 
         // Enum declaration
         EMIT("typedef enum { ");
-        size_t last = enum_type->values.first + enum_type->values.count - 1;
-        for (size_t i = enum_type->values.first; i <= last; i++)
+        for (size_t i = 0; i < enum_type->values.count; i++)
         {
-            EnumValue *enum_value = get_enum_value(apm->enum_value, i);
+            if (i > 0)
+                EMIT(", ");
+
+            EnumValue *enum_value = get_enum_value_from_slice(apm->enum_value, enum_type->values, i);
             EMIT_SUBSTR(enum_type->identity);
             EMIT("__");
             EMIT_SUBSTR(enum_value->identity);
-            if (i < last)
-                EMIT(", ");
         }
 
         EMIT(" } ");
@@ -652,9 +650,9 @@ void transpile_program(Transpiler *t, Program *apm)
         EMIT_OPEN_BRACE();
         EMIT_LINE("switch(value)");
         EMIT_OPEN_BRACE();
-        for (size_t i = enum_type->values.first; i <= last; i++)
+        for (size_t i = 0; i < enum_type->values.count; i++)
         {
-            EnumValue *enum_value = get_enum_value(apm->enum_value, i);
+            EnumValue *enum_value = get_enum_value_from_slice(apm->enum_value, enum_type->values, i);
             EMIT("case ");
             EMIT_SUBSTR(enum_type->identity);
             EMIT("__");
@@ -679,10 +677,9 @@ void transpile_program(Transpiler *t, Program *apm)
         EMIT_LINE("typedef struct");
         EMIT_OPEN_BRACE();
 
-        size_t last = struct_type->properties.first + struct_type->properties.count - 1;
-        for (size_t i = struct_type->properties.first; i <= last; i++)
+        for (size_t i = 0; i < struct_type->properties.count; i++)
         {
-            Property *property = get_property(apm->property, i);
+            Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
             transpile_type(t, apm, property->type);
             EMIT(" ");
             EMIT_SUBSTR(property->identity);

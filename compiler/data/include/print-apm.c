@@ -191,11 +191,11 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
             NEWLINE();
             INDENT();
             size_t last = expr->arguments.first + expr->arguments.count - 1;
-            for (size_t i = expr->arguments.first; i <= last; i++)
+            for (size_t n = expr->arguments.first; n <= last; n++)
             {
-                Argument *arg = get_argument(apm->argument, i);
+                Argument *arg = get_argument(apm->argument, n);
 
-                if (i == last)
+                if (n == last)
                     LAST_ON_LINE();
                 PRINT_EXPRESSION(apm, arg->expr, source_text);
                 NEWLINE();
@@ -509,10 +509,10 @@ void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text)
         NEWLINE();
         INDENT();
         size_t last = funct->parameters.first + funct->parameters.count - 1;
-        for (size_t i = funct->parameters.first; i <= last; i++)
+        for (size_t n = funct->parameters.first; n <= last; n++)
         {
-            Parameter *parameter = get_parameter(apm->parameter, i);
-            if (i == last)
+            Parameter *parameter = get_parameter(apm->parameter, n);
+            if (n == last)
                 LAST_ON_LINE();
 #ifdef PRINT_PARSED
             PRINT_EXPRESSION(apm, parameter->type_expression, source_text);
@@ -550,10 +550,10 @@ void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_te
         INDENT();
         NEWLINE();
         size_t last = enum_type->values.first + enum_type->values.count - 1;
-        for (size_t i = enum_type->values.first; i <= last; i++)
+        for (size_t n = enum_type->values.first; n <= last; n++)
         {
-            EnumValue *enum_value = get_enum_value(apm->enum_value, i);
-            if (i == last)
+            EnumValue *enum_value = get_enum_value(apm->enum_value, n);
+            if (n == last)
                 LAST_ON_LINE();
             PRINT_SUBSTR(enum_value->identity);
             NEWLINE();
@@ -577,10 +577,10 @@ void PRINT_STRUCT_TYPE(Program *apm, size_t struct_type_index, const char *sourc
         INDENT();
         NEWLINE();
         size_t last = struct_type->properties.first + struct_type->properties.count - 1;
-        for (size_t i = struct_type->properties.first; i <= last; i++)
+        for (size_t n = struct_type->properties.first; n <= last; n++)
         {
-            Property *property = get_property(apm->property, i);
-            if (i == last)
+            Property *property = get_property(apm->property, n);
+            if (n == last)
                 LAST_ON_LINE();
 
             PRINT("%s ", rhino_type_string(apm, property->type));
