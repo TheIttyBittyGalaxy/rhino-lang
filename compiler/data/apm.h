@@ -16,7 +16,8 @@
     MACRO(SORT_INT)             \
     MACRO(SORT_NUM)             \
     MACRO(SORT_STR)             \
-    MACRO(SORT_ENUM)
+    MACRO(SORT_ENUM)            \
+    MACRO(SORT_STRUCT)
 
 DECLARE_ENUM(LIST_RHINO_SORTS, RhinoSort, rhino_sort)
 
@@ -49,6 +50,31 @@ typedef struct
 
 DECLARE_LIST_TYPE(EnumType, enum_type)
 
+// Property
+DECLARE_SLICE_TYPE(Property, property)
+
+typedef struct
+{
+    substr span;
+    substr identity;
+    size_t type_expression;
+    RhinoType type;
+} Property;
+
+DECLARE_LIST_TYPE(Property, property)
+
+// Struct type
+DECLARE_SLICE_TYPE(StructType, struct_type)
+
+typedef struct
+{
+    substr span;
+    substr identity;
+    PropertySlice properties;
+} StructType;
+
+DECLARE_LIST_TYPE(StructType, struct_type)
+
 // Variable
 DECLARE_SLICE_TYPE(Variable, variable)
 
@@ -65,7 +91,8 @@ DECLARE_LIST_TYPE(Variable, variable)
     MACRO(INVALID_SYMBOL)      \
     MACRO(VARIABLE_SYMBOL)     \
     MACRO(FUNCTION_SYMBOL)     \
-    MACRO(ENUM_TYPE_SYMBOL)
+    MACRO(ENUM_TYPE_SYMBOL)    \
+    MACRO(STRUCT_TYPE_SYMBOL)
 
 DECLARE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
@@ -224,29 +251,30 @@ typedef struct
 DECLARE_LIST_TYPE(Expression, expression)
 
 // Statement
-#define LIST_STATEMENTS(MACRO)   \
-    MACRO(INVALID_STATEMENT)     \
-                                 \
-    MACRO(FUNCTION_DECLARATION)  \
-    MACRO(ENUM_TYPE_DECLARATION) \
-    MACRO(VARIABLE_DECLARATION)  \
-                                 \
-    MACRO(DECLARATION_BLOCK)     \
-    MACRO(CODE_BLOCK)            \
-    MACRO(SINGLE_BLOCK)          \
-                                 \
-    MACRO(IF_SEGMENT)            \
-    MACRO(ELSE_IF_SEGMENT)       \
-    MACRO(ELSE_SEGMENT)          \
-                                 \
-    MACRO(BREAK_LOOP)            \
-    MACRO(FOR_LOOP)              \
-    MACRO(BREAK_STATEMENT)       \
-                                 \
-    MACRO(ASSIGNMENT_STATEMENT)  \
-                                 \
-    MACRO(OUTPUT_STATEMENT)      \
-    MACRO(EXPRESSION_STMT)       \
+#define LIST_STATEMENTS(MACRO)     \
+    MACRO(INVALID_STATEMENT)       \
+                                   \
+    MACRO(FUNCTION_DECLARATION)    \
+    MACRO(ENUM_TYPE_DECLARATION)   \
+    MACRO(STRUCT_TYPE_DECLARATION) \
+    MACRO(VARIABLE_DECLARATION)    \
+                                   \
+    MACRO(DECLARATION_BLOCK)       \
+    MACRO(CODE_BLOCK)              \
+    MACRO(SINGLE_BLOCK)            \
+                                   \
+    MACRO(IF_SEGMENT)              \
+    MACRO(ELSE_IF_SEGMENT)         \
+    MACRO(ELSE_SEGMENT)            \
+                                   \
+    MACRO(BREAK_LOOP)              \
+    MACRO(FOR_LOOP)                \
+    MACRO(BREAK_STATEMENT)         \
+                                   \
+    MACRO(ASSIGNMENT_STATEMENT)    \
+                                   \
+    MACRO(OUTPUT_STATEMENT)        \
+    MACRO(EXPRESSION_STMT)         \
     MACRO(RETURN_STATEMENT)
 
 DECLARE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
@@ -274,6 +302,10 @@ typedef struct
         struct // ENUM_TYPE_DECLARATION
         {
             size_t enum_type; // EnumType
+        };
+        struct // STRUCT_TYPE_DECLARATION
+        {
+            size_t struct_type; // StructType
         };
         struct // DECLARATION_BLOCK / CODE_BLOCK / SINGLE_BLOCK
         {
@@ -336,6 +368,9 @@ typedef struct
     EnumTypeList enum_type;
     EnumValueList enum_value;
 
+    StructTypeList struct_type;
+    PropertyList property;
+
     SymbolTableList symbol_table;
 
     size_t main; // Function
@@ -360,7 +395,7 @@ size_t get_first_statement_in_block(Program *apm, Statement *code_block);
 size_t get_last_statement_in_block(Program *apm, Statement *code_block);
 
 // Type analysis methods
-RhinoType get_expression_type(Program *apm, size_t expr_index);
+RhinoType get_expression_type(Program *apm, const char *source_text, size_t expr_index);
 size_t get_enum_type_of_enum_value(Program *apm, size_t enum_value_index);
 bool are_types_equal(RhinoType a, RhinoType b);
 bool allow_assign_a_to_b(RhinoType a, RhinoType b);

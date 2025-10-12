@@ -141,8 +141,59 @@ void transpile_type(Transpiler *t, Program *apm, RhinoType rhino_type)
         break;
     }
 
+    case SORT_STRUCT:
+    {
+        StructType *struct_type = get_struct_type(apm->struct_type, rhino_type.index);
+        EMIT_SUBSTR(struct_type->identity);
+        break;
+    }
+
     default:
         fatal_error("Unable to generate Rhino type %s.", rhino_type_string(apm, rhino_type));
+    }
+}
+
+void transpile_default_value(Transpiler *t, Program *apm, RhinoType rhino_type)
+{
+    switch (rhino_type.sort)
+    {
+
+    case SORT_BOOL:
+        EMIT("false");
+        break;
+
+    case SORT_STR:
+        EMIT("\"\"");
+        break;
+
+    case SORT_INT:
+    case SORT_NUM:
+        EMIT("0");
+        break;
+
+    case SORT_STRUCT:
+    {
+        StructType *struct_type = get_struct_type(apm->struct_type, rhino_type.index);
+
+        EMIT("(");
+        EMIT_SUBSTR(struct_type->identity);
+        EMIT("){ ");
+
+        size_t last = struct_type->properties.first + struct_type->properties.count - 1;
+        for (size_t i = struct_type->properties.first; i <= last; i++)
+        {
+            Property *property = get_property(apm->property, i);
+            transpile_default_value(t, apm, property->type);
+            if (i < last)
+                EMIT(", ");
+        }
+
+        EMIT(" }");
+        break;
+    }
+
+    default:
+        fatal_error("Could not transpile default value for value of type %s.", rhino_type_string(apm, rhino_type));
     }
 }
 
@@ -199,6 +250,14 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
         Function *callee = get_function(apm->function, reference->function);
         EMIT_SUBSTR(callee->identity);
         EMIT("()");
+        break;
+    }
+
+    case INDEX_BY_FIELD:
+    {
+        transpile_expression(t, apm, expr->subject);
+        EMIT(".");
+        EMIT_SUBSTR(expr->field);
         break;
     }
 
@@ -270,9 +329,8 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
     {
 
     case FUNCTION_DECLARATION:
-        break;
-
     case ENUM_TYPE_DECLARATION:
+    case STRUCT_TYPE_DECLARATION:
         break;
 
     case CODE_BLOCK:
@@ -398,14 +456,8 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
         if (stmt->has_initial_value)
             transpile_expression(t, apm, stmt->initial_value);
-        else if (var->type.sort == SORT_BOOL)
-            EMIT("false");
-        else if (var->type.sort == SORT_STR)
-            EMIT("\"\"");
-        else if (var->type.sort == SORT_INT)
-            EMIT("0");
-        else if (var->type.sort == SORT_NUM)
-            EMIT("0");
+        else
+            transpile_default_value(t, apm, var->type);
 
         EMIT_LINE(";");
         break;
@@ -414,7 +466,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
     case OUTPUT_STATEMENT:
     {
         size_t expr_index = stmt->expression;
-        RhinoType expr_type = get_expression_type(apm, expr_index);
+        RhinoType expr_type = get_expression_type(apm, t->source_text, expr_index);
 
         switch (expr_type.sort)
         {
@@ -582,6 +634,49 @@ void transpile_program(Transpiler *t, Program *apm)
             EMIT_LINE("\";");
         }
         EMIT_CLOSE_BRACE();
+        EMIT_CLOSE_BRACE();
+        EMIT_NEWLINE();
+    }
+    EMIT_NEWLINE();
+
+    // Struct types
+    for (size_t i = 0; i < apm->struct_type.count; i++)
+    {
+        StructType *struct_type = get_struct_type(apm->struct_type, i);
+
+        // Sstruct declaration
+        EMIT_LINE("typedef struct");
+        EMIT_OPEN_BRACE();
+
+        size_t last = struct_type->properties.first + struct_type->properties.count - 1;
+        for (size_t i = struct_type->properties.first; i <= last; i++)
+        {
+            Property *property = get_property(apm->property, i);
+            transpile_type(t, apm, property->type);
+            EMIT(" ");
+            EMIT_SUBSTR(property->identity);
+            EMIT_LINE(";");
+        }
+
+        EMIT_CLOSE_BRACE();
+        EMIT_SUBSTR(struct_type->identity);
+        EMIT_LINE(";");
+        EMIT_NEWLINE();
+
+        // To string function
+        EMIT("const char* string_of_");
+        EMIT_SUBSTR(struct_type->identity);
+        EMIT("(");
+        EMIT_SUBSTR(struct_type->identity);
+        EMIT(" value)");
+        EMIT_NEWLINE();
+
+        // TODO: Serialise the struct in some helpful way
+        EMIT_OPEN_BRACE();
+        EMIT("return \"");
+        EMIT_SUBSTR(struct_type->identity);
+        EMIT("\";");
+        EMIT_NEWLINE();
         EMIT_CLOSE_BRACE();
         EMIT_NEWLINE();
     }

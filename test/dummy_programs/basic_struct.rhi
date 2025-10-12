@@ -1,0 +1,9 @@
+struct Thing {
+    int value;
+}
+
+fn main() {
+    Thing t;
+    t.value = 2;
+    > t.value;
+}

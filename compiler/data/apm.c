@@ -18,6 +18,8 @@ DEFINE_LIST_TYPE(Function, function)
 DEFINE_LIST_TYPE(Variable, variable)
 DEFINE_LIST_TYPE(EnumType, enum_type)
 DEFINE_LIST_TYPE(EnumValue, enum_value)
+DEFINE_LIST_TYPE(StructType, struct_type)
+DEFINE_LIST_TYPE(Property, property)
 DEFINE_LIST_TYPE(SymbolTable, symbol_table)
 
 DEFINE_SLICE_TYPE(Expression, expression)
@@ -26,6 +28,8 @@ DEFINE_SLICE_TYPE(Function, function)
 DEFINE_SLICE_TYPE(Variable, variable)
 DEFINE_SLICE_TYPE(EnumType, enum_type)
 DEFINE_SLICE_TYPE(EnumValue, enum_value)
+DEFINE_SLICE_TYPE(StructType, struct_type)
+DEFINE_SLICE_TYPE(Property, property)
 DEFINE_SLICE_TYPE(SymbolTable, symbol_table)
 
 // RHINO TYPE //
@@ -47,6 +51,9 @@ void init_program(Program *apm)
 
     init_enum_type_list(&apm->enum_type);
     init_enum_value_list(&apm->enum_value);
+
+    init_struct_type_list(&apm->struct_type);
+    init_property_list(&apm->property);
 
     init_symbol_table_list(&apm->symbol_table);
 
@@ -231,6 +238,29 @@ void dump_apm(Program *apm, const char *source_text)
         printf_substr(source_text, enum_value->identity);
         printf("\n");
     }
+    printf("\n");
+
+    printf("STRUCT TYPES\n");
+    for (size_t i = 0; i < apm->struct_type.count; i++)
+    {
+        StructType *struct_type = get_struct_type(apm->struct_type, i);
+        printf("%02d\t", i);
+        printf_substr(source_text, struct_type->identity);
+        printf("\tfirst %02d\tlast %02d", struct_type->properties.first, struct_type->properties.first + struct_type->properties.count - 1);
+        printf("\n");
+    }
+    printf("\n");
+
+    printf("PROPERTIES\n");
+    for (size_t i = 0; i < apm->property.count; i++)
+    {
+        Property *property = get_property(apm->property, i);
+        printf("%02d\t", i);
+        printf_substr(source_text, property->identity);
+        printf("\ttype_expr: %02d", property->type_expression);
+        printf("\n");
+    }
+    printf("\n");
 
     printf("SYMBOL TABLES\n");
     for (size_t i = 1; i < apm->symbol_table.count; i++)
@@ -313,7 +343,7 @@ size_t get_last_statement_in_block(Program *apm, Statement *code_block)
 
 // TYPE ANALYSIS METHODS //
 
-RhinoType get_expression_type(Program *apm, size_t expr_index)
+RhinoType get_expression_type(Program *apm, const char *source_text, size_t expr_index)
 {
     RhinoType result;
     Expression *expr = get_expression(apm->expression, expr_index);
@@ -375,7 +405,18 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
     // Index by field
     case INDEX_BY_FIELD:
     {
-        // TODO: If the subject can be indexed then return the type of the appropriate field
+        RhinoType subject_type = get_expression_type(apm, source_text, expr->subject);
+        if (subject_type.sort == SORT_STRUCT)
+        {
+            StructType *struct_type = get_struct_type(apm->struct_type, subject_type.index);
+            for (size_t i = 0; i < struct_type->properties.count; i++)
+            {
+                Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
+                if (substr_match(source_text, property->identity, expr->field))
+                    return property->type;
+            }
+        }
+
         result.sort = ERROR_SORT;
         break;
     }
@@ -385,7 +426,7 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
     case UNARY_NEG:
     case UNARY_INCREMENT:
     case UNARY_DECREMENT:
-        return get_expression_type(apm, expr->operand);
+        return get_expression_type(apm, source_text, expr->operand);
 
     case BINARY_DIVIDE:
         result.sort = SORT_NUM;
@@ -396,8 +437,8 @@ RhinoType get_expression_type(Program *apm, size_t expr_index)
     case BINARY_ADD:
     case BINARY_SUBTRACT:
     {
-        RhinoType lhs_type = get_expression_type(apm, expr->lhs);
-        RhinoType rhs_type = get_expression_type(apm, expr->rhs);
+        RhinoType lhs_type = get_expression_type(apm, source_text, expr->lhs);
+        RhinoType rhs_type = get_expression_type(apm, source_text, expr->rhs);
         if (lhs_type.sort == SORT_INT && rhs_type.sort == SORT_INT)
             result.sort = SORT_INT;
         else

@@ -25,6 +25,7 @@ void parse(Compiler *compiler, Program *apm);
 void parse_program(Compiler *c, Program *apm);
 void parse_function(Compiler *c, Program *apm, size_t symbol_table);
 void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table);
+void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table);
 
 size_t parse_declaration_block(Compiler *c, Program *apm, size_t symbol_table);
 size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table);
@@ -42,6 +43,8 @@ size_t parse_expression(Compiler *c, Program *apm);
 #define FUNCTION(index) get_function(apm->function, index)
 #define ENUM_TYPE(index) get_enum_type(apm->enum_type, index)
 #define ENUM_VALUE(index) get_enum_value(apm->enum_value, index)
+#define STRUCT_TYPE(index) get_struct_type(apm->struct_type, index)
+#define PROPERTY(index) get_property(apm->property, index)
 #define STATEMENT(index) get_statement(apm->statement, index)
 #define EXPRESSION(index) get_expression(apm->expression, index)
 #define VARIABLE(index) get_variable(apm->variable, index)
@@ -275,6 +278,56 @@ void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table)
     STATEMENT(declaration)->kind = ENUM_TYPE_DECLARATION;
     STATEMENT(declaration)->enum_type = enum_type;
     STATEMENT(declaration)->span = ENUM_TYPE(enum_type)->span;
+}
+
+// TODO: Ensure this can only return with status OKAY or RECOVERED
+void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
+{
+    size_t declaration = add_statement(&apm->statement);
+
+    size_t struct_type = add_struct_type(&apm->struct_type);
+    START_SPAN(STRUCT_TYPE(struct_type));
+
+    EAT(KEYWORD_STRUCT);
+
+    substr identity = TOKEN_STRING();
+    STRUCT_TYPE(struct_type)->identity = identity;
+    EAT(IDENTITY);
+
+    // TODO: Handle this scenario correctly
+    assert(c->parse_status == OKAY);
+
+    size_t first_property = apm->property.count;
+    STRUCT_TYPE(struct_type)->properties.first = first_property;
+
+    EAT(CURLY_L);
+    while (!PEEK(CURLY_R))
+    {
+        size_t property = add_property(&apm->property);
+        START_SPAN(PROPERTY(property));
+
+        size_t type_expression = parse_expression(c, apm);
+        PROPERTY(property)->type_expression = type_expression;
+
+        substr identity = TOKEN_STRING();
+        PROPERTY(property)->identity = identity;
+        EAT(IDENTITY);
+
+        END_SPAN(PROPERTY(property));
+
+        EAT(SEMI_COLON);
+    }
+    EAT(CURLY_R);
+
+    size_t property_count = apm->property.count - first_property;
+    STRUCT_TYPE(struct_type)->properties.count = property_count;
+
+    END_SPAN(STRUCT_TYPE(struct_type));
+    append_symbol(apm, symbol_table, STRUCT_TYPE_SYMBOL, struct_type, identity);
+
+    STATEMENT(declaration)->kind = STRUCT_TYPE_DECLARATION;
+    STATEMENT(declaration)->struct_type = struct_type;
+    STATEMENT(declaration)->span = STRUCT_TYPE(struct_type)->span;
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
@@ -585,9 +638,10 @@ size_t parse_declaration_block(Compiler *c, Program *apm, size_t symbol_table)
 
         else if (PEEK(KEYWORD_FN))
             parse_function(c, apm, apm->global_symbol_table);
-
         else if (PEEK(KEYWORD_ENUM))
             parse_enum_type(c, apm, apm->global_symbol_table);
+        else if (PEEK(KEYWORD_STRUCT))
+            parse_struct_type(c, apm, apm->global_symbol_table);
 
         else
         {
@@ -669,6 +723,8 @@ size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table)
                 parse_function(c, apm, block_symbol_table); // Can return with status OKAY or RECOVERED
             else if (PEEK(KEYWORD_ENUM))
                 parse_enum_type(c, apm, block_symbol_table); // TODO: Do we need to handle a PANIC status?
+            else if (PEEK(KEYWORD_STRUCT))
+                parse_struct_type(c, apm, block_symbol_table); // TODO: Do we need to handle a PANIC status?
             else if (peek_statement(c))
                 parse_statement(c, apm, block_symbol_table); // Can return with status OKAY or RECOVERED
             else

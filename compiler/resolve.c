@@ -1,6 +1,8 @@
 #include "resolve.h"
 #include "fatal_error.h"
 
+#include <stdio.h>
+
 // DETERMINE MAIN FUNCTION //
 
 void determine_main_function(Compiler *c, Program *apm)
@@ -28,6 +30,7 @@ void determine_main_function(Compiler *c, Program *apm)
 void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table);
 void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_index);
 void resolve_identities_in_function(Compiler *c, Program *apm, size_t funct_index, SymbolTable *symbol_table);
+void resolve_identities_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table);
 void resolve_identities_in_declaration_block(Compiler *c, Program *apm, size_t block_index);
 
 void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table)
@@ -83,15 +86,21 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_ind
                     expr->variable = s.index;
                     break;
 
+                case FUNCTION_SYMBOL:
+                    expr->kind = FUNCTION_REFERENCE;
+                    expr->function = s.index;
+                    break;
+
                 case ENUM_TYPE_SYMBOL:
                     expr->kind = TYPE_REFERENCE;
                     expr->type.sort = SORT_ENUM;
                     expr->type.index = s.index;
                     break;
 
-                case FUNCTION_SYMBOL:
-                    expr->kind = FUNCTION_REFERENCE;
-                    expr->function = s.index;
+                case STRUCT_TYPE_SYMBOL:
+                    expr->kind = TYPE_REFERENCE;
+                    expr->type.sort = SORT_STRUCT;
+                    expr->type.index = s.index;
                     break;
 
                 default:
@@ -245,6 +254,16 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_in
             break;
         }
 
+        case STRUCT_TYPE_DECLARATION:
+        {
+            resolve_identities_in_struct_type(c, apm, stmt->struct_type, symbol_table);
+
+            StructType *struct_type = get_struct_type(apm->struct_type, stmt->struct_type);
+            append_symbol(apm, block->symbol_table, STRUCT_TYPE_SYMBOL, stmt->struct_type, struct_type->identity);
+
+            break;
+        }
+
         case CODE_BLOCK:
         case SINGLE_BLOCK:
             resolve_identities_in_code_block(c, apm, block->statements.first + n);
@@ -309,6 +328,17 @@ void resolve_identities_in_function(Compiler *c, Program *apm, size_t funct_inde
     resolve_identities_in_code_block(c, apm, funct->body);
 }
 
+void resolve_identities_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table)
+{
+    StructType *struct_type = get_struct_type(apm->struct_type, struct_type_index);
+
+    for (size_t i = 0; i < struct_type->properties.count; i++)
+    {
+        Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
+        resolve_identities_in_expression(c, apm, property->type_expression, symbol_table);
+    }
+}
+
 void resolve_identities_in_declaration_block(Compiler *c, Program *apm, size_t block_index)
 {
     Statement *block = get_statement(apm->statement, block_index);
@@ -327,6 +357,8 @@ void resolve_identities_in_declaration_block(Compiler *c, Program *apm, size_t b
 
         if (stmt->kind == FUNCTION_DECLARATION)
             resolve_identities_in_function(c, apm, stmt->function, symbol_table);
+        else if (stmt->kind == STRUCT_TYPE_DECLARATION)
+            resolve_identities_in_struct_type(c, apm, stmt->function, symbol_table);
 
         n = get_next_statement_in_block(apm, block, n);
     }
@@ -338,6 +370,7 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, 
 void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table);
 void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index);
 void resolve_types_in_function(Compiler *c, Program *apm, size_t funct_index, SymbolTable *symbol_table);
+void resolve_types_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table);
 void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_index);
 
 RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table)
@@ -485,7 +518,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
                 resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table);
 
                 if (!stmt->has_type_expression)
-                    var->type = get_expression_type(apm, stmt->initial_value);
+                    var->type = get_expression_type(apm, c->source_text, stmt->initial_value);
             }
 
             // TODO: What should happen if we find am inferred variable
@@ -499,6 +532,10 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
             break;
 
         case ENUM_TYPE_DECLARATION:
+            break;
+
+        case STRUCT_TYPE_DECLARATION:
+            resolve_types_in_struct_type(c, apm, stmt->struct_type, symbol_table);
             break;
 
         case CODE_BLOCK:
@@ -580,6 +617,17 @@ void resolve_types_in_function(Compiler *c, Program *apm, size_t funct_index, Sy
     resolve_types_in_code_block(c, apm, funct->body);
 }
 
+void resolve_types_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table)
+{
+    StructType *struct_type = get_struct_type(apm->struct_type, struct_type_index);
+
+    for (size_t i = 0; i < struct_type->properties.count; i++)
+    {
+        Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
+        property->type = resolve_type_expression(c, apm, property->type_expression, symbol_table);
+    }
+}
+
 void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_index)
 {
     Statement *block = get_statement(apm->statement, block_index);
@@ -594,6 +642,8 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_
 
         if (stmt->kind == FUNCTION_DECLARATION)
             resolve_types_in_function(c, apm, stmt->function, symbol_table);
+        if (stmt->kind == STRUCT_TYPE_DECLARATION)
+            resolve_types_in_struct_type(c, apm, stmt->struct_type, symbol_table);
 
         n = get_next_statement_in_block(apm, block, n);
     }

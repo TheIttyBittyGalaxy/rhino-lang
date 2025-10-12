@@ -1,0 +1,9 @@
+fn main() {
+    struct Thing {
+        str value;
+    }
+
+    Thing t;
+    t.value = "hiiii :D";
+    > t.value;
+}

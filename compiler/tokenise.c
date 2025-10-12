@@ -133,6 +133,7 @@ void tokenise(Compiler *const c)
                 IF_KEYWORD_ELSE("loop", KEYWORD_LOOP)
                 IF_KEYWORD_ELSE("or", KEYWORD_OR)
                 IF_KEYWORD_ELSE("return", KEYWORD_RETURN)
+                IF_KEYWORD_ELSE("struct", KEYWORD_STRUCT)
                 IF_KEYWORD_ELSE("true", KEYWORD_TRUE)
                 IF_KEYWORD_ELSE("while", KEYWORD_WHILE)
                 kind = IDENTITY; // This is under the "else" of the above macro

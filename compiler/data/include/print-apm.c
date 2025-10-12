@@ -82,6 +82,7 @@ enum LineStatus
 #define PRINT_FUNCTION print_parsed_function
 #define PRINT_VARIABLE print_parsed_variable
 #define PRINT_ENUM_TYPE print_parsed_enum_type
+#define PRINT_STRUCT_TYPE print_parsed_struct_type
 #define PRINT_APM print_parsed_apm
 #endif
 
@@ -90,6 +91,7 @@ enum LineStatus
 #define PRINT_STATEMENT print_resolved_statement
 #define PRINT_VARIABLE print_resolved_variable
 #define PRINT_ENUM_TYPE print_resolved_enum_type
+#define PRINT_STRUCT_TYPE print_resolved_struct_type
 #define PRINT_APM print_resolved_apm
 #endif
 
@@ -100,6 +102,7 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text);
 void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text);
 void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text);
 void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_text);
+void PRINT_STRUCT_TYPE(Program *apm, size_t struct_type_index, const char *source_text);
 void PRINT_APM(Program *apm, const char *source_text);
 
 // PRINT VARIABLE //
@@ -309,6 +312,12 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         return;
     }
 
+    if (stmt->kind == STRUCT_TYPE_DECLARATION)
+    {
+        PRINT_STRUCT_TYPE(apm, stmt->struct_type, source_text);
+        return;
+    }
+
     PRINT("%s", statement_kind_string(stmt->kind));
     INDENT();
     NEWLINE();
@@ -505,6 +514,35 @@ void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_te
     NEWLINE();
 }
 
+// PRINT STRUCT //
+
+void PRINT_STRUCT_TYPE(Program *apm, size_t struct_type_index, const char *source_text)
+{
+    StructType *struct_type = get_struct_type(apm->struct_type, struct_type_index);
+
+    PRINT("STRUCT ");
+    PRINT_SUBSTR(struct_type->identity);
+
+    if (struct_type->properties.count > 0)
+    {
+        INDENT();
+        NEWLINE();
+        size_t last = struct_type->properties.first + struct_type->properties.count - 1;
+        for (size_t i = struct_type->properties.first; i <= last; i++)
+        {
+            Property *property = get_property(apm->property, i);
+            if (i == last)
+                LAST_ON_LINE();
+
+            PRINT("%s ", rhino_type_string(apm, property->type));
+            PRINT_SUBSTR(property->identity);
+            NEWLINE();
+        }
+        UNINDENT();
+    }
+    NEWLINE();
+}
+
 // PRINT APM //
 
 void PRINT_APM(Program *apm, const char *source_text)
@@ -545,6 +583,7 @@ void PRINT_APM(Program *apm, const char *source_text)
 #undef PRINT_FUNCTION
 #undef PRINT_VARIABLE
 #undef PRINT_ENUM_TYPE
+#undef PRINT_STRUCT_TYPE
 #undef PRINT_APM
 
 #undef PRINT_PARSED
