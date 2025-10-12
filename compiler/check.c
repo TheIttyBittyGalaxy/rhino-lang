@@ -32,7 +32,7 @@ void check_statements(Compiler *c, Program *apm)
             if (!stmt->has_initial_value)
                 continue;
 
-            RhinoType var_type = get_variable(apm->variable, stmt->variable)->type;
+            RhinoType var_type = stmt->variable->type;
             RhinoType value_type = get_expression_type(apm, c->source_text, stmt->initial_value);
 
             if (!allow_assign_a_to_b(value_type, var_type))

@@ -14,13 +14,13 @@ DEFINE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
 DEFINE_ALLOCATOR(Expression, expression)
 DEFINE_ALLOCATOR(Function, function)
+DEFINE_ALLOCATOR(Variable, variable)
 
 // LIST TYPE //
 
 DEFINE_LIST_TYPE(Statement, statement)
 DEFINE_LIST_TYPE(Argument, argument)
 DEFINE_LIST_TYPE(Parameter, parameter)
-DEFINE_LIST_TYPE(Variable, variable)
 DEFINE_LIST_TYPE(EnumType, enum_type)
 DEFINE_LIST_TYPE(EnumValue, enum_value)
 DEFINE_LIST_TYPE(StructType, struct_type)
@@ -30,7 +30,6 @@ DEFINE_LIST_TYPE(SymbolTable, symbol_table)
 DEFINE_SLICE_TYPE(Statement, statement)
 DEFINE_SLICE_TYPE(Argument, argument)
 DEFINE_SLICE_TYPE(Parameter, parameter)
-DEFINE_SLICE_TYPE(Variable, variable)
 DEFINE_SLICE_TYPE(EnumType, enum_type)
 DEFINE_SLICE_TYPE(EnumValue, enum_value)
 DEFINE_SLICE_TYPE(StructType, struct_type)
@@ -53,7 +52,6 @@ void init_program(Program *apm)
     init_argument_list(&apm->argument);
 
     init_statement_list(&apm->statement);
-    init_variable_list(&apm->variable);
 
     init_enum_type_list(&apm->enum_type);
     init_enum_value_list(&apm->enum_value);
@@ -222,6 +220,8 @@ void dump_apm(Program *apm, const char *source_text)
     printf("\n");
     */
 
+    // TODO: Reimplement dumping all variables
+    /*
     printf("VARIABLES\n");
     for (size_t i = 0; i < apm->variable.count; i++)
     {
@@ -231,6 +231,7 @@ void dump_apm(Program *apm, const char *source_text)
         printf("\t%s\n", rhino_type_string(apm, var->type));
     }
     printf("\n");
+    */
 
     printf("ENUM TYPES\n");
     for (size_t i = 0; i < apm->enum_type.count; i++)
@@ -402,7 +403,7 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
 
     // Variables and parameters
     case VARIABLE_REFERENCE:
-        return get_variable(apm->variable, expr->variable)->type;
+        return expr->variable->type;
 
     case PARAMETER_REFERENCE:
         return get_parameter(apm->parameter, expr->parameter)->type;

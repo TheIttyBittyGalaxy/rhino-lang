@@ -47,7 +47,6 @@ Expression *parse_expression(Compiler *c, Program *apm);
 #define STRUCT_TYPE(index) get_struct_type(apm->struct_type, index)
 #define PROPERTY(index) get_property(apm->property, index)
 #define STATEMENT(index) get_statement(apm->statement, index)
-#define VARIABLE(index) get_variable(apm->variable, index)
 #define SYMBOL_TABLE(index) get_symbol_table(apm->symbol_table, index)
 
 #define START_SPAN(node_ptr) node_ptr->span.pos = token_string(c).pos;
@@ -479,12 +478,12 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         // For variable
         EAT(KEYWORD_FOR);
 
-        size_t iterator = add_variable(&apm->variable);
+        Variable *iterator = new_variable();
         STATEMENT(stmt)->iterator = iterator;
 
         substr identity = TOKEN_STRING();
-        VARIABLE(iterator)->identity = identity;
-        VARIABLE(iterator)->type.sort = INVALID_SORT;
+        iterator->identity = identity;
+        iterator->type.sort = INVALID_SORT;
         EAT(IDENTITY);
 
         // Iterable
@@ -515,8 +514,8 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
     // VARIABLE_DECLARATION with inferred type
     if (PEEK(KEYWORD_DEF))
     {
-        size_t var = add_variable(&apm->variable);
-        VARIABLE(var)->type.sort = INVALID_SORT;
+        Variable *var = new_variable();
+        var->type.sort = INVALID_SORT;
 
         STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
         STATEMENT(stmt)->variable = var;
@@ -526,7 +525,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         EAT(KEYWORD_DEF);
 
         substr identity = TOKEN_STRING();
-        VARIABLE(var)->identity = identity;
+        var->identity = identity;
         EAT(IDENTITY);
 
         if (PEEK(EQUAL))
@@ -593,8 +592,8 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
 
         if (PEEK(IDENTITY)) // VARIABLE_DECLARATION with stated type
         {
-            size_t var = add_variable(&apm->variable);
-            VARIABLE(var)->type.sort = INVALID_SORT;
+            Variable *var = new_variable();
+            var->type.sort = INVALID_SORT;
 
             STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
             STATEMENT(stmt)->variable = var;
@@ -603,7 +602,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
             STATEMENT(stmt)->has_initial_value = false;
 
             substr identity = TOKEN_STRING();
-            VARIABLE(var)->identity = identity;
+            var->identity = identity;
             EAT(IDENTITY);
 
             if (PEEK(EQUAL))
@@ -715,8 +714,8 @@ size_t parse_top_level_declarations(Compiler *c, Program *apm, size_t symbol_tab
             size_t stmt = add_statement(&apm->statement);
             START_SPAN(STATEMENT(stmt));
 
-            size_t var = add_variable(&apm->variable);
-            VARIABLE(var)->type.sort = INVALID_SORT;
+            Variable *var = new_variable();
+            var->type.sort = INVALID_SORT;
 
             STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
             STATEMENT(stmt)->variable = var;
@@ -726,10 +725,10 @@ size_t parse_top_level_declarations(Compiler *c, Program *apm, size_t symbol_tab
             EAT(KEYWORD_DEF);
 
             substr identity = TOKEN_STRING();
-            VARIABLE(var)->identity = identity;
+            var->identity = identity;
             EAT(IDENTITY);
 
-            append_symbol(apm, symbol_table, VARIABLE_SYMBOL, (SymbolPointer){.index = var}, identity);
+            append_symbol(apm, symbol_table, VARIABLE_SYMBOL, (SymbolPointer){.variable = var}, identity);
 
             if (PEEK(EQUAL))
             {

@@ -89,12 +89,12 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *exp
                 {
                 case VARIABLE_SYMBOL:
                     expr->kind = VARIABLE_REFERENCE;
-                    expr->variable = s.to.index;
+                    expr->variable = s.to.variable;
                     break;
 
                 case PARAMETER_SYMBOL:
                     expr->kind = PARAMETER_REFERENCE;
-                    expr->variable = s.to.index;
+                    expr->parameter = s.to.index;
                     break;
 
                 case FUNCTION_SYMBOL:
@@ -253,8 +253,8 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_in
             if (stmt->has_type_expression)
                 resolve_identities_in_expression(c, apm, stmt->type_expression, symbol_table);
 
-            Variable *var = get_variable(apm->variable, stmt->variable);
-            append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, (SymbolPointer){.index = stmt->variable}, var->identity);
+            Variable *var = stmt->variable;
+            append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, (SymbolPointer){.variable = stmt->variable}, var->identity);
 
             break;
         }
@@ -304,8 +304,8 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_in
         {
             resolve_identities_in_expression(c, apm, stmt->iterable, symbol_table);
 
-            Variable *iterator = get_variable(apm->variable, stmt->iterator);
-            append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, (SymbolPointer){.index = stmt->iterator}, iterator->identity);
+            Variable *iterator = stmt->iterator;
+            append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, (SymbolPointer){.variable = stmt->iterator}, iterator->identity);
 
             resolve_identities_in_code_block(c, apm, stmt->body);
 
@@ -613,7 +613,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
         // Variable declarations, including type inference
         case VARIABLE_DECLARATION:
         {
-            Variable *var = get_variable(apm->variable, stmt->variable);
+            Variable *var = stmt->variable;
             var->type.sort = INVALID_SORT;
 
             if (stmt->has_type_expression)
@@ -672,7 +672,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
         {
             resolve_types_in_expression(c, apm, stmt->iterable, symbol_table, (RhinoType){SORT_NONE});
 
-            Variable *iterator = get_variable(apm->variable, stmt->iterator);
+            Variable *iterator = stmt->iterator;
             Expression *iterable = stmt->iterable;
             if (iterable->kind == RANGE_LITERAL)
             {
@@ -768,7 +768,7 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_
             // TODO: This is copy/pasted and modified from resolve_types_in_code_block.
             //       Find an effective way to tidy.
 
-            Variable *var = get_variable(apm->variable, stmt->variable);
+            Variable *var = stmt->variable;
             var->type.sort = INVALID_SORT;
 
             if (stmt->has_type_expression)

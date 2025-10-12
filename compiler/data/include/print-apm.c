@@ -97,7 +97,7 @@ enum LineStatus
 
 // FORWARD DECLARATIONS //
 
-void PRINT_VARIABLE(Program *apm, size_t var_index, const char *source_text);
+void PRINT_VARIABLE(Program *apm, Variable *var, const char *source_text);
 void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text);
 void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text);
 void PRINT_FUNCTION(Program *apm, Function *funct, const char *source_text);
@@ -107,12 +107,10 @@ void PRINT_APM(Program *apm, const char *source_text);
 
 // PRINT VARIABLE //
 
-void PRINT_VARIABLE(Program *apm, size_t var_index, const char *source_text)
+void PRINT_VARIABLE(Program *apm, Variable *var, const char *source_text)
 {
-    Variable *var = get_variable(apm->variable, var_index);
-
     PRINT_SUBSTR(var->identity);
-    PRINT(" v%02d (%s)", var_index, rhino_type_string(apm, var->type));
+    PRINT(" v%p (%s)", var, rhino_type_string(apm, var->type));
 }
 
 // PRINT EXPRESSION //

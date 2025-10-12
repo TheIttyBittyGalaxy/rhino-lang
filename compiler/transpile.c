@@ -249,7 +249,7 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
 
     case VARIABLE_REFERENCE:
     {
-        Variable *var = get_variable(apm->variable, expr->variable);
+        Variable *var = expr->variable;
         EMIT_SUBSTR(var->identity);
         break;
     }
@@ -403,7 +403,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
     case FOR_LOOP:
     {
-        Variable *iterator = get_variable(apm->variable, stmt->iterator);
+        Variable *iterator = stmt->iterator;
         Expression *iterable = stmt->iterable;
 
         if (iterable->kind == RANGE_LITERAL)
@@ -474,7 +474,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
     case VARIABLE_DECLARATION:
     {
-        Variable *var = get_variable(apm->variable, stmt->variable);
+        Variable *var = stmt->variable;
         transpile_type(t, apm, var->type);
         EMIT(" ");
         EMIT_SUBSTR(var->identity);

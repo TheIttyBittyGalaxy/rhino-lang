@@ -9,6 +9,7 @@
 
 // Forward Declarations
 
+typedef struct Variable Variable;
 typedef struct Expression Expression;
 typedef struct Function Function;
 
@@ -83,15 +84,13 @@ typedef struct
 DECLARE_LIST_TYPE(StructType, struct_type)
 
 // Variable
-DECLARE_SLICE_TYPE(Variable, variable)
-
-typedef struct
+struct Variable
 {
     substr identity;
     RhinoType type;
-} Variable;
+};
 
-DECLARE_LIST_TYPE(Variable, variable)
+DECLARE_ALLOCATOR(Variable, variable)
 
 // Symbol table
 #define LIST_SYMBOL_TAG(MACRO) \
@@ -112,6 +111,7 @@ typedef struct
     {
         size_t index;
         Function *function;
+        Variable *variable;
     };
 } SymbolPointer;
 
@@ -240,7 +240,7 @@ struct Expression
         };
         struct // VARIABLE_REFERENCE
         {
-            size_t variable;
+            Variable *variable;
         };
         struct // FUNCTION_REFERENCE
         {
@@ -322,7 +322,7 @@ typedef struct
     {
         struct // VARIABLE_DECLARATION
         {
-            size_t variable; // Variable
+            Variable *variable;
             Expression *initial_value;
             Expression *type_expression;
             bool has_type_expression;
@@ -357,7 +357,7 @@ typedef struct
         struct // FOR_LOOP
         {
             size_t __for_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
-            size_t iterator;   // Variable
+            Variable *iterator;
             Expression *iterable;
         };
         struct // ASSIGNMENT_STATEMENT
@@ -410,7 +410,6 @@ typedef struct
     ArgumentList argument;
 
     StatementList statement;
-    VariableList variable;
 
     EnumTypeList enum_type;
     EnumValueList enum_value;
