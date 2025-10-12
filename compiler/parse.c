@@ -303,6 +303,14 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
     EAT(CURLY_L);
     while (!PEEK(CURLY_R))
     {
+        if (!peek_expression(c))
+        {
+            raise_parse_error(c, EXPECTED_TYPE_EXPRESSION);
+            c->parse_status = PANIC;
+            // TODO: Recover to end of line
+            break;
+        }
+
         size_t property = add_property(&apm->property);
         START_SPAN(PROPERTY(property));
 

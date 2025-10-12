@@ -12,6 +12,7 @@
                                                                     \
     /* PARSER ERRORS */                                             \
     MACRO(EXPECTED_EXPRESSION)                                      \
+    MACRO(EXPECTED_TYPE_EXPRESSION)                                 \
     MACRO(EXPECTED_STATEMENT)                                       \
     MACRO(EXPECTED_FUNCTION)                                        \
                                                                     \
