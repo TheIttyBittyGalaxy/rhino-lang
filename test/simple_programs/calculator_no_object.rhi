@@ -1,33 +1,31 @@
 // FIXME: The testing program currently cannot handle this
 
+Token[] parser_tokens;
+int parser_pos;
+str? parser_error;
+
 struct Token {
     enum Kind { NUM , ADD , SUB , MUL , DIV , OPEN , CLOSE , END }
     Kind kind;
     num value;
 }
 
-object parser {
-    Token[] tokens;
-    int pos;
-    str? error;
+fn flag_error(str error) {
+    if not parser_error:
+        parser_error = error;
 }
 
-fn flag_error(Parser parser, str error) {
-    if not parser.error:
-        parser.error = error;
-}
-
-fn parse(Parser parser, str expr) -> num? {
-    parser.tokens = [];
-    parser.pos = 0;
-    parser.error = null;
+fn parse(str expr) -> num? {
+    parser_tokens = [];
+    parser_pos = 0;
+    parser_error = null;
 
     tokenise(parser, expr);
-    if parser.error: return;
+    if parser_error: return;
     parse_expr(parser);
 }
 
-fn tokenise(Parser parser, str expr) {
+fn tokenise(str expr) {
     int i = 0;
     while i < #expr {
         Token t = { value: 0 };
@@ -50,9 +48,9 @@ fn tokenise(Parser parser, str expr) {
                 return;
             }
         }
-        insert(parser.tokens, t);
+        insert(parser_tokens, t);
     }
-    insert(parser.tokens, { kind: END , value: 0 });
+    insert(parser_tokens, { kind: END , value: 0 });
 }
 
 // Grammar:
@@ -64,11 +62,11 @@ fn tokenise(Parser parser, str expr) {
 fn parse_expr(Parser parser) {
     def result = parse_term(parser)
     loop {
-        match parser.tokens[parser.pos].kind:
+        match parser_tokens[parser_pos].kind:
             ADD: result += parse_term(parser);
             SUB: result -= parse_term(parser);
             else: break;
-        parser.pos++;
+        parser_pos++;
     }
     return result;
 }
@@ -76,27 +74,27 @@ fn parse_expr(Parser parser) {
 fn parse_term(Parser parser) {
     def result = parse_factor(parser)
     loop {
-        match parser.tokens[parser.pos].kind {
+        match parser_tokens[parser_pos].kind {
             MUL: result *= parse_factor(parser);
             DIV: result /= parse_factor(parser);
             else: break;
         }
-        parser.pos++;
+        parser_pos++;
     }
     return result;
 }
 
 fn parse_factor(Parser parser) {
-    Token token = parser.tokens[parser.pos];
+    Token token = parser_tokens[parser_pos];
     match token.kind {
         NUM {
-            parser.pos++;
+            parser_pos++;
             return token.value;
         }
         OPEN {
-            parser.pos++;
+            parser_pos++;
             local result = parse_expr(parser)
-            if parser.tokens[parser.pos].kind != CLOSE:
+            if parser_tokens[parser_pos].kind != CLOSE:
                 flag_error(parser, "Missing ')'");
             return result;
         }
@@ -113,8 +111,8 @@ fn main() {
     loop {
         def expression = input();
         def result = parse(parser, expression);
-        if parser.error:
-            print(parser.error)
+        if parser_error:
+            print(parser_error)
         else:
             print(result)
     }
