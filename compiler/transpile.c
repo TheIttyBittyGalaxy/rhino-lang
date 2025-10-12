@@ -244,12 +244,28 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
         break;
     }
 
+    case PARAMETER_REFERENCE:
+    {
+        Parameter *param = get_parameter(apm->parameter, expr->parameter);
+        EMIT_SUBSTR(param->identity);
+        break;
+    }
+
     case FUNCTION_CALL:
     {
         Expression *reference = get_expression(apm->expression, expr->callee);
         Function *callee = get_function(apm->function, reference->function);
         EMIT_SUBSTR(callee->identity);
-        EMIT("()");
+        EMIT("(");
+        size_t last = expr->arguments.first + expr->arguments.count - 1;
+        for (size_t n = expr->arguments.first; n <= last; n++)
+        {
+            Argument *arg = get_argument(apm->argument, n);
+            transpile_expression(t, apm, arg->expr);
+            if (n < last)
+                EMIT(",");
+        }
+        EMIT(")");
         break;
     }
 
@@ -567,7 +583,22 @@ void transpile_function_signature(Transpiler *t, Program *apm, size_t funct_inde
     transpile_type(t, apm, funct->return_type);
     EMIT(" ");
     EMIT_SUBSTR(funct->identity);
-    EMIT("()");
+    EMIT("(");
+
+    size_t last = funct->parameters.first + funct->parameters.count - 1;
+    for (size_t n = funct->parameters.first; n <= last; n++)
+    {
+        Parameter *parameter = get_parameter(apm->parameter, n);
+
+        transpile_type(t, apm, parameter->type);
+        EMIT(" ");
+        EMIT_SUBSTR(parameter->identity);
+
+        if (n < last)
+            EMIT(", ");
+    }
+
+    EMIT(")");
 }
 
 void transpile_function(Transpiler *t, Program *apm, size_t funct_index)
