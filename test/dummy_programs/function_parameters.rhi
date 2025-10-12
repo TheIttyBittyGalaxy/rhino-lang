@@ -1,0 +1,9 @@
+fn print_sum(int x, int y):
+    > x + y;
+
+fn main() {
+    print_sum(1,2);
+}
+
+// SUCCESS
+// 3
