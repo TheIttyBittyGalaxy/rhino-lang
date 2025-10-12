@@ -9,10 +9,14 @@ fn main() {
     card.suit = SPADES;
     card.value = 1;
 
+    Card.Suit trumps = DIAMONDS;
+    
     > card.suit;
     > card.value;
+    > card.suit == trumps;
 }
 
 // SUCCESS
 // SPADES
 // 1
+// false
