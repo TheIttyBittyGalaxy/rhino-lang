@@ -1,8 +1,6 @@
 #include "resolve.h"
 #include "fatal_error.h"
 
-#include <stdio.h>
-
 // DETERMINE MAIN FUNCTION //
 
 void determine_main_function(Compiler *c, Program *apm)
@@ -413,7 +411,7 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, 
     return (RhinoType){INVALID_SORT, 0};
 }
 
-void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table)
+void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table, RhinoType type_hint)
 {
     Expression *expr = get_expression(apm->expression, expr_index);
 
@@ -423,7 +421,23 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
         break;
 
     case IDENTITY_LITERAL:
+    {
+        if (type_hint.sort == SORT_ENUM)
+        {
+            EnumType *enum_type = get_enum_type(apm->enum_type, type_hint.index);
+            for (size_t n = enum_type->values.first; n < enum_type->values.first + enum_type->values.count; n++)
+            {
+                EnumValue *enum_value = get_enum_value(apm->enum_value, n);
+                if (substr_match(c->source_text, expr->identity, enum_value->identity))
+                {
+                    expr->kind = ENUM_VALUE_LITERAL;
+                    expr->enum_value = n;
+                    return;
+                }
+            }
+        }
         break;
+    }
 
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
@@ -440,12 +454,13 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
 
     case FUNCTION_CALL:
     {
-        resolve_types_in_expression(c, apm, expr->callee, symbol_table);
+        resolve_types_in_expression(c, apm, expr->callee, symbol_table, (RhinoType){SORT_NONE});
 
+        // TODO: Use the parameter types as type hints for the arguments
         for (size_t i = 0; i < expr->arguments.count; i++)
         {
             Argument *arg = get_argument_from_slice(apm->argument, expr->arguments, i);
-            resolve_types_in_expression(c, apm, arg->expr, symbol_table);
+            resolve_types_in_expression(c, apm, arg->expr, symbol_table, (RhinoType){SORT_NONE});
         }
 
         break;
@@ -453,7 +468,7 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
 
     case INDEX_BY_FIELD:
     {
-        resolve_types_in_expression(c, apm, expr->subject, symbol_table);
+        resolve_types_in_expression(c, apm, expr->subject, symbol_table, (RhinoType){SORT_NONE});
 
         // Resolve enum values
         Expression *subject = get_expression(apm->expression, expr->subject);
@@ -464,7 +479,6 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
             return;
 
         EnumType *enum_type = get_enum_type(apm->enum_type, subject->type.index);
-
         for (size_t n = enum_type->values.first; n < enum_type->values.first + enum_type->values.count; n++)
         {
             EnumValue *enum_value = get_enum_value(apm->enum_value, n);
@@ -481,15 +495,15 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
     }
 
     case RANGE_LITERAL:
-        resolve_types_in_expression(c, apm, expr->first, symbol_table);
-        resolve_types_in_expression(c, apm, expr->last, symbol_table);
+        resolve_types_in_expression(c, apm, expr->first, symbol_table, (RhinoType){SORT_NONE});
+        resolve_types_in_expression(c, apm, expr->last, symbol_table, (RhinoType){SORT_NONE});
         break;
 
     case UNARY_POS:
     case UNARY_NEG:
     case UNARY_INCREMENT:
     case UNARY_DECREMENT:
-        resolve_types_in_expression(c, apm, expr->operand, symbol_table);
+        resolve_types_in_expression(c, apm, expr->operand, symbol_table, (RhinoType){SORT_NONE});
         break;
 
     case BINARY_MULTIPLY:
@@ -505,8 +519,8 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
     case BINARY_NOT_EQUAL:
     case BINARY_LOGICAL_AND:
     case BINARY_LOGICAL_OR:
-        resolve_types_in_expression(c, apm, expr->lhs, symbol_table);
-        resolve_types_in_expression(c, apm, expr->rhs, symbol_table);
+        resolve_types_in_expression(c, apm, expr->lhs, symbol_table, (RhinoType){SORT_NONE});
+        resolve_types_in_expression(c, apm, expr->rhs, symbol_table, (RhinoType){SORT_NONE});
         break;
 
     default:
@@ -538,20 +552,22 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
             var->type.sort = INVALID_SORT;
 
             if (stmt->has_type_expression)
+            {
                 var->type = resolve_type_expression(c, apm, stmt->type_expression, symbol_table);
 
-            // FIXME: When the variable has a type expression, we should supply the type of
-            //        the variable as a type hint when resolving types in the initial value.
-            if (stmt->has_initial_value)
-            {
-                resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table);
-
-                if (!stmt->has_type_expression)
-                    var->type = get_expression_type(apm, c->source_text, stmt->initial_value);
+                if (stmt->has_initial_value)
+                    resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table, var->type);
             }
-
-            // TODO: What should happen if we find am inferred variable
-            //       declaration that was defined without an initial value?
+            else if (stmt->has_initial_value)
+            {
+                resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table, (RhinoType){SORT_NONE});
+                var->type = get_expression_type(apm, c->source_text, stmt->initial_value);
+            }
+            else
+            {
+                // TODO: What should happen if we find am inferred variable
+                //       declaration that was defined without an initial value?
+            }
 
             break;
         }
@@ -574,7 +590,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
 
         case IF_SEGMENT:
         case ELSE_IF_SEGMENT:
-            resolve_types_in_expression(c, apm, stmt->condition, symbol_table);
+            resolve_types_in_expression(c, apm, stmt->condition, symbol_table, (RhinoType){SORT_BOOL});
             resolve_types_in_code_block(c, apm, stmt->body);
             break;
 
@@ -589,7 +605,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
         // For loops, including type inference of the iterator
         case FOR_LOOP:
         {
-            resolve_types_in_expression(c, apm, stmt->iterable, symbol_table);
+            resolve_types_in_expression(c, apm, stmt->iterable, symbol_table, (RhinoType){SORT_NONE});
 
             Variable *iterator = get_variable(apm->variable, stmt->iterator);
             Expression *iterable = get_expression(apm->expression, stmt->iterable);
@@ -615,14 +631,16 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
             break;
 
         case ASSIGNMENT_STATEMENT:
-            resolve_types_in_expression(c, apm, stmt->assignment_lhs, symbol_table);
-            resolve_types_in_expression(c, apm, stmt->assignment_rhs, symbol_table);
+            // TODO: Give a type hint to the RHS based on the type of the LHS
+            resolve_types_in_expression(c, apm, stmt->assignment_lhs, symbol_table, (RhinoType){SORT_NONE});
+            resolve_types_in_expression(c, apm, stmt->assignment_rhs, symbol_table, (RhinoType){SORT_NONE});
             break;
 
         case OUTPUT_STATEMENT:
         case EXPRESSION_STMT:
         case RETURN_STATEMENT:
-            resolve_types_in_expression(c, apm, stmt->expression, symbol_table);
+            // TODO: Use the return type of the function as a type hint for return statements
+            resolve_types_in_expression(c, apm, stmt->expression, symbol_table, (RhinoType){SORT_NONE});
             break;
 
         default:
