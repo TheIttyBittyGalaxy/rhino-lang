@@ -150,8 +150,7 @@ void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text)
 
     case ENUM_VALUE_LITERAL:
     {
-        EnumValue *enum_value = get_enum_value(apm->enum_value, expr->enum_value);
-        PRINT_SUBSTR(enum_value->identity);
+        PRINT_SUBSTR(expr->enum_value->identity);
         break;
     }
 
@@ -532,14 +531,19 @@ void PRINT_ENUM_TYPE(Program *apm, EnumType *enum_type, const char *source_text)
     {
         INDENT();
         NEWLINE();
-        size_t last = enum_type->values.first + enum_type->values.count - 1;
-        for (size_t n = enum_type->values.first; n <= last; n++)
+
+        EnumValue *enum_value;
+        EnumValueIterator it = enum_value_iterator(enum_type->values);
+        size_t i = 0;
+        while (enum_value = next_enum_value_iterator(&it))
         {
-            EnumValue *enum_value = get_enum_value(apm->enum_value, n);
-            if (n == last)
+            if (i == enum_type->values.count - 1)
                 LAST_ON_LINE();
+
             PRINT_SUBSTR(enum_value->identity);
             NEWLINE();
+
+            i++;
         }
         UNINDENT();
     }

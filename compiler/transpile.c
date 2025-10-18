@@ -238,7 +238,7 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
 
     case ENUM_VALUE_LITERAL:
     {
-        EnumValue *enum_value = get_enum_value(apm->enum_value, expr->enum_value);
+        EnumValue *enum_value = expr->enum_value;
         EnumType *enum_type = enum_value->type_of_enum_value;
 
         EMIT_SUBSTR(enum_type->identity);
@@ -627,18 +627,25 @@ void transpile_program(Transpiler *t, Program *apm)
         if (declaration->kind == ENUM_TYPE_DECLARATION)
         {
             EnumType *enum_type = declaration->enum_type;
+            EnumValue *enum_value;
+            EnumValueIterator it;
+            size_t i = 0;
 
             // Enum declaration
             EMIT("typedef enum { ");
-            for (size_t i = 0; i < enum_type->values.count; i++)
+
+            it = enum_value_iterator(enum_type->values);
+            i = 0;
+            while (enum_value = next_enum_value_iterator(&it))
             {
                 if (i > 0)
                     EMIT(", ");
 
-                EnumValue *enum_value = get_enum_value_from_slice(apm->enum_value, enum_type->values, i);
                 EMIT_SUBSTR(enum_type->identity);
                 EMIT("__");
                 EMIT_SUBSTR(enum_value->identity);
+
+                i++;
             }
 
             EMIT(" } ");
@@ -657,9 +664,11 @@ void transpile_program(Transpiler *t, Program *apm)
             EMIT_OPEN_BRACE();
             EMIT_LINE("switch(value)");
             EMIT_OPEN_BRACE();
-            for (size_t i = 0; i < enum_type->values.count; i++)
+
+            it = enum_value_iterator(enum_type->values);
+            i = 0;
+            while (enum_value = next_enum_value_iterator(&it))
             {
-                EnumValue *enum_value = get_enum_value_from_slice(apm->enum_value, enum_type->values, i);
                 EMIT("case ");
                 EMIT_SUBSTR(enum_type->identity);
                 EMIT("__");
@@ -669,6 +678,7 @@ void transpile_program(Transpiler *t, Program *apm)
                 EMIT_SUBSTR(enum_value->identity);
                 EMIT_LINE("\";");
             }
+
             EMIT_CLOSE_BRACE();
             EMIT_CLOSE_BRACE();
             EMIT_NEWLINE();

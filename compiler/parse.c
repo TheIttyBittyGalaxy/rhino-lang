@@ -42,7 +42,6 @@ Expression *parse_expression(Compiler *c, Program *apm);
 
 #define PARAMETER(index) get_parameter(apm->parameter, index)
 #define ARGUMENT(index) get_argument(apm->argument, index)
-#define ENUM_VALUE(index) get_enum_value(apm->enum_value, index)
 #define PROPERTY(index) get_property(apm->property, index)
 #define STATEMENT(index) get_statement(apm->statement, index)
 #define SYMBOL_TABLE(index) get_symbol_table(apm->symbol_table, index)
@@ -263,21 +262,21 @@ void parse_enum_type(Compiler *c, Program *apm, Block *parent, StatementListAllo
     // TODO: Handle this scenario correctly
     assert(c->parse_status == OKAY);
 
-    size_t first_value = apm->enum_value.count;
-    enum_type->values.first = first_value;
+    EnumValueListAllocator value_allocator;
+    init_enum_value_list_allocator(&value_allocator, &apm->enum_value_lists, 512); // FIXME: 512 was chosen arbitrarily
 
     EAT(CURLY_L);
     while (true)
     {
-        size_t enum_value = add_enum_value(&apm->enum_value);
-        ENUM_VALUE(enum_value)->type_of_enum_value = enum_type;
-        START_SPAN(ENUM_VALUE(enum_value));
+        EnumValue *enum_value = append_enum_value(&value_allocator);
+        enum_value->type_of_enum_value = enum_type;
+        START_SPAN(enum_value);
 
         substr identity = TOKEN_STRING();
-        ENUM_VALUE(enum_value)->identity = identity;
+        enum_value->identity = identity;
         EAT(IDENTITY);
 
-        END_SPAN(ENUM_VALUE(enum_value));
+        END_SPAN(enum_value);
 
         if (!PEEK(COMMA))
             break;
@@ -286,10 +285,9 @@ void parse_enum_type(Compiler *c, Program *apm, Block *parent, StatementListAllo
     }
     EAT(CURLY_R);
 
-    size_t value_count = apm->enum_value.count - first_value;
-    enum_type->values.count = value_count;
-
     END_SPAN(enum_type);
+
+    enum_type->values = get_enum_value_list(value_allocator);
 
     append_symbol(apm, parent->symbol_table, ENUM_TYPE_SYMBOL, (SymbolPointer){.enum_type = enum_type}, identity);
     Statement *declaration = append_statement(parent_statements);

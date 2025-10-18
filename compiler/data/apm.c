@@ -12,6 +12,7 @@ DEFINE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
 // ALLOCATORS //
 
+DEFINE_LIST_ALLOCATOR(EnumValue, enum_value)
 DEFINE_LIST_ALLOCATOR(EnumType, enum_type)
 DEFINE_LIST_ALLOCATOR(StructType, struct_type)
 DEFINE_LIST_ALLOCATOR(Variable, variable)
@@ -24,13 +25,11 @@ DEFINE_LIST_ALLOCATOR(Function, function)
 
 DEFINE_LIST_TYPE(Argument, argument)
 DEFINE_LIST_TYPE(Parameter, parameter)
-DEFINE_LIST_TYPE(EnumValue, enum_value)
 DEFINE_LIST_TYPE(Property, property)
 DEFINE_LIST_TYPE(SymbolTable, symbol_table)
 
 DEFINE_SLICE_TYPE(Argument, argument)
 DEFINE_SLICE_TYPE(Parameter, parameter)
-DEFINE_SLICE_TYPE(EnumValue, enum_value)
 DEFINE_SLICE_TYPE(Property, property)
 DEFINE_SLICE_TYPE(SymbolTable, symbol_table)
 
@@ -47,6 +46,7 @@ const char *rhino_type_string(Program *apm, RhinoType ty)
 void init_program(Program *apm, Allocator *allocator)
 {
     init_allocator(&apm->statement_lists, allocator, 1024);
+    init_allocator(&apm->enum_value_lists, allocator, 1024);
 
     init_expression_list_allocator(&apm->expression, allocator, 1024);
     init_function_list_allocator(&apm->function, allocator, 1024);
@@ -58,7 +58,6 @@ void init_program(Program *apm, Allocator *allocator)
     // TODO: Old allocators, yet to be replaced
     init_parameter_list(&apm->parameter);
     init_argument_list(&apm->argument);
-    init_enum_value_list(&apm->enum_value);
     init_property_list(&apm->property);
     init_symbol_table_list(&apm->symbol_table);
 
@@ -346,7 +345,7 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
     case ENUM_VALUE_LITERAL:
     {
         result.sort = SORT_ENUM;
-        result.enum_type = get_enum_value(apm->enum_value, expr->enum_value)->type_of_enum_value;
+        result.enum_type = expr->enum_value->type_of_enum_value;
         break;
     }
 

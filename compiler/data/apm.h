@@ -9,7 +9,9 @@
 
 // Forward Declarations
 
+typedef struct EnumValue EnumValue;
 typedef struct EnumType EnumType;
+DECLARE_LIST_ALLOCATOR(EnumValue, enum_value)
 DECLARE_LIST_ALLOCATOR(EnumType, enum_type)
 
 typedef struct StructType StructType;
@@ -56,23 +58,19 @@ typedef struct
 } RhinoType;
 
 // Enum value
-DECLARE_SLICE_TYPE(EnumValue, enum_value)
-
-typedef struct
+struct EnumValue
 {
     substr span;
     substr identity;
     EnumType *type_of_enum_value; // FIXME: I would like to not have this if possible
-} EnumValue;
-
-DECLARE_LIST_TYPE(EnumValue, enum_value)
+};
 
 // Enum type
 struct EnumType
 {
     substr span;
     substr identity;
-    EnumValueSlice values;
+    EnumValueList values;
 };
 
 // Property
@@ -250,7 +248,7 @@ struct Expression
         };
         struct // ENUM_VALUE_LITERAL
         {
-            size_t enum_value; // EnumValue
+            EnumValue *enum_value;
         };
         struct // VARIABLE_REFERENCE
         {
@@ -420,6 +418,7 @@ struct Function
 typedef struct
 {
     Allocator statement_lists;
+    Allocator enum_value_lists;
 
     ExpressionListAllocator expression;
     FunctionListAllocator function;

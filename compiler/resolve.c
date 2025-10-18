@@ -466,13 +466,14 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
         if (type_hint.sort == SORT_ENUM)
         {
             EnumType *enum_type = type_hint.enum_type;
-            for (size_t n = enum_type->values.first; n < enum_type->values.first + enum_type->values.count; n++)
+            EnumValue *enum_value;
+            EnumValueIterator it = enum_value_iterator(enum_type->values);
+            while (enum_value = next_enum_value_iterator(&it))
             {
-                EnumValue *enum_value = get_enum_value(apm->enum_value, n);
                 if (substr_match(c->source_text, expr->identity, enum_value->identity))
                 {
                     expr->kind = ENUM_VALUE_LITERAL;
-                    expr->enum_value = n;
+                    expr->enum_value = enum_value;
                     return;
                 }
             }
@@ -520,13 +521,14 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
             return;
 
         EnumType *enum_type = subject->type.enum_type;
-        for (size_t n = enum_type->values.first; n < enum_type->values.first + enum_type->values.count; n++)
+        EnumValue *enum_value;
+        EnumValueIterator it = enum_value_iterator(enum_type->values);
+        while (enum_value = next_enum_value_iterator(&it))
         {
-            EnumValue *enum_value = get_enum_value(apm->enum_value, n);
             if (substr_match(c->source_text, expr->field, enum_value->identity))
             {
                 expr->kind = ENUM_VALUE_LITERAL;
-                expr->enum_value = n;
+                expr->enum_value = enum_value;
                 return;
             }
         }
