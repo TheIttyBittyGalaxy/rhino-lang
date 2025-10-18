@@ -412,11 +412,11 @@ DECLARE_LIST_ALLOCATOR(Function, function)
 // Program
 typedef struct
 {
-    ExpressionList expression;
-    FunctionList function;
-    VariableList variable;
-    EnumTypeList enum_type;
-    StructTypeList struct_type;
+    ExpressionListAllocator expression;
+    FunctionListAllocator function;
+    VariableListAllocator variable;
+    EnumTypeListAllocator enum_type;
+    StructTypeListAllocator struct_type;
 
     // TODO: Old allocators, yet to be replaced
     ParameterList parameter;
