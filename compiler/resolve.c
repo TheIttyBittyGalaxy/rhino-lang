@@ -379,11 +379,11 @@ void resolve_identities_in_declaration_block(Compiler *c, Program *apm, Block *b
 // RESOLVE TYPES //
 
 RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table);
-void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table);
-void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index);
+void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table, RhinoType type_hint);
+void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block);
 void resolve_types_in_function(Compiler *c, Program *apm, Function *funct, SymbolTable *symbol_table);
 void resolve_types_in_struct_type(Compiler *c, Program *apm, StructType *struct_type, SymbolTable *symbol_table);
-void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_index);
+void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block);
 
 RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table)
 {
