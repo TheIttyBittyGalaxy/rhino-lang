@@ -432,7 +432,7 @@ typedef struct
     size_t global_symbol_table; // SymbolTable
 } Program;
 
-void init_program(Program *apm);
+void init_program(Program *apm, Allocator *allocator);
 
 void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, SymbolPointer to, substr symbol_identity);
 

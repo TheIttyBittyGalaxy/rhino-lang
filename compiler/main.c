@@ -89,6 +89,10 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    // Global allocator
+    Allocator global_allocator;
+    init_allocator(&global_allocator, NULL, 16384);
+
     // Test mode
     if (flag_test_mode)
     {
@@ -103,7 +107,7 @@ int main(int argc, char *argv[])
         tokenise(&compiler);
 
         Program apm;
-        init_program(&apm);
+        init_program(&apm, &global_allocator);
         parse(&compiler, &apm);
         resolve(&compiler, &apm);
         check(&compiler, &apm);
@@ -157,7 +161,7 @@ int main(int argc, char *argv[])
 
     HEADING("Parse");
     Program apm;
-    init_program(&apm);
+    init_program(&apm, &global_allocator);
     parse(&compiler, &apm);
     if (flag_parse_dump)
     {
