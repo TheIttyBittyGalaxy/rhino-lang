@@ -12,22 +12,22 @@ DEFINE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
 // ALLOCATORS //
 
-DEFINE_LIST_ALLOCATOR(Expression, expression)
-DEFINE_LIST_ALLOCATOR(Function, function)
-DEFINE_LIST_ALLOCATOR(Variable, variable)
 DEFINE_LIST_ALLOCATOR(EnumType, enum_type)
 DEFINE_LIST_ALLOCATOR(StructType, struct_type)
+DEFINE_LIST_ALLOCATOR(Variable, variable)
+DEFINE_LIST_ALLOCATOR(Expression, expression)
+DEFINE_LIST_ALLOCATOR(Statement, statement)
+DEFINE_LIST_ALLOCATOR(Block, block)
+DEFINE_LIST_ALLOCATOR(Function, function)
 
 // LIST TYPE //
 
-DEFINE_LIST_TYPE(Statement, statement)
 DEFINE_LIST_TYPE(Argument, argument)
 DEFINE_LIST_TYPE(Parameter, parameter)
 DEFINE_LIST_TYPE(EnumValue, enum_value)
 DEFINE_LIST_TYPE(Property, property)
 DEFINE_LIST_TYPE(SymbolTable, symbol_table)
 
-DEFINE_SLICE_TYPE(Statement, statement)
 DEFINE_SLICE_TYPE(Argument, argument)
 DEFINE_SLICE_TYPE(Parameter, parameter)
 DEFINE_SLICE_TYPE(EnumValue, enum_value)
@@ -46,16 +46,18 @@ const char *rhino_type_string(Program *apm, RhinoType ty)
 
 void init_program(Program *apm, Allocator *allocator)
 {
+    init_allocator(&apm->statement_lists, allocator, 1024);
+
     init_expression_list_allocator(&apm->expression, allocator, 1024);
     init_function_list_allocator(&apm->function, allocator, 1024);
     init_variable_list_allocator(&apm->variable, allocator, 1024);
     init_enum_type_list_allocator(&apm->enum_type, allocator, 1024);
     init_struct_type_list_allocator(&apm->struct_type, allocator, 1024);
+    init_block_list_allocator(&apm->block, allocator, 1024);
 
     // TODO: Old allocators, yet to be replaced
     init_parameter_list(&apm->parameter);
     init_argument_list(&apm->argument);
-    init_statement_list(&apm->statement);
     init_enum_value_list(&apm->enum_value);
     init_property_list(&apm->property);
     init_symbol_table_list(&apm->symbol_table);
@@ -120,6 +122,7 @@ void dump_apm(Program *apm, const char *source_text)
     }
     printf("\n");
 
+    /*
     printf("STATEMENTS\n");
     for (size_t i = 0; i < apm->statement.count; i++)
     {
@@ -154,6 +157,7 @@ void dump_apm(Program *apm, const char *source_text)
         printf("\n");
     }
     printf("\n");
+    */
 
     printf("EXPRESSIONS\n");
     Expression *expr;
@@ -305,66 +309,6 @@ void dump_apm(Program *apm, const char *source_text)
 
 #define PRINT_RESOLVED
 #include "include/print-apm.c"
-
-// ACCESS METHODS //
-
-size_t get_next_statement_in_block(Program *apm, Statement *code_block, size_t n)
-{
-    if (code_block->statements.count == 0)
-        return 0;
-
-    Statement *child = get_statement(apm->statement, code_block->statements.first + n);
-    n++;
-
-    switch (child->kind)
-    {
-    case DECLARATION_BLOCK:
-    case CODE_BLOCK:
-    case SINGLE_BLOCK:
-        return n + child->statements.count;
-
-    case IF_SEGMENT:
-    case ELSE_IF_SEGMENT:
-    case ELSE_SEGMENT:
-    case BREAK_LOOP:
-    case FOR_LOOP:
-        return n + get_statement(apm->statement, child->body)->statements.count + 1;
-
-    case FUNCTION_DECLARATION:
-    {
-        Function *funct = child->function;
-        return n + get_statement(apm->statement, funct->body)->statements.count + 1;
-    }
-
-    case STRUCT_TYPE_DECLARATION:
-    {
-        StructType *struct_type = child->struct_type;
-        return n + get_statement(apm->statement, struct_type->declarations)->statements.count + 1;
-    }
-    }
-
-    return n;
-}
-
-size_t get_first_statement_in_block(Program *apm, Statement *code_block)
-{
-    return 0;
-}
-
-size_t get_last_statement_in_block(Program *apm, Statement *code_block)
-{
-    if (code_block->statements.count == 0)
-        return 0;
-
-    size_t n = 0;
-    while (true)
-    {
-        size_t next = get_next_statement_in_block(apm, code_block, n);
-        if (next >= code_block->statements.count)
-            return n;
-        n = next;
-    }
-}
 
 // TYPE ANALYSIS METHODS //
 

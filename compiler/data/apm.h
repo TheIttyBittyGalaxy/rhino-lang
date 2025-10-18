@@ -10,11 +10,25 @@
 // Forward Declarations
 
 typedef struct EnumType EnumType;
+DECLARE_LIST_ALLOCATOR(EnumType, enum_type)
+
 typedef struct StructType StructType;
+DECLARE_LIST_ALLOCATOR(StructType, struct_type)
 
 typedef struct Variable Variable;
+DECLARE_LIST_ALLOCATOR(Variable, variable)
+
 typedef struct Expression Expression;
+DECLARE_LIST_ALLOCATOR(Expression, expression)
+
+typedef struct Statement Statement;
+DECLARE_LIST_ALLOCATOR(Statement, statement)
+
+typedef struct Block Block;
+DECLARE_LIST_ALLOCATOR(Block, block)
+
 typedef struct Function Function;
+DECLARE_LIST_ALLOCATOR(Function, function)
 
 // Types
 #define LIST_RHINO_SORTS(MACRO) \
@@ -61,8 +75,6 @@ struct EnumType
     EnumValueSlice values;
 };
 
-DECLARE_LIST_ALLOCATOR(EnumType, enum_type)
-
 // Property
 DECLARE_SLICE_TYPE(Property, property)
 
@@ -82,10 +94,8 @@ struct StructType
     substr span;
     substr identity;
     PropertySlice properties;
-    size_t declarations; // DECLARATION_BLOCK
+    Block *declarations;
 };
-
-DECLARE_LIST_ALLOCATOR(StructType, struct_type)
 
 // Variable
 struct Variable
@@ -93,8 +103,6 @@ struct Variable
     substr identity;
     RhinoType type;
 };
-
-DECLARE_LIST_ALLOCATOR(Variable, variable)
 
 // Symbol table
 #define LIST_SYMBOL_TAG(MACRO) \
@@ -287,8 +295,6 @@ struct Expression
     };
 };
 
-DECLARE_LIST_ALLOCATOR(Expression, expression)
-
 // Statement
 #define LIST_STATEMENTS(MACRO)     \
     MACRO(INVALID_STATEMENT)       \
@@ -298,9 +304,7 @@ DECLARE_LIST_ALLOCATOR(Expression, expression)
     MACRO(STRUCT_TYPE_DECLARATION) \
     MACRO(VARIABLE_DECLARATION)    \
                                    \
-    MACRO(DECLARATION_BLOCK)       \
     MACRO(CODE_BLOCK)              \
-    MACRO(SINGLE_BLOCK)            \
                                    \
     MACRO(IF_SEGMENT)              \
     MACRO(ELSE_IF_SEGMENT)         \
@@ -318,9 +322,7 @@ DECLARE_LIST_ALLOCATOR(Expression, expression)
 
 DECLARE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
 
-DECLARE_SLICE_TYPE(Statement, statement)
-
-typedef struct
+struct Statement
 {
     StatementKind kind;
     substr span;
@@ -346,23 +348,22 @@ typedef struct
         {
             StructType *struct_type;
         };
-        struct // DECLARATION_BLOCK / CODE_BLOCK / SINGLE_BLOCK
+        struct // CODE_BLOCK
         {
-            StatementSlice statements;
-            size_t symbol_table;
+            Block *block;
         };
         struct // IF_SEGMENT / ELSE_IF_SEGMENT / ELSE_SEGMENT
         {
-            size_t body; // Statement
+            Block *body;
             Expression *condition;
         };
         struct // BREAK_LOOP
         {
-            size_t __loop_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
+            Block *__loop_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
         };
         struct // FOR_LOOP
         {
-            size_t __for_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
+            Block *__for_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
             Variable *iterator;
             Expression *iterable;
         };
@@ -376,9 +377,17 @@ typedef struct
             Expression *expression;
         };
     };
-} Statement;
+};
 
-DECLARE_LIST_TYPE(Statement, statement)
+// Block
+
+struct Block
+{
+    bool declaration_block;
+    bool singleton_block;
+    size_t symbol_table;
+    StatementList statements;
+};
 
 // Parameter
 DECLARE_SLICE_TYPE(Parameter, parameter)
@@ -398,7 +407,7 @@ struct Function
 {
     substr span;
     substr identity;
-    size_t body; // Statement
+    Block *body;
 
     Expression *return_type_expression;
     bool has_return_type_expression;
@@ -407,28 +416,28 @@ struct Function
     ParameterSlice parameters;
 };
 
-DECLARE_LIST_ALLOCATOR(Function, function)
-
 // Program
 typedef struct
 {
+    Allocator statement_lists;
+
     ExpressionListAllocator expression;
     FunctionListAllocator function;
     VariableListAllocator variable;
     EnumTypeListAllocator enum_type;
     StructTypeListAllocator struct_type;
+    BlockListAllocator block;
 
     // TODO: Old allocators, yet to be replaced
     ParameterList parameter;
     ArgumentList argument;
-    StatementList statement;
     EnumValueList enum_value;
     PropertyList property;
     SymbolTableList symbol_table;
 
     Function *main;
 
-    size_t program_block;       // Statement
+    Block *program_block;       // Statement
     size_t global_symbol_table; // SymbolTable
 } Program;
 

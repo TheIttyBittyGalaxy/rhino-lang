@@ -18,7 +18,8 @@ typedef struct
 
 void transpile_type(Transpiler *t, Program *apm, RhinoType rhino_type);
 void transpile_expression(Transpiler *t, Program *apm, Expression *expr);
-void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index);
+void transpile_statement(Transpiler *t, Program *apm, Statement *stmt);
+void transpile_block(Transpiler *t, Program *apm, Block *block);
 void transpile_function(Transpiler *t, Program *apm, Function *funct);
 void transpile_program(Transpiler *t, Program *apm);
 
@@ -346,10 +347,8 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
     }
 }
 
-void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
+void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
 {
-    Statement *stmt = get_statement(apm->statement, stmt_index);
-
     switch (stmt->kind)
     {
 
@@ -359,21 +358,8 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         break;
 
     case CODE_BLOCK:
-    case SINGLE_BLOCK:
     {
-        EMIT_OPEN_BRACE();
-
-        // TODO: At the moment we are walking the APM as a tree. However, it is probably possible
-        //       and also faster to just walk it as a list, where we create a "{" whenever we
-        //       encounter a code block, and use a stack to track where we should insert the "}".
-        size_t n = get_first_statement_in_block(apm, stmt);
-        while (n < stmt->statements.count)
-        {
-            transpile_statement(t, apm, stmt->statements.first + n);
-            n = get_next_statement_in_block(apm, stmt, n);
-        }
-
-        EMIT_CLOSE_BRACE();
+        transpile_block(t, apm, stmt->block);
         break;
     }
 
@@ -383,20 +369,20 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         EMIT("if (");
         transpile_expression(t, apm, stmt->condition);
         EMIT(")");
-        transpile_statement(t, apm, stmt->body);
+        transpile_block(t, apm, stmt->body);
         break;
 
     case ELSE_SEGMENT:
     {
         EMIT("else ");
-        transpile_statement(t, apm, stmt->body);
+        transpile_block(t, apm, stmt->body);
         break;
     }
 
     case BREAK_LOOP:
     {
         EMIT_LINE("while (true)");
-        transpile_statement(t, apm, stmt->body);
+        transpile_block(t, apm, stmt->body);
         break;
     }
 
@@ -421,7 +407,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
             EMIT_SUBSTR(iterator->identity);
             EMIT(")");
 
-            transpile_statement(t, apm, stmt->body);
+            transpile_block(t, apm, stmt->body);
             break;
         }
 
@@ -447,7 +433,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
             EMIT_SUBSTR(iterator->identity);
             EMIT(" + 1))");
 
-            transpile_statement(t, apm, stmt->body);
+            transpile_block(t, apm, stmt->body);
             break;
         }
 
@@ -583,6 +569,18 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
     }
 }
 
+void transpile_block(Transpiler *t, Program *apm, Block *block)
+{
+    EMIT_OPEN_BRACE();
+
+    Statement *child;
+    StatementIterator it = statement_iterator(block->statements);
+    while (child = next_statement_iterator(&it))
+        transpile_statement(t, apm, child);
+
+    EMIT_CLOSE_BRACE();
+}
+
 void transpile_function_signature(Transpiler *t, Program *apm, Function *funct)
 {
     transpile_type(t, apm, funct->return_type);
@@ -607,7 +605,7 @@ void transpile_function_signature(Transpiler *t, Program *apm, Function *funct)
 void transpile_function(Transpiler *t, Program *apm, Function *funct)
 {
     transpile_function_signature(t, apm, funct);
-    transpile_statement(t, apm, funct->body);
+    transpile_block(t, apm, funct->body);
 }
 
 void transpile_program(Transpiler *t, Program *apm)
@@ -619,16 +617,13 @@ void transpile_program(Transpiler *t, Program *apm)
 #include "rhino/runtime_as_str.c"
     );
 
-    Statement *program_block = get_statement(apm->statement, apm->program_block);
-    size_t i;
+    Statement *declaration;
+    StatementIterator it;
 
     // Global enum types
-    i = get_first_statement_in_block(apm, program_block);
-    while (i < program_block->statements.count)
+    it = statement_iterator(apm->program_block->statements);
+    while (declaration = next_statement_iterator(&it))
     {
-        size_t n = program_block->statements.first + i;
-        Statement *declaration = get_statement(apm->statement, n);
-
         if (declaration->kind == ENUM_TYPE_DECLARATION)
         {
             EnumType *enum_type = declaration->enum_type;
@@ -678,18 +673,13 @@ void transpile_program(Transpiler *t, Program *apm)
             EMIT_CLOSE_BRACE();
             EMIT_NEWLINE();
         }
-
-        i = get_next_statement_in_block(apm, program_block, i);
     }
     EMIT_NEWLINE();
 
     // Global struct types
-    i = get_first_statement_in_block(apm, program_block);
-    while (i < program_block->statements.count)
+    it = statement_iterator(apm->program_block->statements);
+    while (declaration = next_statement_iterator(&it))
     {
-        size_t n = program_block->statements.first + i;
-        Statement *declaration = get_statement(apm->statement, n);
-
         if (declaration->kind == STRUCT_TYPE_DECLARATION)
         {
             StructType *struct_type = declaration->struct_type;
@@ -729,59 +719,42 @@ void transpile_program(Transpiler *t, Program *apm)
             EMIT_CLOSE_BRACE();
             EMIT_NEWLINE();
         }
-
-        i = get_next_statement_in_block(apm, program_block, i);
     }
     EMIT_NEWLINE();
 
     // Global variables
-    i = get_first_statement_in_block(apm, program_block);
-    while (i < program_block->statements.count)
+    it = statement_iterator(apm->program_block->statements);
+    while (declaration = next_statement_iterator(&it))
     {
-        size_t n = program_block->statements.first + i;
-        Statement *declaration = get_statement(apm->statement, n);
-
         if (declaration->kind == VARIABLE_DECLARATION)
-            transpile_statement(t, apm, n);
-
-        i = get_next_statement_in_block(apm, program_block, i);
+            transpile_statement(t, apm, declaration);
     }
 
     // Forward declarations for global functoins
-    i = get_first_statement_in_block(apm, program_block);
-    while (i < program_block->statements.count)
+    it = statement_iterator(apm->program_block->statements);
+    while (declaration = next_statement_iterator(&it))
     {
-        size_t n = program_block->statements.first + i;
-        Statement *declaration = get_statement(apm->statement, n);
-
         if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
         {
             transpile_function_signature(t, apm, declaration->function);
             EMIT_LINE(";");
         }
-
-        i = get_next_statement_in_block(apm, program_block, i);
     }
     EMIT_NEWLINE();
 
     // Function definitions for global functoins
-    i = get_first_statement_in_block(apm, program_block);
-    while (i < program_block->statements.count)
+    it = statement_iterator(apm->program_block->statements);
+    while (declaration = next_statement_iterator(&it))
     {
-        size_t n = program_block->statements.first + i;
-        Statement *declaration = get_statement(apm->statement, n);
-
         if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
             transpile_function(t, apm, declaration->function);
-
-        i = get_next_statement_in_block(apm, program_block, i);
     }
     EMIT_NEWLINE();
 
     // Main
     EMIT_LINE("int main(int argc, char *argv[])");
     EMIT_OPEN_BRACE();
-    transpile_statement(t, apm, apm->main->body);
+    transpile_block(t, apm, apm->main->body);
     EMIT_CLOSE_BRACE();
 }
 

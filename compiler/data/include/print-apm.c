@@ -79,6 +79,7 @@ enum LineStatus
 #ifdef PRINT_PARSED
 #define PRINT_EXPRESSION print_parsed_expression
 #define PRINT_STATEMENT print_parsed_statement
+#define PRINT_BLOCK print_parsed_block
 #define PRINT_FUNCTION print_parsed_function
 #define PRINT_VARIABLE print_parsed_variable
 #define PRINT_ENUM_TYPE print_parsed_enum_type
@@ -89,6 +90,7 @@ enum LineStatus
 #ifdef PRINT_RESOLVED
 #define PRINT_EXPRESSION print_resolved_expression
 #define PRINT_STATEMENT print_resolved_statement
+#define PRINT_BLOCK print_resolved_block
 #define PRINT_VARIABLE print_resolved_variable
 #define PRINT_ENUM_TYPE print_resolved_enum_type
 #define PRINT_STRUCT_TYPE print_resolved_struct_type
@@ -99,7 +101,8 @@ enum LineStatus
 
 void PRINT_VARIABLE(Program *apm, Variable *var, const char *source_text);
 void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text);
-void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text);
+void PRINT_STATEMENT(Program *apm, Statement *stmt, const char *source_text);
+void PRINT_BLOCK(Program *apm, Block *block, const char *source_text);
 void PRINT_FUNCTION(Program *apm, Function *funct, const char *source_text);
 void PRINT_ENUM_TYPE(Program *apm, EnumType *enum_type, const char *source_text);
 void PRINT_STRUCT_TYPE(Program *apm, StructType *struct_type, const char *source_text);
@@ -291,10 +294,8 @@ void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text)
 
 // PRINT STATEMENT //
 
-void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
+void PRINT_STATEMENT(Program *apm, Statement *stmt, const char *source_text)
 {
-    Statement *stmt = get_statement(apm->statement, stmt_index);
-
     if (stmt->kind == EXPRESSION_STMT)
     {
         PRINT_EXPRESSION(apm, stmt->expression, source_text);
@@ -303,20 +304,9 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         return;
     }
 
-    if (stmt->kind == DECLARATION_BLOCK)
+    if (stmt->kind == CODE_BLOCK)
     {
-        size_t last = get_last_statement_in_block(apm, stmt);
-        size_t n = get_first_statement_in_block(apm, stmt);
-        while (n < stmt->statements.count)
-        {
-            if (n == last)
-                LAST_ON_LINE();
-
-            PRINT_STATEMENT(apm, stmt->statements.first + n, source_text);
-            n = get_next_statement_in_block(apm, stmt, n);
-        }
-
-        NEWLINE();
+        PRINT_BLOCK(apm, stmt->block, source_text);
         return;
     }
 
@@ -348,28 +338,6 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         PRINT("<INVALID_STMT>");
         break;
 
-    case CODE_BLOCK:
-    case SINGLE_BLOCK:
-    {
-        size_t last = get_last_statement_in_block(apm, stmt);
-        size_t n = get_first_statement_in_block(apm, stmt);
-
-        if (stmt->statements.count > 1)
-            NEWLINE();
-
-        while (n < stmt->statements.count)
-        {
-            if (n == last)
-                LAST_ON_LINE();
-
-            PRINT_STATEMENT(apm, stmt->statements.first + n, source_text);
-            n = get_next_statement_in_block(apm, stmt, n);
-        }
-
-        NEWLINE();
-        break;
-    }
-
     case IF_SEGMENT:
     case ELSE_IF_SEGMENT:
         PRINT("condition: ");
@@ -379,7 +347,7 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
     case ELSE_SEGMENT:
         LAST_ON_LINE();
         PRINT("body: ");
-        PRINT_STATEMENT(apm, stmt->body, source_text);
+        PRINT_BLOCK(apm, stmt->body, source_text);
         NEWLINE();
 
         break;
@@ -387,7 +355,7 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
     case BREAK_LOOP:
         LAST_ON_LINE();
         PRINT("body: ");
-        PRINT_STATEMENT(apm, stmt->body, source_text);
+        PRINT_BLOCK(apm, stmt->body, source_text);
         NEWLINE();
 
         break;
@@ -403,7 +371,7 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
 
         LAST_ON_LINE();
         PRINT("body: ");
-        PRINT_STATEMENT(apm, stmt->body, source_text);
+        PRINT_BLOCK(apm, stmt->body, source_text);
         NEWLINE();
 
         break;
@@ -470,6 +438,29 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
     NEWLINE();
 }
 
+// PRINT BLOCK //
+
+void PRINT_BLOCK(Program *apm, Block *block, const char *source_text)
+{
+    PRINT(block->declaration_block ? "DECLARATIONS" : "BLOCK");
+    INDENT();
+    NEWLINE();
+
+    Statement *stmt;
+    StatementIterator it = statement_iterator(block->statements);
+    size_t i = 0;
+    while (stmt = next_statement_iterator(&it))
+    {
+        if (i == block->statements.count - 1)
+            LAST_ON_LINE();
+
+        PRINT_STATEMENT(apm, stmt, source_text);
+        i++;
+    }
+
+    UNINDENT();
+}
+
 // PRINT FUNCTION //
 
 void PRINT_FUNCTION(Program *apm, Function *funct, const char *source_text)
@@ -524,7 +515,7 @@ void PRINT_FUNCTION(Program *apm, Function *funct, const char *source_text)
 
     LAST_ON_LINE();
     PRINT("body: ");
-    PRINT_STATEMENT(apm, funct->body, source_text);
+    PRINT_BLOCK(apm, funct->body, source_text);
 
     UNINDENT();
     NEWLINE();
@@ -563,15 +554,11 @@ void PRINT_STRUCT_TYPE(Program *apm, StructType *struct_type, const char *source
     PRINT_SUBSTR(struct_type->identity);
     INDENT();
 
-    Statement *declarations = get_statement(apm->statement, struct_type->declarations);
+    Block *declarations = struct_type->declarations;
     if (declarations->statements.count > 0)
     {
         NEWLINE();
-        PRINT("DECLARATIONS")
-        INDENT();
-        NEWLINE();
-        PRINT_STATEMENT(apm, struct_type->declarations, source_text);
-        UNINDENT();
+        PRINT_BLOCK(apm, declarations, source_text);
     }
 
     if (struct_type->properties.count > 0)
@@ -615,7 +602,17 @@ void PRINT_APM(Program *apm, const char *source_text)
 
     NEWLINE();
     NEWLINE();
-    PRINT_STATEMENT(apm, apm->program_block, source_text);
+    Statement *stmt;
+    StatementIterator it = statement_iterator(apm->program_block->statements);
+    size_t i = 0;
+    while (stmt = next_statement_iterator(&it))
+    {
+        if (i == apm->program_block->statements.count - 1)
+            LAST_ON_LINE();
+
+        PRINT_STATEMENT(apm, stmt, source_text);
+        i++;
+    }
     printf("\n");
 }
 
@@ -631,6 +628,7 @@ void PRINT_APM(Program *apm, const char *source_text)
 
 #undef PRINT_EXPRESSION
 #undef PRINT_STATEMENT
+#undef PRINT_BLOCK
 #undef PRINT_FUNCTION
 #undef PRINT_VARIABLE
 #undef PRINT_ENUM_TYPE

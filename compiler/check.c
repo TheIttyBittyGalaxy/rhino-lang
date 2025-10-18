@@ -4,6 +4,8 @@
 
 // CHECK STATEMENTS //
 
+// TODO: Reimplementing checking by talking the APM tree
+/*
 void check_statements(Compiler *c, Program *apm)
 {
     for (size_t i = 0; i < apm->statement.count; i++)
@@ -55,12 +57,13 @@ void check_statements(Compiler *c, Program *apm)
         }
     }
 }
+*/
 
 // CHECK //
 
 void check(Compiler *c, Program *apm)
 {
-    check_statements(c, apm);
+    // check_statements(c, apm);
 
     // Produce errors for remaining identity literals
     // TODO: Reimplement this as part of the tree walk

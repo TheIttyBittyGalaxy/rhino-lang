@@ -23,13 +23,13 @@ bool peek_statement(Compiler *c);
 // Parse APM
 void parse(Compiler *compiler, Program *apm);
 void parse_program(Compiler *c, Program *apm);
-void parse_function(Compiler *c, Program *apm, size_t symbol_table);
-void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table);
-void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table);
+void parse_function(Compiler *c, Program *apm, StatementListAllocator *parent_statements, size_t symbol_table);
+void parse_enum_type(Compiler *c, Program *apm, StatementListAllocator *parent_statements, size_t symbol_table);
+void parse_struct_type(Compiler *c, Program *apm, StatementListAllocator *parent_statements, size_t symbol_table);
 
-size_t parse_top_level_declarations(Compiler *c, Program *apm, size_t symbol_table);
-size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table);
-size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table);
+Block *parse_top_level_declarations(Compiler *c, Program *apm, StatementListAllocator *parent_statements, size_t symbol_table);
+Block *parse_block(Compiler *c, Program *apm, size_t symbol_table);
+Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *parent_statements, size_t symbol_table);
 Expression *parse_expression(Compiler *c, Program *apm);
 
 // MACROS //
@@ -182,13 +182,14 @@ void parse_program(Compiler *c, Program *apm)
     SYMBOL_TABLE(apm->global_symbol_table)->symbol_count = 0;
 
     // Parse top-level of program
-    apm->program_block = parse_top_level_declarations(c, apm, apm->global_symbol_table);
+    StatementListAllocator statements_allocator;
+    apm->program_block = parse_top_level_declarations(c, apm, &statements_allocator, apm->global_symbol_table);
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
-void parse_function(Compiler *c, Program *apm, size_t symbol_table)
+void parse_function(Compiler *c, Program *apm, StatementListAllocator *parent_statements, size_t symbol_table)
 {
-    size_t declaration = add_statement(&apm->statement);
+    Statement *declaration = append_statement(parent_statements);
 
     Function *funct = append_function(&apm->function);
     funct->has_return_type_expression = false;
@@ -240,21 +241,20 @@ void parse_function(Compiler *c, Program *apm, size_t symbol_table)
     }
 
     attempt_to_recover_at_next_code_block(c);
-    size_t body = parse_code_block(c, apm, symbol_table);
-    funct->body = body;
+    funct->body = parse_block(c, apm, symbol_table);
 
     END_SPAN(funct);
     append_symbol(apm, symbol_table, FUNCTION_SYMBOL, (SymbolPointer){.function = funct}, identity);
 
-    STATEMENT(declaration)->kind = FUNCTION_DECLARATION;
-    STATEMENT(declaration)->function = funct;
-    STATEMENT(declaration)->span = funct->span;
+    declaration->kind = FUNCTION_DECLARATION;
+    declaration->function = funct;
+    declaration->span = funct->span;
 }
 
 // TODO: Ensure this can only return with status OKAY or RECOVERED
-void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table)
+void parse_enum_type(Compiler *c, Program *apm, StatementListAllocator *parent_statements, size_t symbol_table)
 {
-    size_t declaration = add_statement(&apm->statement);
+    Statement *declaration = append_statement(parent_statements);
 
     EnumType *enum_type = append_enum_type(&apm->enum_type);
     START_SPAN(enum_type);
@@ -297,15 +297,15 @@ void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table)
     END_SPAN(enum_type);
     append_symbol(apm, symbol_table, ENUM_TYPE_SYMBOL, (SymbolPointer){.enum_type = enum_type}, identity);
 
-    STATEMENT(declaration)->kind = ENUM_TYPE_DECLARATION;
-    STATEMENT(declaration)->enum_type = enum_type;
-    STATEMENT(declaration)->span = enum_type->span;
+    declaration->kind = ENUM_TYPE_DECLARATION;
+    declaration->enum_type = enum_type;
+    declaration->span = enum_type->span;
 }
 
 // TODO: Ensure this can only return with status OKAY or RECOVERED
-void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
+void parse_struct_type(Compiler *c, Program *apm, StatementListAllocator *parent_statements, size_t symbol_table)
 {
-    size_t declaration = add_statement(&apm->statement);
+    Statement *declaration = append_statement(parent_statements);
 
     StructType *struct_type = append_struct_type(&apm->struct_type);
     START_SPAN(struct_type);
@@ -318,16 +318,16 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
     // TODO: Handle this scenario correctly
     assert(c->parse_status == OKAY);
 
-    size_t declarations_symbol_table = add_symbol_table(&apm->symbol_table);
-    init_symbol_table(SYMBOL_TABLE(declarations_symbol_table));
-
-    size_t declarations = add_statement(&apm->statement);
-    STATEMENT(declarations)->kind = DECLARATION_BLOCK;
-    STATEMENT(declarations)->symbol_table = declarations_symbol_table;
-    START_SPAN(STATEMENT(declarations));
-
-    size_t first_statement = apm->statement.count;
+    Block *declarations = append_block(&apm->block);
     struct_type->declarations = declarations;
+    declarations->declaration_block = true;
+    declarations->singleton_block = false;
+
+    declarations->symbol_table = add_symbol_table(&apm->symbol_table);
+    init_symbol_table(SYMBOL_TABLE(declarations->symbol_table));
+
+    StatementListAllocator block_declarations;
+    init_statement_list_allocator(&block_declarations, &apm->statement_lists, 512); // FIXME: 512 was chosen arbitrarily
 
     size_t first_property = apm->property.count;
     struct_type->properties.first = first_property;
@@ -354,11 +354,11 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
         }
         else if (PEEK(KEYWORD_ENUM))
         {
-            parse_enum_type(c, apm, declarations_symbol_table);
+            parse_enum_type(c, apm, &block_declarations, declarations->symbol_table);
         }
         else if (PEEK(KEYWORD_STRUCT))
         {
-            parse_struct_type(c, apm, declarations_symbol_table);
+            parse_struct_type(c, apm, &block_declarations, declarations->symbol_table);
         }
         else
         {
@@ -373,11 +373,9 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
     size_t property_count = apm->property.count - first_property;
     struct_type->properties.count = property_count;
 
-    STATEMENT(declarations)->statements.first = first_statement;
-    STATEMENT(declarations)->statements.count = apm->statement.count - first_statement;
-    END_SPAN(STATEMENT(declarations));
+    declarations->statements = get_statement_list(block_declarations);
 
-    size_t last_table = declarations_symbol_table;
+    size_t last_table = declarations->symbol_table;
     while (SYMBOL_TABLE(last_table)->next)
         last_table = SYMBOL_TABLE(last_table)->next;
     SYMBOL_TABLE(last_table)->next = symbol_table;
@@ -385,42 +383,45 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
     END_SPAN(struct_type);
     append_symbol(apm, symbol_table, STRUCT_TYPE_SYMBOL, (SymbolPointer){.struct_type = struct_type}, identity);
 
-    STATEMENT(declaration)->kind = STRUCT_TYPE_DECLARATION;
-    STATEMENT(declaration)->struct_type = struct_type;
-    STATEMENT(declaration)->span = struct_type->span;
+    declaration->kind = STRUCT_TYPE_DECLARATION;
+    declaration->struct_type = struct_type;
+    declaration->span = struct_type->span;
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
-size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
+Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *parent_statements, size_t symbol_table)
 {
+    Statement *stmt = append_statement(parent_statements);
+    START_SPAN(stmt);
+
     if (PEEK(CURLY_L))
     {
-        return parse_code_block(c, apm, symbol_table); // Can return with status OKAY or RECOVERED
-    }
+        stmt->kind = CODE_BLOCK;
+        stmt->block = parse_block(c, apm, symbol_table); // Can return with status OKAY or RECOVERED
 
-    size_t stmt = add_statement(&apm->statement);
-    START_SPAN(STATEMENT(stmt));
+        goto finish;
+    }
 
     // IF_STATEMENT
     if (PEEK(KEYWORD_IF))
     {
-        STATEMENT(stmt)->kind = IF_SEGMENT;
+        stmt->kind = IF_SEGMENT;
 
         EAT(KEYWORD_IF);
         Expression *condition = parse_expression(c, apm);
-        STATEMENT(stmt)->condition = condition;
+        stmt->condition = condition;
 
         attempt_to_recover_at_next_code_block(c);
         if (c->parse_status == PANIC)
             goto recover;
 
-        size_t body = parse_code_block(c, apm, symbol_table);
-        STATEMENT(stmt)->body = body;
+        Block *body = parse_block(c, apm, symbol_table);
+        stmt->body = body;
 
         while (PEEK(KEYWORD_ELSE))
         {
-            size_t segment_stmt = add_statement(&apm->statement);
-            START_SPAN(STATEMENT(segment_stmt));
+            Statement *segment_stmt = append_statement(parent_statements);
+            START_SPAN(segment_stmt);
 
             EAT(KEYWORD_ELSE);
 
@@ -428,28 +429,28 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
             {
                 EAT(KEYWORD_IF);
 
-                STATEMENT(segment_stmt)->kind = ELSE_IF_SEGMENT;
+                segment_stmt->kind = ELSE_IF_SEGMENT;
 
                 Expression *condition = parse_expression(c, apm);
-                STATEMENT(segment_stmt)->condition = condition;
+                segment_stmt->condition = condition;
 
                 attempt_to_recover_at_next_code_block(c);
                 if (c->parse_status == PANIC)
                     goto recover;
 
-                size_t body = parse_code_block(c, apm, symbol_table);
-                STATEMENT(segment_stmt)->body = body;
+                Block *body = parse_block(c, apm, symbol_table);
+                segment_stmt->body = body;
 
-                END_SPAN(STATEMENT(segment_stmt));
+                END_SPAN(segment_stmt);
             }
             else
             {
-                STATEMENT(segment_stmt)->kind = ELSE_SEGMENT;
+                segment_stmt->kind = ELSE_SEGMENT;
 
-                size_t body = parse_code_block(c, apm, symbol_table);
-                STATEMENT(segment_stmt)->body = body;
+                Block *body = parse_block(c, apm, symbol_table);
+                segment_stmt->body = body;
 
-                END_SPAN(STATEMENT(segment_stmt));
+                END_SPAN(segment_stmt);
                 break;
             }
         }
@@ -460,11 +461,11 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
     // BREAK_LOOP
     if (PEEK(KEYWORD_LOOP))
     {
-        STATEMENT(stmt)->kind = BREAK_LOOP;
+        stmt->kind = BREAK_LOOP;
         EAT(KEYWORD_LOOP);
 
-        size_t body = parse_code_block(c, apm, symbol_table);
-        STATEMENT(stmt)->body = body;
+        Block *body = parse_block(c, apm, symbol_table);
+        stmt->body = body;
 
         goto finish;
     }
@@ -472,13 +473,13 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
     // FOR_STATEMENT
     if (PEEK(KEYWORD_FOR))
     {
-        STATEMENT(stmt)->kind = FOR_LOOP;
+        stmt->kind = FOR_LOOP;
 
         // For variable
         EAT(KEYWORD_FOR);
 
         Variable *iterator = append_variable(&apm->variable);
-        STATEMENT(stmt)->iterator = iterator;
+        stmt->iterator = iterator;
 
         substr identity = TOKEN_STRING();
         iterator->identity = identity;
@@ -488,15 +489,15 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         // Iterable
         EAT(KEYWORD_IN);
         Expression *iterable = parse_expression(c, apm);
-        STATEMENT(stmt)->iterable = iterable;
+        stmt->iterable = iterable;
 
         // Body
         attempt_to_recover_at_next_code_block(c);
         if (c->parse_status == PANIC)
             goto recover;
 
-        size_t body = parse_code_block(c, apm, symbol_table);
-        STATEMENT(stmt)->body = body;
+        Block *body = parse_block(c, apm, symbol_table);
+        stmt->body = body;
 
         goto finish;
     }
@@ -504,7 +505,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
     // BREAK_STATEMENT
     if (PEEK(KEYWORD_BREAK))
     {
-        STATEMENT(stmt)->kind = BREAK_STATEMENT;
+        stmt->kind = BREAK_STATEMENT;
         EAT(KEYWORD_BREAK);
         EAT(SEMI_COLON);
         goto finish;
@@ -516,10 +517,10 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         Variable *var = append_variable(&apm->variable);
         var->type.sort = INVALID_SORT;
 
-        STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
-        STATEMENT(stmt)->variable = var;
-        STATEMENT(stmt)->has_initial_value = false;
-        STATEMENT(stmt)->has_type_expression = false;
+        stmt->kind = VARIABLE_DECLARATION;
+        stmt->variable = var;
+        stmt->has_initial_value = false;
+        stmt->has_type_expression = false;
 
         EAT(KEYWORD_DEF);
 
@@ -532,11 +533,11 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
             EAT(EQUAL);
 
             Expression *initial_value = parse_expression(c, apm);
-            STATEMENT(stmt)->initial_value = initial_value;
+            stmt->initial_value = initial_value;
             if (c->parse_status == PANIC)
                 goto recover;
 
-            STATEMENT(stmt)->has_initial_value = true;
+            stmt->has_initial_value = true;
         }
         else
         {
@@ -551,11 +552,11 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
     // OUTPUT_STATEMENT
     if (PEEK(ARROW_R))
     {
-        STATEMENT(stmt)->kind = OUTPUT_STATEMENT;
+        stmt->kind = OUTPUT_STATEMENT;
 
         EAT(ARROW_R);
         Expression *value = parse_expression(c, apm);
-        STATEMENT(stmt)->expression = value;
+        stmt->expression = value;
         if (c->parse_status == PANIC)
             goto recover;
 
@@ -566,11 +567,11 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
     // RETURN_STATEMENT
     if (PEEK(KEYWORD_RETURN))
     {
-        STATEMENT(stmt)->kind = RETURN_STATEMENT;
+        stmt->kind = RETURN_STATEMENT;
 
         EAT(KEYWORD_RETURN);
         Expression *value = parse_expression(c, apm);
-        STATEMENT(stmt)->expression = value;
+        stmt->expression = value;
         if (c->parse_status == PANIC)
             goto recover;
 
@@ -581,11 +582,11 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
     // EXPRESSION_STMT / ASSIGNMENT_STATEMENT / VARIABLE_DECLARATION with stated type
     else if (peek_expression(c))
     {
-        STATEMENT(stmt)->kind = EXPRESSION_STMT;
+        stmt->kind = EXPRESSION_STMT;
 
         // EXPRESSION_STMT
         Expression *value = parse_expression(c, apm);
-        STATEMENT(stmt)->expression = value;
+        stmt->expression = value;
         if (c->parse_status == PANIC)
             goto recover;
 
@@ -594,11 +595,11 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
             Variable *var = append_variable(&apm->variable);
             var->type.sort = INVALID_SORT;
 
-            STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
-            STATEMENT(stmt)->variable = var;
-            STATEMENT(stmt)->type_expression = value;
-            STATEMENT(stmt)->has_type_expression = true;
-            STATEMENT(stmt)->has_initial_value = false;
+            stmt->kind = VARIABLE_DECLARATION;
+            stmt->variable = var;
+            stmt->type_expression = value;
+            stmt->has_type_expression = true;
+            stmt->has_initial_value = false;
 
             substr identity = TOKEN_STRING();
             var->identity = identity;
@@ -609,22 +610,22 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
                 EAT(EQUAL);
 
                 Expression *initial_value = parse_expression(c, apm);
-                STATEMENT(stmt)->initial_value = initial_value;
+                stmt->initial_value = initial_value;
                 if (c->parse_status == PANIC)
                     goto recover;
 
-                STATEMENT(stmt)->has_initial_value = true;
+                stmt->has_initial_value = true;
             }
         }
         else if (PEEK(EQUAL)) // ASSIGNMENT_STATEMENT
         {
-            STATEMENT(stmt)->kind = ASSIGNMENT_STATEMENT;
-            STATEMENT(stmt)->assignment_lhs = value;
+            stmt->kind = ASSIGNMENT_STATEMENT;
+            stmt->assignment_lhs = value;
 
             EAT(EQUAL);
 
             Expression *rhs = parse_expression(c, apm);
-            STATEMENT(stmt)->assignment_rhs = rhs;
+            stmt->assignment_rhs = rhs;
             if (c->parse_status == PANIC)
                 goto recover;
         }
@@ -634,11 +635,11 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
     }
 
     // INVALID_STATEMENT
-    STATEMENT(stmt)->kind = INVALID_STATEMENT;
+    stmt->kind = INVALID_STATEMENT;
     raise_parse_error(c, EXPECTED_STATEMENT);
 
 finish:
-    END_SPAN(STATEMENT(stmt));
+    END_SPAN(stmt);
 
 recover:
     while (c->parse_status == PANIC)
@@ -680,46 +681,47 @@ recover:
     return stmt;
 }
 
-size_t parse_top_level_declarations(Compiler *c, Program *apm, size_t symbol_table)
+Block *parse_top_level_declarations(Compiler *c, Program *apm, StatementListAllocator *parent_statements, size_t symbol_table)
 {
-    size_t block_symbol_table = add_symbol_table(&apm->symbol_table);
-    init_symbol_table(SYMBOL_TABLE(block_symbol_table));
+    Block *block = append_block(&apm->block);
+    block->declaration_block = true;
+    block->singleton_block = false;
 
-    size_t block = add_statement(&apm->statement);
-    STATEMENT(block)->kind = DECLARATION_BLOCK;
-    STATEMENT(block)->symbol_table = block_symbol_table;
-    START_SPAN(STATEMENT(block));
+    block->symbol_table = add_symbol_table(&apm->symbol_table);
+    init_symbol_table(SYMBOL_TABLE(block->symbol_table));
 
-    size_t first_statement = apm->statement.count;
+    StatementListAllocator statements_allocator;
+    init_statement_list_allocator(&statements_allocator, &apm->statement_lists, 512); // FIXME: 512 was chosen arbitrarily
+
     while (true)
     {
         if (PEEK(END_OF_FILE))
             break;
 
         else if (PEEK(KEYWORD_FN))
-            parse_function(c, apm, apm->global_symbol_table);
+            parse_function(c, apm, &statements_allocator, apm->global_symbol_table);
 
         else if (PEEK(KEYWORD_ENUM))
-            parse_enum_type(c, apm, apm->global_symbol_table);
+            parse_enum_type(c, apm, &statements_allocator, apm->global_symbol_table);
 
         else if (PEEK(KEYWORD_STRUCT))
-            parse_struct_type(c, apm, apm->global_symbol_table);
+            parse_struct_type(c, apm, &statements_allocator, apm->global_symbol_table);
 
         else if (PEEK(KEYWORD_DEF))
         {
             // TODO: This is mostly copy/pasted from parse_statement, though with
             //       some modifications. Find an effective way to clean up?
 
-            size_t stmt = add_statement(&apm->statement);
-            START_SPAN(STATEMENT(stmt));
+            Statement *stmt = append_statement(&statements_allocator);
+            START_SPAN(stmt);
 
             Variable *var = append_variable(&apm->variable);
             var->type.sort = INVALID_SORT;
 
-            STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
-            STATEMENT(stmt)->variable = var;
-            STATEMENT(stmt)->has_initial_value = false;
-            STATEMENT(stmt)->has_type_expression = false;
+            stmt->kind = VARIABLE_DECLARATION;
+            stmt->variable = var;
+            stmt->has_initial_value = false;
+            stmt->has_type_expression = false;
 
             EAT(KEYWORD_DEF);
 
@@ -734,7 +736,7 @@ size_t parse_top_level_declarations(Compiler *c, Program *apm, size_t symbol_tab
                 EAT(EQUAL);
 
                 Expression *initial_value = parse_expression(c, apm);
-                STATEMENT(stmt)->initial_value = initial_value;
+                stmt->initial_value = initial_value;
                 if (c->parse_status == PANIC)
                 {
                     while (c->parse_status == PANIC)
@@ -776,7 +778,7 @@ size_t parse_top_level_declarations(Compiler *c, Program *apm, size_t symbol_tab
                     continue;
                 }
 
-                STATEMENT(stmt)->has_initial_value = true;
+                stmt->has_initial_value = true;
             }
             else
             {
@@ -817,34 +819,32 @@ size_t parse_top_level_declarations(Compiler *c, Program *apm, size_t symbol_tab
         }
     }
 
-    STATEMENT(block)->statements.first = first_statement;
-    STATEMENT(block)->statements.count = apm->statement.count - first_statement;
+    block->statements = get_statement_list(statements_allocator);
 
-    size_t last_table = block_symbol_table;
+    size_t last_table = block->symbol_table;
     while (SYMBOL_TABLE(last_table)->next)
         last_table = SYMBOL_TABLE(last_table)->next;
     SYMBOL_TABLE(last_table)->next = symbol_table;
 
-    END_SPAN(STATEMENT(block));
     return block;
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
-size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table)
+Block *parse_block(Compiler *c, Program *apm, size_t symbol_table)
 {
-    size_t code_block = add_statement(&apm->statement);
-    STATEMENT(code_block)->kind = CODE_BLOCK;
-    STATEMENT(code_block)->symbol_table = symbol_table;
-    START_SPAN(STATEMENT(code_block));
+    Block *block = append_block(&apm->block);
+    block->declaration_block = false;
+    block->singleton_block = false;
+    block->symbol_table = symbol_table;
 
-    size_t first_statement = apm->statement.count;
-    STATEMENT(code_block)->statements.first = first_statement;
+    StatementListAllocator block_statements;
+    init_statement_list_allocator(&block_statements, &apm->statement_lists, 512); // FIXME: 512 was chosen arbitrarily
 
     if (PEEK(COLON))
     {
         EAT(COLON);
-        STATEMENT(code_block)->kind = SINGLE_BLOCK;
-        parse_statement(c, apm, symbol_table); // Can return with status OKAY or RECOVERED
+        block->singleton_block = true;
+        parse_statement(c, apm, &block_statements, symbol_table); // Can return with status OKAY or RECOVERED
     }
     else
     {
@@ -857,18 +857,18 @@ size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table)
         size_t block_symbol_table = add_symbol_table(&apm->symbol_table);
         SYMBOL_TABLE(block_symbol_table)->next = 0;
         SYMBOL_TABLE(block_symbol_table)->symbol_count = 0;
-        STATEMENT(code_block)->symbol_table = block_symbol_table;
+        block->symbol_table = block_symbol_table;
 
         while (true)
         {
             if (PEEK(KEYWORD_FN))
-                parse_function(c, apm, block_symbol_table); // Can return with status OKAY or RECOVERED
+                parse_function(c, apm, &block_statements, block_symbol_table); // Can return with status OKAY or RECOVERED
             else if (PEEK(KEYWORD_ENUM))
-                parse_enum_type(c, apm, block_symbol_table); // TODO: Do we need to handle a PANIC status?
+                parse_enum_type(c, apm, &block_statements, block_symbol_table); // TODO: Do we need to handle a PANIC status?
             else if (PEEK(KEYWORD_STRUCT))
-                parse_struct_type(c, apm, block_symbol_table); // TODO: Do we need to handle a PANIC status?
+                parse_struct_type(c, apm, &block_statements, block_symbol_table); // TODO: Do we need to handle a PANIC status?
             else if (peek_statement(c))
-                parse_statement(c, apm, block_symbol_table); // Can return with status OKAY or RECOVERED
+                parse_statement(c, apm, &block_statements, block_symbol_table); // Can return with status OKAY or RECOVERED
             else
                 break;
         }
@@ -882,11 +882,9 @@ size_t parse_code_block(Compiler *c, Program *apm, size_t symbol_table)
         recover_from_panic(c);
     }
 
-    size_t statement_count = apm->statement.count - first_statement;
-    STATEMENT(code_block)->statements.count = statement_count;
+    block->statements = get_statement_list(block_statements);
 
-    END_SPAN(STATEMENT(code_block));
-    return code_block;
+    return block;
 }
 
 // NOTE: Can return with status OKAY, RECOVERED, or PANIC

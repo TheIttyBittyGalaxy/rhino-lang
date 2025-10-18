@@ -62,7 +62,8 @@ void *allocate(Allocator *allocator, size_t size, size_t align);
     T##List get_##type_name##_list(T##ListAllocator list_allocator);                                          \
                                                                                                               \
     T##Iterator type_name##_iterator(T##List list);                                                           \
-    T *next_##type_name##_iterator(T##Iterator *it);
+    T *next_##type_name##_iterator(T##Iterator *it);                                                          \
+    T *get_##type_name(T##List list, size_t i);
 
 #define DEFINE_LIST_ALLOCATOR(T, type_name)                                                                  \
     void init_##type_name##_list_allocator(T##ListAllocator *list, Allocator *allocator, size_t bucket_size) \
@@ -114,6 +115,19 @@ void *allocate(Allocator *allocator, size_t size, size_t align);
         }                                                                                                    \
                                                                                                              \
         return (T *)item;                                                                                    \
+    }                                                                                                        \
+                                                                                                             \
+    T *get_##type_name(T##List list, size_t i)                                                               \
+    {                                                                                                        \
+        if (i >= list.count)                                                                                 \
+            return NULL;                                                                                     \
+                                                                                                             \
+        T##Iterator it = type_name##_iterator(list);                                                         \
+        T *item = next_##type_name##_iterator(&it);                                                          \
+        while (i-- > 0)                                                                                      \
+            item = next_##type_name##_iterator(&it);                                                         \
+                                                                                                             \
+        return item;                                                                                         \
     }
 
 #endif
