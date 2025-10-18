@@ -91,7 +91,10 @@ int main(int argc, char *argv[])
 
     // Global allocator
     Allocator global_allocator;
-    init_allocator(&global_allocator, NULL, 16384);
+
+    // FIXME: The bucket size of the global allocator is supposed to be 32KB so that it may store 32 x 1 KB buckets.
+    //        However, because some space is used by the allocator itself, it can only store 31
+    init_allocator(&global_allocator, NULL, 32768);
 
     // Test mode
     if (flag_test_mode)

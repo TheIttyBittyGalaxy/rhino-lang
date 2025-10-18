@@ -46,12 +46,11 @@ const char *rhino_type_string(Program *apm, RhinoType ty)
 
 void init_program(Program *apm, Allocator *allocator)
 {
-    // TODO: What should the bucket size of each allocator be?
-    init_expression_list(&apm->expression, allocator, 128);
-    init_function_list(&apm->function, allocator, 16);
-    init_variable_list(&apm->variable, allocator, 16);
-    init_enum_type_list(&apm->enum_type, allocator, 16);
-    init_struct_type_list(&apm->struct_type, allocator, 16);
+    init_expression_list(&apm->expression, allocator, 1024);
+    init_function_list(&apm->function, allocator, 1024);
+    init_variable_list(&apm->variable, allocator, 1024);
+    init_enum_type_list(&apm->enum_type, allocator, 1024);
+    init_struct_type_list(&apm->struct_type, allocator, 1024);
 
     // TODO: Old allocators, yet to be replaced
     init_parameter_list(&apm->parameter);
