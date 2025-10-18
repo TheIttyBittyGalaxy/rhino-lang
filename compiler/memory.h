@@ -59,7 +59,7 @@ void *allocate(Allocator *allocator, size_t size, size_t align);
                                                                                                               \
     void init_##type_name##_list_allocator(T##ListAllocator *list, Allocator *allocator, size_t bucket_size); \
     T *append_##type_name(T##ListAllocator *list_allocator);                                                  \
-    T##List get_##type_name##_list(T##ListAllocator *list_allocator);                                         \
+    T##List get_##type_name##_list(T##ListAllocator list_allocator);                                          \
                                                                                                               \
     T##Iterator type_name##_iterator(T##List list);                                                           \
     T *next_##type_name##_iterator(T##Iterator *it);
