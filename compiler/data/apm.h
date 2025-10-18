@@ -418,15 +418,12 @@ typedef struct
     EnumTypeList enum_type;
     StructTypeList struct_type;
 
+    // TODO: Old allocators, yet to be replaced
     ParameterList parameter;
     ArgumentList argument;
-
     StatementList statement;
-
     EnumValueList enum_value;
-
     PropertyList property;
-
     SymbolTableList symbol_table;
 
     Function *main;

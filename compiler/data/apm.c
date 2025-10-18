@@ -55,15 +55,12 @@ void init_program(Program *apm)
     init_enum_type_list(&apm->enum_type, NULL, 16);
     init_struct_type_list(&apm->struct_type, NULL, 16);
 
+    // TODO: Old allocators, yet to be replaced
     init_parameter_list(&apm->parameter);
     init_argument_list(&apm->argument);
-
     init_statement_list(&apm->statement);
-
     init_enum_value_list(&apm->enum_value);
-
     init_property_list(&apm->property);
-
     init_symbol_table_list(&apm->symbol_table);
 
     // Symbol tables treat `symbol_table.next = 0` as `symbol_table.next = NULL`. and so the first symbol table has to be empty
