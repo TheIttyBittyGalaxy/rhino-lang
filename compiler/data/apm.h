@@ -61,7 +61,7 @@ struct EnumType
     EnumValueSlice values;
 };
 
-DECLARE_ALLOCATOR(EnumType, enum_type)
+DECLARE_LIST_ALLOCATOR(EnumType, enum_type)
 
 // Property
 DECLARE_SLICE_TYPE(Property, property)
@@ -85,7 +85,7 @@ struct StructType
     size_t declarations; // DECLARATION_BLOCK
 };
 
-DECLARE_ALLOCATOR(StructType, struct_type)
+DECLARE_LIST_ALLOCATOR(StructType, struct_type)
 
 // Variable
 struct Variable
@@ -94,7 +94,7 @@ struct Variable
     RhinoType type;
 };
 
-DECLARE_ALLOCATOR(Variable, variable)
+DECLARE_LIST_ALLOCATOR(Variable, variable)
 
 // Symbol table
 #define LIST_SYMBOL_TAG(MACRO) \
@@ -287,7 +287,7 @@ struct Expression
     };
 };
 
-DECLARE_ALLOCATOR(Expression, expression)
+DECLARE_LIST_ALLOCATOR(Expression, expression)
 
 // Statement
 #define LIST_STATEMENTS(MACRO)     \
@@ -407,11 +407,17 @@ struct Function
     ParameterSlice parameters;
 };
 
-DECLARE_ALLOCATOR(Function, function)
+DECLARE_LIST_ALLOCATOR(Function, function)
 
 // Program
 typedef struct
 {
+    ExpressionList expression;
+    FunctionList function;
+    VariableList variable;
+    EnumTypeList enum_type;
+    StructTypeList struct_type;
+
     ParameterList parameter;
     ArgumentList argument;
 

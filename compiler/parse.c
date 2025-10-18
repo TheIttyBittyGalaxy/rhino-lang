@@ -190,7 +190,7 @@ void parse_function(Compiler *c, Program *apm, size_t symbol_table)
 {
     size_t declaration = add_statement(&apm->statement);
 
-    Function *funct = new_function();
+    Function *funct = append_function(&apm->function);
     funct->has_return_type_expression = false;
     funct->return_type.sort = INVALID_SORT;
 
@@ -256,7 +256,7 @@ void parse_enum_type(Compiler *c, Program *apm, size_t symbol_table)
 {
     size_t declaration = add_statement(&apm->statement);
 
-    EnumType *enum_type = new_enum_type();
+    EnumType *enum_type = append_enum_type(&apm->enum_type);
     START_SPAN(enum_type);
 
     EAT(KEYWORD_ENUM);
@@ -307,7 +307,7 @@ void parse_struct_type(Compiler *c, Program *apm, size_t symbol_table)
 {
     size_t declaration = add_statement(&apm->statement);
 
-    StructType *struct_type = new_struct_type();
+    StructType *struct_type = append_struct_type(&apm->struct_type);
     START_SPAN(struct_type);
 
     EAT(KEYWORD_STRUCT);
@@ -477,7 +477,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
         // For variable
         EAT(KEYWORD_FOR);
 
-        Variable *iterator = new_variable();
+        Variable *iterator = append_variable(&apm->variable);
         STATEMENT(stmt)->iterator = iterator;
 
         substr identity = TOKEN_STRING();
@@ -513,7 +513,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
     // VARIABLE_DECLARATION with inferred type
     if (PEEK(KEYWORD_DEF))
     {
-        Variable *var = new_variable();
+        Variable *var = append_variable(&apm->variable);
         var->type.sort = INVALID_SORT;
 
         STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
@@ -591,7 +591,7 @@ size_t parse_statement(Compiler *c, Program *apm, size_t symbol_table)
 
         if (PEEK(IDENTITY)) // VARIABLE_DECLARATION with stated type
         {
-            Variable *var = new_variable();
+            Variable *var = append_variable(&apm->variable);
             var->type.sort = INVALID_SORT;
 
             STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
@@ -713,7 +713,7 @@ size_t parse_top_level_declarations(Compiler *c, Program *apm, size_t symbol_tab
             size_t stmt = add_statement(&apm->statement);
             START_SPAN(STATEMENT(stmt));
 
-            Variable *var = new_variable();
+            Variable *var = append_variable(&apm->variable);
             var->type.sort = INVALID_SORT;
 
             STATEMENT(stmt)->kind = VARIABLE_DECLARATION;
@@ -914,7 +914,7 @@ Expression *parse_expression(Compiler *c, Program *apm)
 
 Expression *parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrecedence caller_precedence)
 {
-    Expression *lhs = new_expression();
+    Expression *lhs = append_expression(&apm->expression);
     START_SPAN(lhs);
 
     // Left-hand side of expression
@@ -1017,7 +1017,7 @@ Expression *parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrec
     while (true)
     {
         // Open `expr`
-        Expression *expr = new_expression();
+        Expression *expr = append_expression(&apm->expression);
         expr->span.pos = lhs->span.pos;
 
         // Function call

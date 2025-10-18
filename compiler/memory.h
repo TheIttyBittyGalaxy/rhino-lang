@@ -1,87 +1,105 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-void *allocate_bucket();
+// Code based on: https://upprsk.github.io/blog/custom-c-allocators/
+// Accessed: 2025-10-18
+// Thanks Lucas!
 
-#define BUCKET_SIZE 1024
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
 
-// FIXME: I'm not confident that this formula correctly accounts for alignment?
-#define ITEMS_PER_BUCKET(T) (BUCKET_SIZE - sizeof(size_t) - sizeof(void *)) / sizeof(T)
+#define ALIGN_UP(ptr, align) (uint8_t *)((uintptr_t)(ptr) + ((align) - 1) & ~(align - 1));
 
-#define DECLARE_ALLOCATOR(T, snake_name)         \
-    void init_##snake_name##_allocator();        \
-    T *new_##snake_name();                       \
-                                                 \
-    typedef struct                               \
-    {                                            \
-        size_t index;                            \
-        void *bucket;                            \
-    } T##Iterator;                               \
-                                                 \
-    T##Iterator begin_##snake_name##_iterator(); \
-    T *advance_##snake_name##_iterator(T##Iterator *it);
+typedef struct Allocator Allocator;
+typedef struct Bucket Bucket;
 
-#define DEFINE_ALLOCATOR(T, snake_name)                                                \
-    typedef struct T##Bucket T##Bucket;                                                \
-    struct T##Bucket                                                                   \
-    {                                                                                  \
-        T item[ITEMS_PER_BUCKET(T)];                                                   \
-        size_t count;                                                                  \
-        T##Bucket *next;                                                               \
-    };                                                                                 \
-                                                                                       \
-    T##Bucket *first_##snake_name##_bucket = NULL;                                     \
-    T##Bucket *next_##snake_name##_bucket = NULL;                                      \
-                                                                                       \
-    void init_##snake_name##_allocator()                                               \
-    {                                                                                  \
-        first_##snake_name##_bucket = (T##Bucket *)allocate_bucket();                  \
-        first_##snake_name##_bucket->count = 0;                                        \
-        first_##snake_name##_bucket->next = NULL;                                      \
-                                                                                       \
-        next_##snake_name##_bucket = first_##snake_name##_bucket;                      \
-    }                                                                                  \
-                                                                                       \
-    T *new_##snake_name()                                                              \
-    {                                                                                  \
-        assert(next_##snake_name##_bucket != NULL);                                    \
-                                                                                       \
-        if (next_##snake_name##_bucket->count == ITEMS_PER_BUCKET(T))                  \
-        {                                                                              \
-            T##Bucket *next_bucket = (T##Bucket *)allocate_bucket();                   \
-            next_bucket->count = 0;                                                    \
-            next_bucket->next = NULL;                                                  \
-                                                                                       \
-            next_##snake_name##_bucket->next = next_bucket;                            \
-            next_##snake_name##_bucket = next_bucket;                                  \
-        }                                                                              \
-                                                                                       \
-        return &next_##snake_name##_bucket->item[next_##snake_name##_bucket->count++]; \
-    }                                                                                  \
-                                                                                       \
-    T##Iterator begin_##snake_name##_iterator()                                        \
-    {                                                                                  \
-        return {                                                                       \
-            .index = 0,                                                                \
-            .bucket = (void *)first_##snake_name##_bucket,                             \
-        };                                                                             \
-    }                                                                                  \
-                                                                                       \
-    T *advance_##snake_name##_iterator(T##Iterator *it)                                \
-    {                                                                                  \
-        if (it->bucket == NULL)                                                        \
-            return NULL;                                                               \
-                                                                                       \
-        T##Bucket *bucket = (T##Bucket *)(it->bucket);                                 \
-        if (it->index == bucket->count)                                                \
-        {                                                                              \
-            it->bucket = (void *)bucket->next;                                         \
-            it->index = 0;                                                             \
-            if (it->bucket == NULL)                                                    \
-                return NULL;                                                           \
-        }                                                                              \
-                                                                                       \
-        return &((T##Bucket *)it->bucket)->item[it->index++];                          \
+struct Allocator
+{
+    Allocator *parent;
+    size_t bucket_size;
+
+    Bucket *first;
+    Bucket *current;
+};
+
+struct Bucket
+{
+    struct Bucket *next;
+    uint8_t *head;
+    uint8_t *buffer_end;
+    uint8_t buffer[];
+};
+
+void init_allocator(Allocator *allocator, Allocator *parent, size_t bucket_size);
+void *allocate(Allocator *allocator, size_t size, size_t align);
+
+#define ALLOCATE(T, allocator) (T *)allocate(allocator, sizeof(T), alignof(T))
+
+#define DECLARE_LIST_ALLOCATOR(T, type_name)                                                    \
+    typedef struct                                                                              \
+    {                                                                                           \
+        Allocator allocator;                                                                    \
+        size_t count;                                                                           \
+    } T##List;                                                                                  \
+                                                                                                \
+    typedef struct                                                                              \
+    {                                                                                           \
+        Bucket *bucket;                                                                         \
+        size_t index;                                                                           \
+        size_t remaining;                                                                       \
+    } T##Iterator;                                                                              \
+                                                                                                \
+    void init_##type_name##_list(T##List *list, Allocator *allocator, size_t items_per_bucket); \
+    T *append_##type_name(T##List *list);                                                       \
+                                                                                                \
+    T##Iterator type_name##_iterator(T##List *list);                                            \
+    T *next_##type_name##_iterator(T##Iterator *it);
+
+#define DEFINE_LIST_ALLOCATOR(T, type_name)                                                    \
+    void init_##type_name##_list(T##List *list, Allocator *allocator, size_t items_per_bucket) \
+    {                                                                                          \
+        list->count = 0;                                                                       \
+        /* FIXME: This +1 is essentially a hack to account for situations when the alignment   \
+                  of T causes it to not start allocations from the start of the buffer*/       \
+        size_t bucket_size = (items_per_bucket + 1) * sizeof(T);                               \
+        init_allocator(&list->allocator, allocator, bucket_size);                              \
+    }                                                                                          \
+                                                                                               \
+    T *append_##type_name(T##List *list)                                                       \
+    {                                                                                          \
+        list->count++;                                                                         \
+        return (T *)allocate(&list->allocator, sizeof(T), alignof(T));                         \
+    }                                                                                          \
+                                                                                               \
+    T##Iterator type_name##_iterator(T##List *list)                                            \
+    {                                                                                          \
+        return (T##Iterator){                                                                  \
+            .bucket = list->allocator.first,                                                   \
+            .index = 0,                                                                        \
+            .remaining = list->count,                                                          \
+        };                                                                                     \
+    }                                                                                          \
+                                                                                               \
+    T *next_##type_name##_iterator(T##Iterator *it)                                            \
+    {                                                                                          \
+        if (it->remaining == 0)                                                                \
+            return NULL;                                                                       \
+        it->remaining--;                                                                       \
+                                                                                               \
+        Bucket *bucket = it->bucket;                                                           \
+        uint8_t *aligned_buffer = ALIGN_UP(bucket->buffer, alignof(T));                        \
+        uint8_t *item = aligned_buffer + (sizeof(T) * it->index++);                            \
+                                                                                               \
+        if (item + sizeof(T) > bucket->buffer_end)                                             \
+        {                                                                                      \
+            it->bucket = bucket->next;                                                         \
+            it->index = 0;                                                                     \
+            aligned_buffer = ALIGN_UP(it->bucket->buffer, alignof(T));                         \
+            return (T *)aligned_buffer;                                                        \
+        }                                                                                      \
+                                                                                               \
+        return (T *)item;                                                                      \
     }
 
 #endif

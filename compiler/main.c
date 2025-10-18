@@ -89,13 +89,6 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    // Initialise allocators
-    init_expression_allocator();
-    init_function_allocator();
-    init_variable_allocator();
-    init_enum_type_allocator();
-    init_struct_type_allocator();
-
     // Test mode
     if (flag_test_mode)
     {

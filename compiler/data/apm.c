@@ -12,11 +12,11 @@ DEFINE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
 // ALLOCATORS //
 
-DEFINE_ALLOCATOR(Expression, expression)
-DEFINE_ALLOCATOR(Function, function)
-DEFINE_ALLOCATOR(Variable, variable)
-DEFINE_ALLOCATOR(EnumType, enum_type)
-DEFINE_ALLOCATOR(StructType, struct_type)
+DEFINE_LIST_ALLOCATOR(Expression, expression)
+DEFINE_LIST_ALLOCATOR(Function, function)
+DEFINE_LIST_ALLOCATOR(Variable, variable)
+DEFINE_LIST_ALLOCATOR(EnumType, enum_type)
+DEFINE_LIST_ALLOCATOR(StructType, struct_type)
 
 // LIST TYPE //
 
@@ -46,6 +46,15 @@ const char *rhino_type_string(Program *apm, RhinoType ty)
 
 void init_program(Program *apm)
 {
+    // TODO: Rather than giving all the allocators NULL parent, create a global allocator
+
+    // TODO: What should the bucket size of each allocator be?
+    init_expression_list(&apm->expression, NULL, 128);
+    init_function_list(&apm->function, NULL, 16);
+    init_variable_list(&apm->variable, NULL, 16);
+    init_enum_type_list(&apm->enum_type, NULL, 16);
+    init_struct_type_list(&apm->struct_type, NULL, 16);
+
     init_parameter_list(&apm->parameter);
     init_argument_list(&apm->argument);
 
@@ -108,8 +117,8 @@ void dump_apm(Program *apm, const char *source_text)
     Function *funct;
     size_t funct_i = 0;
     for (
-        FunctionIterator it = begin_function_iterator();
-        funct = advance_function_iterator(&it); funct_i++)
+        FunctionIterator it = function_iterator(&apm->function);
+        funct = next_function_iterator(&it); funct_i++)
     {
         printf("%02d\t%03d %02d\t", funct_i, funct->span.pos, funct->span.len);
         printf_substr(source_text, funct->identity);
@@ -156,8 +165,8 @@ void dump_apm(Program *apm, const char *source_text)
     Expression *expr;
     size_t expr_i = 0;
     for (
-        ExpressionIterator it = begin_expression_iterator();
-        expr = advance_expression_iterator(&it); expr_i++)
+        ExpressionIterator it = expression_iterator(&apm->expression);
+        expr = next_expression_iterator(&it); expr_i++)
     {
         printf("%02d\t%03d %02d\t%s\t", expr_i, expr->span.pos, expr->span.len, expression_kind_string(expr->kind));
         switch (expr->kind)
@@ -220,8 +229,8 @@ void dump_apm(Program *apm, const char *source_text)
     Variable *var;
     size_t var_i = 0;
     for (
-        VariableIterator it = begin_variable_iterator();
-        var = advance_variable_iterator(&it); var_i++)
+        VariableIterator it = variable_iterator(&apm->variable);
+        var = next_variable_iterator(&it); var_i++)
     {
         printf("%02d\t", var_i);
         printf_substr(source_text, var->identity);
@@ -233,8 +242,8 @@ void dump_apm(Program *apm, const char *source_text)
     EnumType *enum_type;
     size_t enum_type_i = 0;
     for (
-        EnumTypeIterator it = begin_enum_type_iterator();
-        enum_type = advance_enum_type_iterator(&it); enum_type_i++)
+        EnumTypeIterator it = enum_type_iterator(&apm->enum_type);
+        enum_type = next_enum_type_iterator(&it); enum_type_i++)
     {
         printf("%02d\t", enum_type_i);
         printf_substr(source_text, enum_type->identity);
@@ -257,8 +266,8 @@ void dump_apm(Program *apm, const char *source_text)
     StructType *struct_type;
     size_t struct_type_i = 0;
     for (
-        StructTypeIterator it = begin_struct_type_iterator();
-        struct_type = advance_struct_type_iterator(&it); struct_type_i++)
+        StructTypeIterator it = struct_type_iterator(&apm->struct_type);
+        struct_type = next_struct_type_iterator(&it); struct_type_i++)
     {
         printf("%02d\t", struct_type_i);
         printf_substr(source_text, struct_type->identity);
