@@ -238,6 +238,7 @@ void dump_apm(Program *apm, const char *source_text)
     }
     printf("\n");
 
+    /*
     printf("ENUM VALUES\n");
     for (size_t i = 0; i < apm->enum_value.count; i++)
     {
@@ -247,6 +248,7 @@ void dump_apm(Program *apm, const char *source_text)
         printf("\n");
     }
     printf("\n");
+    */
 
     printf("STRUCT TYPES\n");
     StructType *struct_type;
