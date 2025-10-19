@@ -50,17 +50,17 @@ fn tokenise(str expr) {
         }
         insert(parser_tokens, t);
     }
-    insert(parser_tokens, { kind: END , value: 0 });
+    insert(parser_tokens, [ kind: END , value: 0 ]);
 }
 
 // Grammar:
 // expr   -> term   (( + - ) term  )*
 // term   -> factor (( * / ) factor)*
 // factor -> NUM
-          -> "(" expr ")"
+//        -> "(" expr ")"
 
 fn parse_expr() {
-    def result = parse_term()
+    def result = parse_term();
     loop {
         match parser_tokens[parser_pos].kind:
             ADD: result += parse_term();
@@ -72,7 +72,7 @@ fn parse_expr() {
 }
 
 fn parse_term() {
-    def result = parse_factor()
+    def result = parse_factor();
     loop {
         match parser_tokens[parser_pos].kind {
             MUL: result *= parse_factor();
