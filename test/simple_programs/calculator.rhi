@@ -17,10 +17,10 @@ fn flag_error(Parser parser, str error) {
         parser.error = error;
 }
 
-fn parse(Parser parser, str expr) -> num? {
+fn parse(Parser parser, str expr) num? {
     parser.tokens = [];
     parser.pos = 0;
-    parser.error = null;
+    parser.error = none;
 
     tokenise(parser, expr);
     if parser.error: return;
