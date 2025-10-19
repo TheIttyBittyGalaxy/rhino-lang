@@ -197,6 +197,7 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
                                      \
     MACRO(UNARY_POS)                 \
     MACRO(UNARY_NEG)                 \
+    MACRO(UNARY_NOT)                 \
     MACRO(UNARY_INCREMENT)           \
     MACRO(UNARY_DECREMENT)           \
                                      \

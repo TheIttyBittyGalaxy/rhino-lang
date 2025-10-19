@@ -307,6 +307,13 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
         break;
     }
 
+    case UNARY_NOT:
+    {
+        EMIT("!");
+        transpile_expression(t, apm, expr->operand);
+        break;
+    }
+
     case UNARY_INCREMENT:
     {
         transpile_expression(t, apm, expr->operand);

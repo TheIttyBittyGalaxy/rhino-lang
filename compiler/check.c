@@ -178,6 +178,7 @@ void check_expression(Compiler *c, Program *apm, Expression *expr)
 
     case UNARY_POS:
     case UNARY_NEG:
+    case UNARY_NOT:
     case UNARY_INCREMENT:
     case UNARY_DECREMENT:
         check_expression(c, apm, expr->operand);

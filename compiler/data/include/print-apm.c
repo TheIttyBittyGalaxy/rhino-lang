@@ -249,6 +249,7 @@ void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text)
 
     case UNARY_POS:
     case UNARY_NEG:
+    case UNARY_NOT:
     case UNARY_INCREMENT:
     case UNARY_DECREMENT:
         PRINT(expression_kind_string(expr->kind));

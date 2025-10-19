@@ -177,6 +177,7 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *exp
 
     case UNARY_POS:
     case UNARY_NEG:
+    case UNARY_NOT:
     case UNARY_INCREMENT:
     case UNARY_DECREMENT:
         resolve_identities_in_expression(c, apm, expr->operand, symbol_table);
@@ -537,6 +538,7 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
 
     case UNARY_POS:
     case UNARY_NEG:
+    case UNARY_NOT:
     case UNARY_INCREMENT:
     case UNARY_DECREMENT:
         resolve_types_in_expression(c, apm, expr->operand, symbol_table, (RhinoType){SORT_NONE});

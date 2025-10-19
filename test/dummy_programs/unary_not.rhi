@@ -1,0 +1,13 @@
+fn main() {
+    def x = not false;
+    > not true;
+    > not false;
+    > not x;
+    > not not x;
+}
+
+// SUCCESS
+// false
+// true
+// false
+// true

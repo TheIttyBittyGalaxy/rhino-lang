@@ -402,6 +402,10 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
     case UNARY_DECREMENT:
         return get_expression_type(apm, source_text, expr->operand);
 
+    case UNARY_NOT:
+        result.sort = SORT_BOOL;
+        break;
+
     case BINARY_DIVIDE:
         result.sort = SORT_NUM;
         break;
@@ -500,6 +504,7 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
 
     case UNARY_POS:
     case UNARY_NEG:
+    case UNARY_NOT:
         return PRECEDENCE_UNARY;
 
     case BINARY_MULTIPLY:

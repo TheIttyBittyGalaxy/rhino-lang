@@ -153,7 +153,10 @@ bool peek_expression(Compiler *c)
            PEEK(INTEGER) ||
            PEEK(RATIONAL) ||
            PEEK(STRING) ||
-           PEEK(BROKEN_STRING);
+           PEEK(BROKEN_STRING) ||
+           PEEK(PLUS) ||
+           PEEK(MINUS) ||
+           PEEK(KEYWORD_NOT);
 }
 
 bool peek_statement(Compiler *c)
@@ -892,6 +895,12 @@ Expression *parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrec
         lhs->kind = UNARY_NEG;
         ADVANCE();
         lhs->operand = parse_expression_with_precedence(c, apm, precedence_of(UNARY_NEG));
+    }
+    else if (PEEK(KEYWORD_NOT))
+    {
+        lhs->kind = UNARY_NOT;
+        ADVANCE();
+        lhs->operand = parse_expression_with_precedence(c, apm, precedence_of(UNARY_NOT));
     }
     else
     {
