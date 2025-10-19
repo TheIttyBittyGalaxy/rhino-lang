@@ -120,10 +120,10 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *exp
             if (found_symbol)
                 break;
 
-            if (current_table->next == 0)
+            if (current_table->next == NULL)
                 break;
 
-            current_table = get_symbol_table(apm->symbol_table, current_table->next);
+            current_table = current_table->next;
         }
 
         break;
@@ -207,7 +207,6 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
 {
     assert(!block->declaration_block);
 
-    SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, block->symbol_table);
     Statement *stmt;
     StatementIterator it;
 
@@ -234,9 +233,9 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
         case VARIABLE_DECLARATION:
         {
             if (stmt->has_initial_value)
-                resolve_identities_in_expression(c, apm, stmt->initial_value, symbol_table);
+                resolve_identities_in_expression(c, apm, stmt->initial_value, block->symbol_table);
             if (stmt->has_type_expression)
-                resolve_identities_in_expression(c, apm, stmt->type_expression, symbol_table);
+                resolve_identities_in_expression(c, apm, stmt->type_expression, block->symbol_table);
 
             Variable *var = stmt->variable;
             append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, (SymbolPointer){.variable = stmt->variable}, var->identity);
@@ -245,7 +244,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
         }
 
         case FUNCTION_DECLARATION:
-            resolve_identities_in_function(c, apm, stmt->function, symbol_table);
+            resolve_identities_in_function(c, apm, stmt->function, block->symbol_table);
             break;
 
         case ENUM_TYPE_DECLARATION:
@@ -258,7 +257,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
 
         case STRUCT_TYPE_DECLARATION:
         {
-            resolve_identities_in_struct_type(c, apm, stmt->struct_type, symbol_table);
+            resolve_identities_in_struct_type(c, apm, stmt->struct_type, block->symbol_table);
 
             StructType *struct_type = stmt->struct_type;
             append_symbol(apm, block->symbol_table, STRUCT_TYPE_SYMBOL, (SymbolPointer){.struct_type = stmt->struct_type}, struct_type->identity);
@@ -272,7 +271,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
 
         case IF_SEGMENT:
         case ELSE_IF_SEGMENT:
-            resolve_identities_in_expression(c, apm, stmt->condition, symbol_table);
+            resolve_identities_in_expression(c, apm, stmt->condition, block->symbol_table);
             resolve_identities_in_code_block(c, apm, stmt->body);
             break;
 
@@ -286,7 +285,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
 
         case FOR_LOOP:
         {
-            resolve_identities_in_expression(c, apm, stmt->iterable, symbol_table);
+            resolve_identities_in_expression(c, apm, stmt->iterable, block->symbol_table);
 
             Variable *iterator = stmt->iterator;
             append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, (SymbolPointer){.variable = stmt->iterator}, iterator->identity);
@@ -300,14 +299,14 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
             break;
 
         case ASSIGNMENT_STATEMENT:
-            resolve_identities_in_expression(c, apm, stmt->assignment_lhs, symbol_table);
-            resolve_identities_in_expression(c, apm, stmt->assignment_rhs, symbol_table);
+            resolve_identities_in_expression(c, apm, stmt->assignment_lhs, block->symbol_table);
+            resolve_identities_in_expression(c, apm, stmt->assignment_rhs, block->symbol_table);
             break;
 
         case OUTPUT_STATEMENT:
         case EXPRESSION_STMT:
         case RETURN_STATEMENT:
-            resolve_identities_in_expression(c, apm, stmt->expression, symbol_table);
+            resolve_identities_in_expression(c, apm, stmt->expression, block->symbol_table);
             break;
 
         default:
@@ -322,14 +321,12 @@ void resolve_identities_in_function(Compiler *c, Program *apm, Function *funct, 
     if (funct->has_return_type_expression)
         resolve_identities_in_expression(c, apm, funct->return_type_expression, symbol_table);
 
-    size_t body_symbol_table = funct->body->symbol_table;
-
     Parameter *parameter;
     ParameterIterator it = parameter_iterator(funct->parameters);
     while (parameter = next_parameter_iterator(&it))
     {
         resolve_identities_in_expression(c, apm, parameter->type_expression, symbol_table);
-        append_symbol(apm, body_symbol_table, PARAMETER_SYMBOL, (SymbolPointer){.parameter = parameter}, parameter->identity);
+        append_symbol(apm, funct->body->symbol_table, PARAMETER_SYMBOL, (SymbolPointer){.parameter = parameter}, parameter->identity);
     }
 
     resolve_identities_in_code_block(c, apm, funct->body);
@@ -337,19 +334,15 @@ void resolve_identities_in_function(Compiler *c, Program *apm, Function *funct, 
 
 void resolve_identities_in_struct_type(Compiler *c, Program *apm, StructType *struct_type, SymbolTable *symbol_table)
 {
-    SymbolTable *declarations_symbol_table = get_symbol_table(apm->symbol_table, struct_type->declarations->symbol_table);
-
     Property *property;
     PropertyIterator it = property_iterator(struct_type->properties);
     while (property = next_property_iterator(&it))
-        resolve_identities_in_expression(c, apm, property->type_expression, declarations_symbol_table);
+        resolve_identities_in_expression(c, apm, property->type_expression, struct_type->declarations->symbol_table);
 }
 
 void resolve_identities_in_declaration_block(Compiler *c, Program *apm, Block *block)
 {
     assert(block->declaration_block);
-
-    SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, block->symbol_table);
 
     // NOTE: Currently, the only declaration block is the program scope
     //       and we add all symbols to the symbol table during parsing.
@@ -360,17 +353,17 @@ void resolve_identities_in_declaration_block(Compiler *c, Program *apm, Block *b
     while (stmt = next_statement_iterator(&it))
     {
         if (stmt->kind == FUNCTION_DECLARATION)
-            resolve_identities_in_function(c, apm, stmt->function, symbol_table);
+            resolve_identities_in_function(c, apm, stmt->function, block->symbol_table);
         else if (stmt->kind == STRUCT_TYPE_DECLARATION)
-            resolve_identities_in_struct_type(c, apm, stmt->struct_type, symbol_table);
+            resolve_identities_in_struct_type(c, apm, stmt->struct_type, block->symbol_table);
         else if (stmt->kind == VARIABLE_DECLARATION)
         {
             // TODO: This is copy/pasted and modified from resolve_identities_in_code_block.
             //       Find an effective way to tidy.
             if (stmt->has_initial_value)
-                resolve_identities_in_expression(c, apm, stmt->initial_value, symbol_table);
+                resolve_identities_in_expression(c, apm, stmt->initial_value, block->symbol_table);
             if (stmt->has_type_expression)
-                resolve_identities_in_expression(c, apm, stmt->type_expression, symbol_table);
+                resolve_identities_in_expression(c, apm, stmt->type_expression, block->symbol_table);
         }
     }
 }
@@ -406,7 +399,7 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, S
         if (subject_type.sort == SORT_STRUCT)
         {
             StructType *struct_type = subject_type.struct_type;
-            SymbolTable *current_table = get_symbol_table(apm->symbol_table, struct_type->declarations->symbol_table);
+            SymbolTable *current_table = struct_type->declarations->symbol_table;
 
             while (true)
             {
@@ -438,10 +431,10 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, S
                     }
                 }
 
-                if (current_table->next == 0)
+                if (current_table->next == NULL)
                     break;
 
-                current_table = get_symbol_table(apm->symbol_table, current_table->next);
+                current_table = current_table->next;
             }
 
             raise_compilation_error(c, TYPE_DOES_NOT_EXIST, expr->span);
@@ -574,7 +567,6 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
 {
     assert(!block->declaration_block);
 
-    SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, block->symbol_table);
     Statement *stmt;
     StatementIterator it = statement_iterator(block->statements);
     while (stmt = next_statement_iterator(&it))
@@ -592,14 +584,14 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
 
             if (stmt->has_type_expression)
             {
-                var->type = resolve_type_expression(c, apm, stmt->type_expression, symbol_table);
+                var->type = resolve_type_expression(c, apm, stmt->type_expression, block->symbol_table);
 
                 if (stmt->has_initial_value)
-                    resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table, var->type);
+                    resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, var->type);
             }
             else if (stmt->has_initial_value)
             {
-                resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table, (RhinoType){SORT_NONE});
+                resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, (RhinoType){SORT_NONE});
                 var->type = get_expression_type(apm, c->source_text, stmt->initial_value);
             }
             else
@@ -612,14 +604,14 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
         }
 
         case FUNCTION_DECLARATION:
-            resolve_types_in_function(c, apm, stmt->function, symbol_table);
+            resolve_types_in_function(c, apm, stmt->function, block->symbol_table);
             break;
 
         case ENUM_TYPE_DECLARATION:
             break;
 
         case STRUCT_TYPE_DECLARATION:
-            resolve_types_in_struct_type(c, apm, stmt->struct_type, symbol_table);
+            resolve_types_in_struct_type(c, apm, stmt->struct_type, block->symbol_table);
             break;
 
         case CODE_BLOCK:
@@ -628,7 +620,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
 
         case IF_SEGMENT:
         case ELSE_IF_SEGMENT:
-            resolve_types_in_expression(c, apm, stmt->condition, symbol_table, (RhinoType){SORT_BOOL});
+            resolve_types_in_expression(c, apm, stmt->condition, block->symbol_table, (RhinoType){SORT_BOOL});
             resolve_types_in_code_block(c, apm, stmt->body);
             break;
 
@@ -643,7 +635,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
         // For loops, including type inference of the iterator
         case FOR_LOOP:
         {
-            resolve_types_in_expression(c, apm, stmt->iterable, symbol_table, (RhinoType){SORT_NONE});
+            resolve_types_in_expression(c, apm, stmt->iterable, block->symbol_table, (RhinoType){SORT_NONE});
 
             Variable *iterator = stmt->iterator;
             Expression *iterable = stmt->iterable;
@@ -670,16 +662,16 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
 
         case ASSIGNMENT_STATEMENT:
         {
-            resolve_types_in_expression(c, apm, stmt->assignment_lhs, symbol_table, (RhinoType){SORT_NONE});
+            resolve_types_in_expression(c, apm, stmt->assignment_lhs, block->symbol_table, (RhinoType){SORT_NONE});
             RhinoType lhs_type = get_expression_type(apm, c->source_text, stmt->assignment_lhs);
-            resolve_types_in_expression(c, apm, stmt->assignment_rhs, symbol_table, lhs_type);
+            resolve_types_in_expression(c, apm, stmt->assignment_rhs, block->symbol_table, lhs_type);
             break;
         }
         case OUTPUT_STATEMENT:
         case EXPRESSION_STMT:
         case RETURN_STATEMENT:
             // TODO: Use the return type of the function as a type hint for return statements
-            resolve_types_in_expression(c, apm, stmt->expression, symbol_table, (RhinoType){SORT_NONE});
+            resolve_types_in_expression(c, apm, stmt->expression, block->symbol_table, (RhinoType){SORT_NONE});
             break;
 
         default:
@@ -708,28 +700,24 @@ void resolve_types_in_function(Compiler *c, Program *apm, Function *funct, Symbo
 
 void resolve_types_in_struct_type(Compiler *c, Program *apm, StructType *struct_type, SymbolTable *symbol_table)
 {
-    SymbolTable *declarations_symbol_table = get_symbol_table(apm->symbol_table, struct_type->declarations->symbol_table);
-
     Property *property;
     PropertyIterator it = property_iterator(struct_type->properties);
     while (property = next_property_iterator(&it))
-        property->type = resolve_type_expression(c, apm, property->type_expression, declarations_symbol_table);
+        property->type = resolve_type_expression(c, apm, property->type_expression, struct_type->declarations->symbol_table);
 }
 
 void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
 {
     assert(block->declaration_block);
 
-    SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, block->symbol_table);
-
     Statement *stmt;
     StatementIterator it = statement_iterator(block->statements);
     while (stmt = next_statement_iterator(&it))
     {
         if (stmt->kind == FUNCTION_DECLARATION)
-            resolve_types_in_function(c, apm, stmt->function, symbol_table);
+            resolve_types_in_function(c, apm, stmt->function, block->symbol_table);
         if (stmt->kind == STRUCT_TYPE_DECLARATION)
-            resolve_types_in_struct_type(c, apm, stmt->struct_type, symbol_table);
+            resolve_types_in_struct_type(c, apm, stmt->struct_type, block->symbol_table);
         if (stmt->kind == VARIABLE_DECLARATION)
         {
             // TODO: This is copy/pasted and modified from resolve_types_in_code_block.
@@ -740,14 +728,14 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
 
             if (stmt->has_type_expression)
             {
-                var->type = resolve_type_expression(c, apm, stmt->type_expression, symbol_table);
+                var->type = resolve_type_expression(c, apm, stmt->type_expression, block->symbol_table);
 
                 if (stmt->has_initial_value)
-                    resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table, var->type);
+                    resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, var->type);
             }
             else if (stmt->has_initial_value)
             {
-                resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table, (RhinoType){SORT_NONE});
+                resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, (RhinoType){SORT_NONE});
                 var->type = get_expression_type(apm, c->source_text, stmt->initial_value);
             }
             else

@@ -171,11 +171,7 @@ void parse(Compiler *compiler, Program *apm)
 
 void parse_program(Compiler *c, Program *apm)
 {
-    // Initialise global scopes
-    apm->global_symbol_table = add_symbol_table(&apm->symbol_table);
-    init_symbol_table(SYMBOL_TABLE(apm->global_symbol_table));
-
-    // Parse top-level of program
+    apm->global_symbol_table = allocate_symbol_table(&apm->symbol_table, NULL);
     apm->program_block = parse_top_level_declarations(c, apm);
 }
 
@@ -307,11 +303,10 @@ void parse_struct_type(Compiler *c, Program *apm, Block *parent, StatementListAl
 
     Block *declarations = append_block(&apm->block);
     struct_type->declarations = declarations;
+
     declarations->declaration_block = true;
     declarations->singleton_block = false;
-
-    declarations->symbol_table = add_symbol_table(&apm->symbol_table);
-    init_symbol_table(SYMBOL_TABLE(declarations->symbol_table));
+    declarations->symbol_table = allocate_symbol_table(&apm->symbol_table, parent->symbol_table);
 
     StatementListAllocator block_declarations;
     init_statement_list_allocator(&block_declarations, &apm->statement_lists, 512); // FIXME: 512 was chosen arbitrarily
@@ -360,11 +355,6 @@ void parse_struct_type(Compiler *c, Program *apm, Block *parent, StatementListAl
     struct_type->properties = get_property_list(property_allocator);
 
     declarations->statements = get_statement_list(block_declarations);
-
-    size_t last_table = declarations->symbol_table;
-    while (SYMBOL_TABLE(last_table)->next)
-        last_table = SYMBOL_TABLE(last_table)->next;
-    SYMBOL_TABLE(last_table)->next = parent->symbol_table;
 
     END_SPAN(struct_type);
 
@@ -666,11 +656,10 @@ recover:
 Block *parse_top_level_declarations(Compiler *c, Program *apm)
 {
     Block *top_block = append_block(&apm->block);
+
     top_block->declaration_block = true;
     top_block->singleton_block = false;
-
-    top_block->symbol_table = add_symbol_table(&apm->symbol_table);
-    init_symbol_table(SYMBOL_TABLE(top_block->symbol_table));
+    top_block->symbol_table = allocate_symbol_table(&apm->symbol_table, apm->global_symbol_table);
 
     StatementListAllocator statements_allocator;
     init_statement_list_allocator(&statements_allocator, &apm->statement_lists, 512); // FIXME: 512 was chosen arbitrarily
@@ -801,11 +790,6 @@ Block *parse_top_level_declarations(Compiler *c, Program *apm)
 
     top_block->statements = get_statement_list(statements_allocator);
 
-    size_t last_table = top_block->symbol_table;
-    while (SYMBOL_TABLE(last_table)->next)
-        last_table = SYMBOL_TABLE(last_table)->next;
-    SYMBOL_TABLE(last_table)->next = apm->global_symbol_table;
-
     return top_block;
 }
 
@@ -834,9 +818,7 @@ Block *parse_block(Compiler *c, Program *apm, Block *parent)
         // TODO: Make this more efficient
         //       Currently we create a new symbol table for every block,
         //       meaning we create numerous completely empty tables.
-        block->symbol_table = add_symbol_table(&apm->symbol_table);
-        SYMBOL_TABLE(block->symbol_table)->next = 0;
-        SYMBOL_TABLE(block->symbol_table)->symbol_count = 0;
+        block->symbol_table = allocate_symbol_table(&apm->symbol_table, parent->symbol_table);
 
         while (true)
         {
@@ -851,11 +833,6 @@ Block *parse_block(Compiler *c, Program *apm, Block *parent)
             else
                 break;
         }
-
-        size_t last_table = block->symbol_table;
-        while (SYMBOL_TABLE(last_table)->next)
-            last_table = SYMBOL_TABLE(last_table)->next;
-        SYMBOL_TABLE(last_table)->next = parent->symbol_table;
 
         EAT(CURLY_R);
         recover_from_panic(c);

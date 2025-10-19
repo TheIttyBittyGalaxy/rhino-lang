@@ -14,20 +14,22 @@ DEFINE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
 DEFINE_LIST_ALLOCATOR(EnumValue, enum_value)
 DEFINE_LIST_ALLOCATOR(EnumType, enum_type)
+
 DEFINE_LIST_ALLOCATOR(Property, property)
 DEFINE_LIST_ALLOCATOR(StructType, struct_type)
+
 DEFINE_LIST_ALLOCATOR(Variable, variable)
+
 DEFINE_LIST_ALLOCATOR(Expression, expression)
+
 DEFINE_LIST_ALLOCATOR(Statement, statement)
+
 DEFINE_LIST_ALLOCATOR(Block, block)
+DEFINE_LIST_ALLOCATOR(SymbolTable, symbol_table)
+
 DEFINE_LIST_ALLOCATOR(Function, function)
-DEFINE_LIST_ALLOCATOR(Argument, argument)
 DEFINE_LIST_ALLOCATOR(Parameter, parameter)
-
-// LIST TYPE //
-
-DEFINE_LIST_TYPE(SymbolTable, symbol_table)
-DEFINE_SLICE_TYPE(SymbolTable, symbol_table)
+DEFINE_LIST_ALLOCATOR(Argument, argument)
 
 // RHINO TYPE //
 
@@ -47,44 +49,35 @@ void init_program(Program *apm, Allocator *allocator)
     init_allocator(&apm->parameter_lists, allocator, 1024);
     init_allocator(&apm->arguments_lists, allocator, 1024);
 
+    init_allocator(&apm->symbol_table, allocator, 1024);
+
     init_expression_list_allocator(&apm->expression, allocator, 1024);
     init_function_list_allocator(&apm->function, allocator, 1024);
     init_variable_list_allocator(&apm->variable, allocator, 1024);
     init_enum_type_list_allocator(&apm->enum_type, allocator, 1024);
     init_struct_type_list_allocator(&apm->struct_type, allocator, 1024);
     init_block_list_allocator(&apm->block, allocator, 1024);
-
-    // TODO: Old allocators, yet to be replaced
-    init_symbol_table_list(&apm->symbol_table);
-
-    // Symbol tables treat `symbol_table.next = 0` as `symbol_table.next = NULL`. and so the first symbol table has to be empty
-    add_symbol_table(&apm->symbol_table);
 }
 
 // SYMBOL TABLES //
 
-void init_symbol_table(SymbolTable *symbol_table)
+SymbolTable *allocate_symbol_table(Allocator *allocator, SymbolTable *parent)
 {
-    symbol_table->next = 0;
-    symbol_table->symbol_count = 0;
+    SymbolTable *table = (SymbolTable *)allocate(allocator, sizeof(SymbolTable), alignof(SymbolTable));
+    table->next = parent;
+    table->symbol_count = 0;
+    return table;
 }
 
-void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, SymbolPointer to, substr symbol_identity)
+void append_symbol(Program *apm, SymbolTable *table, SymbolTag symbol_tag, SymbolPointer to, substr symbol_identity)
 {
-    SymbolTable *table = get_symbol_table(apm->symbol_table, table_index);
     while (table->symbol_count == SYMBOL_TABLE_SIZE && table->next)
-    {
-        table_index = table->next;
-        table = get_symbol_table(apm->symbol_table, table_index);
-    }
+        table = table->next;
 
     if (table->symbol_count == SYMBOL_TABLE_SIZE)
     {
-        size_t next_index = add_symbol_table(&apm->symbol_table);
-        SymbolTable *next = get_symbol_table(apm->symbol_table, next_index);
-
-        // We cannot use the `table` pointer here as the table may been reallocated after we called add_symbol_table
-        get_symbol_table(apm->symbol_table, table_index)->next = next_index;
+        SymbolTable *next = allocate_symbol_table(&apm->symbol_table, table->next);
+        table->next = next;
 
         next->next = 0;
         next->symbol_count = 1;
@@ -282,6 +275,7 @@ void dump_apm(Program *apm, const char *source_text)
     printf("\n");
     */
 
+    /*
     printf("SYMBOL TABLES\n");
     for (size_t i = 1; i < apm->symbol_table.count; i++)
     {
@@ -297,6 +291,7 @@ void dump_apm(Program *apm, const char *source_text)
         printf("\n");
     }
     printf("\n");
+    */
 }
 
 // PRINT APM //

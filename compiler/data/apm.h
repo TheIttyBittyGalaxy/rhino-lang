@@ -29,7 +29,9 @@ typedef struct Statement Statement;
 DECLARE_LIST_ALLOCATOR(Statement, statement)
 
 typedef struct Block Block;
+typedef struct SymbolTable SymbolTable;
 DECLARE_LIST_ALLOCATOR(Block, block)
+DECLARE_LIST_ALLOCATOR(SymbolTable, symbol_table)
 
 typedef struct Function Function;
 typedef struct Parameter Parameter;
@@ -37,6 +39,8 @@ typedef struct Argument Argument;
 DECLARE_LIST_ALLOCATOR(Function, function)
 DECLARE_LIST_ALLOCATOR(Parameter, parameter)
 DECLARE_LIST_ALLOCATOR(Argument, argument)
+
+typedef struct Program Program;
 
 // Types
 #define LIST_RHINO_SORTS(MACRO) \
@@ -139,18 +143,15 @@ typedef struct
 
 #define SYMBOL_TABLE_SIZE 16
 
-typedef struct
+struct SymbolTable
 {
-    size_t next;
     size_t symbol_count;
+    SymbolTable *next;
     Symbol symbol[SYMBOL_TABLE_SIZE];
-} SymbolTable;
+};
 
-DECLARE_SLICE_TYPE(SymbolTable, symbol_table)
-DECLARE_LIST_TYPE(SymbolTable, symbol_table)
-
-void init_symbol_table(SymbolTable *symbol_table);
-void set_symbol_table_parent(SymbolTable *symbol_table, size_t parent_index);
+SymbolTable *allocate_symbol_table(Allocator *allocator, SymbolTable *parent);
+void append_symbol(Program *apm, SymbolTable *table, SymbolTag symbol_tag, SymbolPointer to, substr symbol_identity);
 
 // Expression Precedence
 // Ordered from "happens last" to "happens first"
@@ -376,7 +377,7 @@ struct Block
 {
     bool declaration_block;
     bool singleton_block;
-    size_t symbol_table;
+    SymbolTable *symbol_table;
     StatementList statements;
 };
 
@@ -410,7 +411,7 @@ struct Argument
 };
 
 // Program
-typedef struct
+struct Program
 {
     Allocator statement_lists;
     Allocator enum_value_lists;
@@ -418,26 +419,23 @@ typedef struct
     Allocator parameter_lists;
     Allocator arguments_lists;
 
+    Allocator symbol_table;
+
     ExpressionListAllocator expression;
     FunctionListAllocator function;
     VariableListAllocator variable;
+    EnumValueList enum_value;
     EnumTypeListAllocator enum_type;
     StructTypeListAllocator struct_type;
     BlockListAllocator block;
 
-    // TODO: Old allocators, yet to be replaced
-    EnumValueList enum_value;
-    SymbolTableList symbol_table;
-
     Function *main;
 
-    Block *program_block;       // Statement
-    size_t global_symbol_table; // SymbolTable
-} Program;
+    Block *program_block;
+    SymbolTable *global_symbol_table;
+};
 
 void init_program(Program *apm, Allocator *allocator);
-
-void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, SymbolPointer to, substr symbol_identity);
 
 // Display APM
 const char *rhino_type_string(Program *apm, RhinoType ty);
