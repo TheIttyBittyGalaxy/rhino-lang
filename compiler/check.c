@@ -2,18 +2,42 @@
 #include "fatal_error.h"
 #include <string.h>
 
-// CHECK STATEMENTS //
+void check_block(Compiler *c, Program *apm, Block *block);
+void check_function(Compiler *c, Program *apm, Function *funct);
+void check_statement_list(Compiler *c, Program *apm, StatementList statement_list);
 
-// TODO: Reimplementing checking by talking the APM tree
-/*
-void check_statements(Compiler *c, Program *apm)
+void check_block(Compiler *c, Program *apm, Block *block)
 {
-    for (size_t i = 0; i < apm->statement.count; i++)
-    {
-        Statement *stmt = get_statement(apm->statement, i);
+    check_statement_list(c, apm, block->statements);
+}
 
+void check_function(Compiler *c, Program *apm, Function *funct)
+{
+    check_block(c, apm, funct->body);
+}
+
+void check_statement_list(Compiler *c, Program *apm, StatementList statement_list)
+{
+    Statement *stmt;
+    StatementIterator it = statement_iterator(statement_list);
+    while (stmt = next_statement_iterator(&it))
+    {
         switch (stmt->kind)
         {
+
+            // Recursively check nested blocks
+        case CODE_BLOCK:
+        {
+            check_block(c, apm, stmt->block);
+            break;
+        }
+
+        // Recursively check functions
+        case FUNCTION_DECLARATION:
+        {
+            check_function(c, apm, stmt->function);
+            break;
+        }
 
         // Check if statement conditions are booleans
         case IF_SEGMENT:
@@ -57,13 +81,12 @@ void check_statements(Compiler *c, Program *apm)
         }
     }
 }
-*/
 
 // CHECK //
 
 void check(Compiler *c, Program *apm)
 {
-    // check_statements(c, apm);
+    check_block(c, apm, apm->program_block);
 
     // Produce errors for remaining identity literals
     // TODO: Reimplement this as part of the tree walk
