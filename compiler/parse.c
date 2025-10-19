@@ -28,6 +28,7 @@ void parse_program(Compiler *c, Program *apm);
 void parse_function(Compiler *c, Program *apm, Block *parent, StatementListAllocator *parent_statements);
 void parse_enum_type(Compiler *c, Program *apm, Block *parent, StatementListAllocator *parent_statements);
 void parse_struct_type(Compiler *c, Program *apm, Block *parent, StatementListAllocator *parent_statements);
+void parse_variable_declaration(Compiler *c, Program *apm, Block *parent, StatementListAllocator *parent_statements, Statement *declaration, bool declare_symbol_in_parent);
 
 void parse_program_block(Compiler *c, Program *apm);
 Block *parse_block(Compiler *c, Program *apm, Block *parent);
@@ -354,6 +355,52 @@ void parse_struct_type(Compiler *c, Program *apm, Block *parent, StatementListAl
     declaration->span = struct_type->span;
 }
 
+void parse_variable_declaration(Compiler *c, Program *apm, Block *parent, StatementListAllocator *parent_statements, Statement *declaration, bool declare_symbol_in_parent)
+{
+    Variable *var = append_variable(&apm->variable);
+    var->type.sort = UNINITIALISED_SORT;
+
+    if (declaration == NULL)
+    {
+        Statement *declaration = append_statement(parent_statements);
+        START_SPAN(declaration);
+    }
+
+    declaration->kind = VARIABLE_DECLARATION;
+    declaration->variable = var;
+    declaration->has_initial_value = false;
+    declaration->has_type_expression = false;
+
+    if (PEEK(KEYWORD_DEF))
+    {
+        EAT(KEYWORD_DEF);
+    }
+    else
+    {
+        declaration->has_type_expression = true;
+        declaration->type_expression = parse_expression(c, apm);
+    }
+
+    var->identity = TOKEN_STRING();
+    EAT(IDENTITY);
+
+    if (PEEK(EQUAL))
+    {
+        EAT(EQUAL);
+        declaration->has_initial_value = true;
+        declaration->initial_value = parse_expression(c, apm);
+    }
+
+    if (declare_symbol_in_parent)
+        declare_symbol(apm, parent->symbol_table, VARIABLE_SYMBOL, var, var->identity);
+
+    if (c->parse_status == PANIC)
+        return;
+
+    EAT(SEMI_COLON);
+    END_SPAN(declaration); // NOTE: parse_statement will repeat this, but I don't think that's an issue?
+}
+
 // NOTE: Can return with status OKAY or RECOVERED
 Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *allocator, Block *block)
 {
@@ -473,35 +520,7 @@ Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *al
     // VARIABLE_DECLARATION with inferred type
     if (PEEK(KEYWORD_DEF))
     {
-        Variable *var = append_variable(&apm->variable);
-        var->type.sort = UNINITIALISED_SORT;
-
-        stmt->kind = VARIABLE_DECLARATION;
-        stmt->variable = var;
-        stmt->has_initial_value = false;
-        stmt->has_type_expression = false;
-
-        EAT(KEYWORD_DEF);
-
-        var->identity = TOKEN_STRING();
-        EAT(IDENTITY);
-
-        if (PEEK(EQUAL))
-        {
-            EAT(EQUAL);
-            stmt->initial_value = parse_expression(c, apm);
-
-            if (c->parse_status == PANIC)
-                goto recover;
-
-            stmt->has_initial_value = true;
-        }
-        else
-        {
-            // TODO: Error
-        }
-
-        EAT(SEMI_COLON);
+        parse_variable_declaration(c, apm, block, allocator, stmt, false);
         goto finish;
     }
 
@@ -538,11 +557,8 @@ Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *al
     // EXPRESSION_STMT / ASSIGNMENT_STATEMENT / VARIABLE_DECLARATION with stated type
     else if (peek_expression(c))
     {
-        stmt->kind = EXPRESSION_STMT;
-
-        // EXPRESSION_STMT
-        Expression *first_expr = parse_expression(c, apm);
-        stmt->expression = first_expr;
+        size_t start_of_statement = c->next_token;
+        Expression *expr = parse_expression(c, apm);
 
         if (c->parse_status == PANIC)
             goto recover;
@@ -550,28 +566,13 @@ Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *al
         // VARIABLE_DECLARATION with stated type
         if (PEEK(IDENTITY))
         {
-            Variable *var = append_variable(&apm->variable);
-            var->type.sort = UNINITIALISED_SORT;
+            c->next_token = start_of_statement;
+            parse_variable_declaration(c, apm, block, allocator, stmt, false);
 
-            stmt->kind = VARIABLE_DECLARATION;
-            stmt->variable = var;
-            stmt->type_expression = first_expr;
-            stmt->has_type_expression = true;
-            stmt->has_initial_value = false;
+            if (c->parse_status == PANIC)
+                goto recover;
 
-            var->identity = TOKEN_STRING();
-            EAT(IDENTITY);
-
-            if (PEEK(EQUAL))
-            {
-                EAT(EQUAL);
-                stmt->initial_value = parse_expression(c, apm);
-
-                if (c->parse_status == PANIC)
-                    goto recover;
-
-                stmt->has_initial_value = true;
-            }
+            goto finish;
         }
 
         // ASSIGNMENT_STATEMENT
@@ -579,21 +580,35 @@ Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *al
         {
             stmt->kind = ASSIGNMENT_STATEMENT;
 
-            stmt->assignment_lhs = first_expr;
+            stmt->assignment_lhs = expr;
             EAT(EQUAL);
             stmt->assignment_rhs = parse_expression(c, apm);
 
             if (c->parse_status == PANIC)
                 goto recover;
+
+            EAT(SEMI_COLON);
+            goto finish;
         }
 
-        EAT(SEMI_COLON);
-        goto finish;
+        // EXPRESSION_STMT
+        else
+        {
+            stmt->kind = EXPRESSION_STMT;
+            stmt->expression = expr;
+
+            EAT(SEMI_COLON);
+            goto finish;
+        }
+
+        __builtin_unreachable();
     }
 
     // INVALID_STATEMENT
     stmt->kind = INVALID_STATEMENT;
     raise_parse_error(c, EXPECTED_STATEMENT);
+
+    // FIXME: Not sure why we allow a situation where a statement might "recover" without ever ending it's span?
 
 finish:
     END_SPAN(stmt);
@@ -661,85 +676,8 @@ void parse_program_block(Compiler *c, Program *apm)
             parse_enum_type(c, apm, program_block, &statements_allocator);
         else if (PEEK(KEYWORD_STRUCT))
             parse_struct_type(c, apm, program_block, &statements_allocator);
-
-        else if (PEEK(KEYWORD_DEF))
-        {
-            // TODO: This is mostly copy/pasted from parse_statement, though with
-            //       some modifications. Find an effective way to clean up?
-
-            Statement *stmt = append_statement(&statements_allocator);
-            START_SPAN(stmt);
-
-            Variable *var = append_variable(&apm->variable);
-            var->type.sort = UNINITIALISED_SORT;
-
-            stmt->kind = VARIABLE_DECLARATION;
-            stmt->variable = var;
-            stmt->has_initial_value = false;
-            stmt->has_type_expression = false;
-
-            EAT(KEYWORD_DEF);
-
-            var->identity = TOKEN_STRING();
-            EAT(IDENTITY);
-
-            declare_symbol(apm, program_block->symbol_table, VARIABLE_SYMBOL, var, var->identity);
-
-            if (PEEK(EQUAL))
-            {
-                EAT(EQUAL);
-                stmt->initial_value = parse_expression(c, apm);
-
-                if (c->parse_status == PANIC)
-                {
-                    while (c->parse_status == PANIC)
-                    {
-                        if (PEEK(END_OF_FILE))
-                        {
-                            c->parse_status = RECOVERED;
-                        }
-
-                        else if (PEEK(SEMI_COLON))
-                        {
-                            ADVANCE();
-                            c->parse_status = OKAY;
-                        }
-
-                        // TODO: If we stored where newlines appears in the program, something like this would allow for better recovery
-                        // else if (peek_newline) {
-                        //     c->parse_status = RECOVERED;
-                        // }
-
-                        else if (PEEK(CURLY_R))
-                        {
-                            ADVANCE();
-                            c->parse_status = OKAY;
-                        }
-
-                        else if (PEEK(CURLY_L))
-                        {
-                            ADVANCE();
-                            c->parse_status = RECOVERED;
-                        }
-
-                        else
-                        {
-                            ADVANCE();
-                        }
-                    }
-
-                    continue;
-                }
-
-                stmt->has_initial_value = true;
-            }
-            else
-            {
-                // TODO: Error
-            }
-
-            EAT(SEMI_COLON);
-        }
+        else if (PEEK(KEYWORD_DEF) || peek_expression(c))
+            parse_variable_declaration(c, apm, program_block, &statements_allocator, NULL, true);
 
         else
         {
