@@ -11,10 +11,10 @@
     MACRO(INVALID_COMPILATION_ERROR)                                \
                                                                     \
     /* PARSER ERRORS */                                             \
+    MACRO(UNEXPECTED_TOKEN_IN_PROGRAM)                              \
     MACRO(EXPECTED_EXPRESSION)                                      \
     MACRO(EXPECTED_TYPE_EXPRESSION)                                 \
     MACRO(EXPECTED_STATEMENT)                                       \
-    MACRO(EXPECTED_FUNCTION)                                        \
                                                                     \
     /* NOTE: These should be synced up to LIST_TOKENS in token.h */ \
     MACRO(EXPECTED_INVALID_TOKEN)                                   \

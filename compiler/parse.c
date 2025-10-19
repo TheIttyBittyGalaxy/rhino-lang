@@ -16,7 +16,7 @@ substr token_string(Compiler *c);
 // Error and recovery
 void raise_parse_error(Compiler *c, CompilationErrorCode code);
 void recover_from_panic(Compiler *c);
-void attempt_to_recover_at_next_code_block(Compiler *c);
+void attempt_to_advance_to_next_code_block(Compiler *c);
 
 // Peek APM
 bool peek_expression(Compiler *c);
@@ -101,14 +101,22 @@ void recover_from_panic(Compiler *c)
         c->parse_status = RECOVERED;
 }
 
-void attempt_to_recover_at_next_code_block(Compiler *c)
+// NOTE: Can return with status OKAY or PANIC
+void attempt_to_advance_to_next_code_block(Compiler *c)
 {
-    if (c->parse_status != PANIC)
+    if (PEEK(CURLY_L) || PEEK(COLON))
+    {
+        c->parse_status = OKAY;
         return;
+    }
+
+    c->parse_status = PANIC;
 
     size_t start = c->next_token;
     while (!peek(c, END_OF_FILE))
     {
+        advance(c);
+
         if (peek(c, CURLY_L))
         {
             c->parse_status = OKAY;
@@ -124,13 +132,12 @@ void attempt_to_recover_at_next_code_block(Compiler *c)
                 c->next_token--; // Leave COLON to be consumed by parse_code_block
                 return;
             }
+            continue;
         }
 
+        // FIXME: When is the right point to give up looking for the next code block?
         else if (peek(c, SEMI_COLON))
             break;
-
-        else
-            advance(c);
     }
     c->next_token = start;
 }
@@ -225,7 +232,7 @@ void parse_function(Compiler *c, Program *apm, Block *parent, StatementListAlloc
     // while preventing the function parameters or return type attempting to refer to it.
     declare_symbol(apm, parent->symbol_table, FUNCTION_SYMBOL, funct, funct->identity);
 
-    attempt_to_recover_at_next_code_block(c);
+    attempt_to_advance_to_next_code_block(c);
     funct->body = parse_block(c, apm, parent);
 
     END_SPAN(funct);
@@ -370,7 +377,7 @@ Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *al
         EAT(KEYWORD_IF);
         stmt->condition = parse_expression(c, apm);
 
-        attempt_to_recover_at_next_code_block(c);
+        attempt_to_advance_to_next_code_block(c);
         if (c->parse_status == PANIC)
             goto recover;
 
@@ -390,7 +397,7 @@ Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *al
                 EAT(KEYWORD_IF);
                 segment_stmt->condition = parse_expression(c, apm);
 
-                attempt_to_recover_at_next_code_block(c);
+                attempt_to_advance_to_next_code_block(c);
                 if (c->parse_status == PANIC)
                     goto recover;
 
@@ -444,7 +451,7 @@ Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *al
         stmt->iterable = iterable;
 
         // Body
-        attempt_to_recover_at_next_code_block(c);
+        attempt_to_advance_to_next_code_block(c);
         if (c->parse_status == PANIC)
             goto recover;
 
@@ -736,8 +743,7 @@ void parse_program_block(Compiler *c, Program *apm)
 
         else
         {
-            // FIXME: What is the appropriate error to express here?
-            raise_parse_error(c, EXPECTED_FUNCTION);
+            raise_parse_error(c, UNEXPECTED_TOKEN_IN_PROGRAM);
 
             size_t depth = 0;
             while (c->parse_status == PANIC)
@@ -754,12 +760,18 @@ void parse_program_block(Compiler *c, Program *apm)
                 if (PEEK(CURLY_R) && depth == 0)
                     c->parse_status = RECOVERED;
 
+                if (PEEK(SEMI_COLON) && depth == 0)
+                    c->parse_status = OKAY;
+
                 ADVANCE();
 
-                if (PEEK(KEYWORD_FN))
-                    c->parse_status = RECOVERED;
+                if (depth > 0)
+                    continue;
 
-                if (PEEK(KEYWORD_ENUM))
+                if (PEEK(KEYWORD_FN) ||
+                    PEEK(KEYWORD_ENUM) ||
+                    PEEK(KEYWORD_STRUCT) ||
+                    PEEK(KEYWORD_DEF))
                     c->parse_status = RECOVERED;
             }
         }
