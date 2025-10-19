@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define ALIGN_UP(ptr, align) (uint8_t *)((uintptr_t)(ptr) + ((align) - 1) & ~(align - 1));
+#define ALIGN_UP(ptr, align) (uint8_t *)((uintptr_t)(ptr) + ((align) - 1) & ~(align - 1))
 
 typedef struct Allocator Allocator;
 typedef struct Bucket Bucket;
