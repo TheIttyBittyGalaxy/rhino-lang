@@ -382,6 +382,11 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
 
 RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table)
 {
+    // FIXME: At the moment `parse_expression` will give a "expected expression" error whenever a type
+    //        expression is invalid. Find a way of handling this that gives more helpful/specific errors.
+    if (expr->kind == INVALID_EXPRESSION)
+        return (RhinoType){ERROR_SORT, 0};
+
     if (expr->kind == TYPE_REFERENCE)
         return expr->type;
 
