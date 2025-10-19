@@ -371,19 +371,14 @@ void parse_variable_declaration(Compiler *c, Program *apm, Block *parent, Statem
 
     declaration->kind = VARIABLE_DECLARATION;
     declaration->variable = var;
+    declaration->type_expression = NULL;
+    declaration->initial_value = NULL;
     declaration->has_valid_identity = false;
-    declaration->has_initial_value = false;
-    declaration->has_type_expression = false;
 
     if (PEEK(KEYWORD_DEF))
-    {
         EAT(KEYWORD_DEF);
-    }
     else
-    {
-        declaration->has_type_expression = true;
         declaration->type_expression = parse_expression(c, apm);
-    }
 
     if (PEEK(IDENTITY))
         goto parse_identity;
@@ -412,7 +407,6 @@ parse_initial_value:
     if (PEEK(EQUAL))
     {
         EAT(EQUAL);
-        declaration->has_initial_value = true;
         declaration->initial_value = parse_expression(c, apm);
     }
 
@@ -569,12 +563,16 @@ Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *al
     if (PEEK(KEYWORD_RETURN))
     {
         stmt->kind = RETURN_STATEMENT;
+        stmt->expression = NULL;
 
         EAT(KEYWORD_RETURN);
-        stmt->expression = parse_expression(c, apm);
 
-        if (c->parse_status == PANIC)
-            goto recover;
+        if (peek_expression(c))
+        {
+            stmt->expression = parse_expression(c, apm);
+            if (c->parse_status == PANIC)
+                goto recover;
+        }
 
         EAT(SEMI_COLON);
         goto finish;

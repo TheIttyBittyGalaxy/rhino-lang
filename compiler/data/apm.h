@@ -327,11 +327,9 @@ struct Statement
         struct // VARIABLE_DECLARATION
         {
             Variable *variable;
-            Expression *initial_value;
             Expression *type_expression;
-            bool has_valid_identity; // FIXME: Having this many bool flags bloats the size of the Expression struct
-            bool has_type_expression;
-            bool has_initial_value;
+            Expression *initial_value;
+            bool has_valid_identity;
         };
         struct // FUNCTION_DECLARATION
         {

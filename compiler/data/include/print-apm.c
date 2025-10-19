@@ -394,16 +394,22 @@ void PRINT_STATEMENT(Program *apm, Statement *stmt, const char *source_text)
         break;
 
     case VARIABLE_DECLARATION:
-        if (!stmt->has_type_expression && !stmt->has_initial_value)
+        if (!stmt->has_valid_identity)
+        {
+            PRINT("has_valid_identity: false");
+            NEWLINE();
+        }
+
+        if (stmt->type_expression == NULL && stmt->initial_value == NULL)
             LAST_ON_LINE();
 
         PRINT("variable: ");
         PRINT_VARIABLE(apm, stmt->variable, source_text);
         NEWLINE();
 
-        if (stmt->has_type_expression)
+        if (stmt->type_expression)
         {
-            if (!stmt->has_initial_value)
+            if (stmt->initial_value == NULL)
                 LAST_ON_LINE();
 
             PRINT("type_expression: ");
@@ -411,7 +417,7 @@ void PRINT_STATEMENT(Program *apm, Statement *stmt, const char *source_text)
             NEWLINE();
         }
 
-        if (stmt->has_initial_value)
+        if (stmt->initial_value)
         {
             LAST_ON_LINE();
             PRINT("initial_value: ");
@@ -429,9 +435,12 @@ void PRINT_STATEMENT(Program *apm, Statement *stmt, const char *source_text)
         break;
 
     case RETURN_STATEMENT:
-        LAST_ON_LINE();
-        PRINT_EXPRESSION(apm, stmt->expression, source_text);
-        NEWLINE();
+        if (stmt->expression)
+        {
+            LAST_ON_LINE();
+            PRINT_EXPRESSION(apm, stmt->expression, source_text);
+            NEWLINE();
+        }
 
         break;
 

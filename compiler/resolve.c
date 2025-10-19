@@ -235,9 +235,9 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
 
         case VARIABLE_DECLARATION:
         {
-            if (stmt->has_initial_value)
+            if (stmt->initial_value)
                 resolve_identities_in_expression(c, apm, stmt->initial_value, block->symbol_table);
-            if (stmt->has_type_expression)
+            if (stmt->type_expression)
                 resolve_identities_in_expression(c, apm, stmt->type_expression, block->symbol_table);
 
             Variable *var = stmt->variable;
@@ -309,8 +309,11 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
         case OUTPUT_STATEMENT:
         case EXPRESSION_STMT:
         case RETURN_STATEMENT:
-            resolve_identities_in_expression(c, apm, stmt->expression, block->symbol_table);
+        {
+            if (stmt->expression)
+                resolve_identities_in_expression(c, apm, stmt->expression, block->symbol_table);
             break;
+        }
 
         default:
             fatal_error("Could not resolve identity literals in %s statement", statement_kind_string(stmt->kind));
@@ -363,9 +366,9 @@ void resolve_identities_in_declaration_block(Compiler *c, Program *apm, Block *b
         {
             // TODO: This is copy/pasted and modified from resolve_identities_in_code_block.
             //       Find an effective way to tidy.
-            if (stmt->has_initial_value)
+            if (stmt->initial_value)
                 resolve_identities_in_expression(c, apm, stmt->initial_value, block->symbol_table);
-            if (stmt->has_type_expression)
+            if (stmt->type_expression)
                 resolve_identities_in_expression(c, apm, stmt->type_expression, block->symbol_table);
         }
     }
@@ -591,14 +594,14 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
             Variable *var = stmt->variable;
             var->type.sort = INVALID_SORT;
 
-            if (stmt->has_type_expression)
+            if (stmt->type_expression)
             {
                 var->type = resolve_type_expression(c, apm, stmt->type_expression, block->symbol_table);
 
-                if (stmt->has_initial_value)
+                if (stmt->initial_value)
                     resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, var->type);
             }
-            else if (stmt->has_initial_value)
+            else if (stmt->initial_value)
             {
                 resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, (RhinoType){SORT_NONE});
                 var->type = get_expression_type(apm, c->source_text, stmt->initial_value);
@@ -679,9 +682,12 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
         case OUTPUT_STATEMENT:
         case EXPRESSION_STMT:
         case RETURN_STATEMENT:
+        {
             // TODO: Use the return type of the function as a type hint for return statements
-            resolve_types_in_expression(c, apm, stmt->expression, block->symbol_table, (RhinoType){SORT_NONE});
+            if (stmt->expression)
+                resolve_types_in_expression(c, apm, stmt->expression, block->symbol_table, (RhinoType){SORT_NONE});
             break;
+        }
 
         default:
             fatal_error("Could not resolve types in %s statement", statement_kind_string(stmt->kind));
@@ -735,14 +741,14 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
             Variable *var = stmt->variable;
             var->type.sort = INVALID_SORT;
 
-            if (stmt->has_type_expression)
+            if (stmt->type_expression)
             {
                 var->type = resolve_type_expression(c, apm, stmt->type_expression, block->symbol_table);
 
-                if (stmt->has_initial_value)
+                if (stmt->initial_value)
                     resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, var->type);
             }
-            else if (stmt->has_initial_value)
+            else if (stmt->initial_value)
             {
                 resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, (RhinoType){SORT_NONE});
                 var->type = get_expression_type(apm, c->source_text, stmt->initial_value);

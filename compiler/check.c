@@ -31,7 +31,7 @@ void check_statement_list(Compiler *c, Program *apm, StatementList statement_lis
 
         case VARIABLE_DECLARATION:
         {
-            if (!stmt->has_initial_value)
+            if (stmt->initial_value == NULL)
                 continue;
 
             check_expression(c, apm, stmt->initial_value);
@@ -115,8 +115,11 @@ void check_statement_list(Compiler *c, Program *apm, StatementList statement_lis
         case OUTPUT_STATEMENT:
         case EXPRESSION_STMT:
         case RETURN_STATEMENT:
-            check_expression(c, apm, stmt->expression);
+        {
+            if (stmt->expression)
+                check_expression(c, apm, stmt->expression);
             break;
+        }
 
         default:
             fatal_error("Could not check %s statement", statement_kind_string(stmt->kind));

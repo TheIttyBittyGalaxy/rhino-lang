@@ -479,7 +479,7 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
         EMIT_SUBSTR(var->identity);
         EMIT(" = ");
 
-        if (stmt->has_initial_value)
+        if (stmt->initial_value)
             transpile_expression(t, apm, stmt->initial_value);
         else
             transpile_default_value(t, apm, var->type);
