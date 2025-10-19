@@ -368,6 +368,7 @@ void parse_variable_declaration(Compiler *c, Program *apm, Block *parent, Statem
 
     declaration->kind = VARIABLE_DECLARATION;
     declaration->variable = var;
+    declaration->has_valid_identity = false;
     declaration->has_initial_value = false;
     declaration->has_type_expression = false;
 
@@ -381,9 +382,30 @@ void parse_variable_declaration(Compiler *c, Program *apm, Block *parent, Statem
         declaration->type_expression = parse_expression(c, apm);
     }
 
+    if (PEEK(IDENTITY))
+        goto parse_identity;
+
+    raise_parse_error(c, EXPECTED_VARIABLE_NAME);
+    while (true)
+    {
+        if (PEEK(END_OF_FILE))
+            goto finish;
+        else if (PEEK(SEMI_COLON))
+            goto finish;
+        else if (PEEK(IDENTITY))
+            goto parse_identity;
+        else if (PEEK(EQUAL))
+            goto parse_initial_value;
+
+        ADVANCE();
+    }
+
+parse_identity:
+    declaration->has_valid_identity = true;
     var->identity = TOKEN_STRING();
     EAT(IDENTITY);
 
+parse_initial_value:
     if (PEEK(EQUAL))
     {
         EAT(EQUAL);
@@ -391,12 +413,13 @@ void parse_variable_declaration(Compiler *c, Program *apm, Block *parent, Statem
         declaration->initial_value = parse_expression(c, apm);
     }
 
-    if (declare_symbol_in_parent)
+    if (declare_symbol_in_parent && declaration->has_valid_identity)
         declare_symbol(apm, parent->symbol_table, VARIABLE_SYMBOL, var, var->identity);
 
     if (c->parse_status == PANIC)
         return;
 
+finish:
     EAT(SEMI_COLON);
     END_SPAN(declaration); // NOTE: parse_statement will repeat this, but I don't think that's an issue?
 }
