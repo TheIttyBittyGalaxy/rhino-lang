@@ -362,7 +362,7 @@ void parse_variable_declaration(Compiler *c, Program *apm, Block *parent, Statem
 
     if (declaration == NULL)
     {
-        Statement *declaration = append_statement(parent_statements);
+        declaration = append_statement(parent_statements);
         START_SPAN(declaration);
     }
 
