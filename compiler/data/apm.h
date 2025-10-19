@@ -1,7 +1,6 @@
 #ifndef APM_H
 #define APM_H
 
-#include "list.h"
 #include "macro.h"
 #include "../memory.h"
 #include "substr.h"

@@ -2,6 +2,8 @@
 #include "fatal_error.h"
 #include "parse.h"
 
+#include <assert.h>
+
 // FORWARD DECLARATIONS //
 
 // Token consumption
@@ -39,8 +41,6 @@ Expression *parse_expression(Compiler *c, Program *apm);
 #define ADVANCE() advance(c)
 #define EAT(token_kind) eat(c, token_kind)
 #define TOKEN_STRING() token_string(c)
-
-#define SYMBOL_TABLE(index) get_symbol_table(apm->symbol_table, index)
 
 #define START_SPAN(node_ptr) node_ptr->span.pos = token_string(c).pos;
 #define END_SPAN(node_ptr) node_ptr->span.len = token_string(c).pos - node_ptr->span.pos;
