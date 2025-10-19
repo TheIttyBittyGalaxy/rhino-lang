@@ -110,42 +110,51 @@ void dump_apm(Program *apm, const char *source_text)
     }
     printf("\n");
 
-    /*
-    printf("STATEMENTS\n");
-    for (size_t i = 0; i < apm->statement.count; i++)
+    printf("BLOCKS\n");
+    funct_i = 0;
+    for (
+        FunctionIterator it = function_iterator(get_function_list(apm->function));
+        funct = next_function_iterator(&it); funct_i++)
     {
-        Statement *stmt = get_statement(apm->statement, i);
-        printf("%02d\t%03d %02d\t%-21s\t", i, stmt->span.pos, stmt->span.len, statement_kind_string(stmt->kind));
-        switch (stmt->kind)
+        printf("Block %p (function ", funct->body->statements);
+        printf_substr(source_text, funct->identity);
+        printf(")\n");
+
+        Statement *stmt;
+        size_t stmt_i = 0;
+        for (
+            StatementIterator it = statement_iterator(funct->body->statements);
+            stmt = next_statement_iterator(&it); stmt_i++)
         {
-        case DECLARATION_BLOCK:
-        case CODE_BLOCK:
-        case SINGLE_BLOCK:
-            printf("first %02d\tlast %02d\tsymbol table %02d", stmt->statements.first, stmt->statements.first + stmt->statements.count - 1, stmt->symbol_table);
-            break;
+            printf("%02d\t%03d %02d\t%-21s\t%p %p %02d\t", stmt_i, stmt->span.pos, stmt->span.len, statement_kind_string(stmt->kind), stmt, it.bucket, it.index);
+            switch (stmt->kind)
+            {
+            case CODE_BLOCK:
+                printf("block %p", stmt->block);
+                break;
 
-        case IF_SEGMENT:
-        case ELSE_IF_SEGMENT:
-            printf("body %02d\tcondition %02d", stmt->body, stmt->condition);
-            break;
+            case IF_SEGMENT:
+            case ELSE_IF_SEGMENT:
+                printf("block %p\tcondition %p", stmt->body, stmt->condition);
+                break;
 
-        case FOR_LOOP:
-            printf("body %02d\titerator %02d\titerable %02d", stmt->body, stmt->iterator, stmt->iterable);
-            break;
+            case FOR_LOOP:
+                printf("block %p\titerator %p\titerable %p", stmt->body, stmt->iterator, stmt->iterable);
+                break;
 
-        case ELSE_SEGMENT:
-            printf("body %02d", stmt->body);
-            break;
+            case ELSE_SEGMENT:
+                printf("block %p", stmt->body);
+                break;
 
-        case OUTPUT_STATEMENT:
-        case EXPRESSION_STMT:
-            printf("expression %02d", stmt->expression);
-            break;
+            case OUTPUT_STATEMENT:
+            case EXPRESSION_STMT:
+                printf("expression %02d", stmt->expression);
+                break;
+            }
+            printf("\n");
         }
-        printf("\n");
     }
     printf("\n");
-    */
 
     printf("EXPRESSIONS\n");
     Expression *expr;
