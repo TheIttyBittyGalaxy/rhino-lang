@@ -86,19 +86,19 @@ void check_statement_list(Compiler *c, Program *apm, StatementList statement_lis
 
 void check(Compiler *c, Program *apm)
 {
+    // Check all statements in a recursive tree walk
     check_block(c, apm, apm->program_block);
 
     // Produce errors for remaining identity literals
-    // TODO: Reimplement this as part of the tree walk
-    // {
-    //     for (size_t i = 0; i < apm->expression.count; i++)
-    //     {
-    //         Expression *identity_literal = get_expression(apm->expression, i);
-    //         if (identity_literal->kind == IDENTITY_LITERAL && !identity_literal->given_error)
-    //         {
-    //             raise_compilation_error(c, IDENTITY_DOES_NOT_EXIST, identity_literal->span);
-    //             identity_literal->given_error = true;
-    //         }
-    //     }
-    // }
+    // TODO: Not sure if this is best done like this, or as part of the tree walk??
+    Expression *expr;
+    ExpressionIterator it = expression_iterator(get_expression_list(apm->expression));
+    while (expr = next_expression_iterator(&it))
+    {
+        if (expr->kind == IDENTITY_LITERAL && !expr->given_error)
+        {
+            raise_compilation_error(c, IDENTITY_DOES_NOT_EXIST, expr->span);
+            expr->given_error = true;
+        }
+    }
 }
