@@ -576,16 +576,19 @@ void PRINT_STRUCT_TYPE(Program *apm, StructType *struct_type, const char *source
     if (struct_type->properties.count > 0)
     {
         NEWLINE();
-        size_t last = struct_type->properties.first + struct_type->properties.count - 1;
-        for (size_t n = struct_type->properties.first; n <= last; n++)
+
+        Property *property;
+        PropertyIterator it = property_iterator(struct_type->properties);
+        size_t i = 0;
+        while (property = next_property_iterator(&it))
         {
-            Property *property = get_property(apm->property, n);
-            if (n == last)
+            if (i == struct_type->properties.count - 1)
                 LAST_ON_LINE();
 
             PRINT("%s ", rhino_type_string(apm, property->type));
             PRINT_SUBSTR(property->identity);
             NEWLINE();
+            i++;
         }
     }
 

@@ -339,11 +339,10 @@ void resolve_identities_in_struct_type(Compiler *c, Program *apm, StructType *st
 {
     SymbolTable *declarations_symbol_table = get_symbol_table(apm->symbol_table, struct_type->declarations->symbol_table);
 
-    for (size_t i = 0; i < struct_type->properties.count; i++)
-    {
-        Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
+    Property *property;
+    PropertyIterator it = property_iterator(struct_type->properties);
+    while (property = next_property_iterator(&it))
         resolve_identities_in_expression(c, apm, property->type_expression, declarations_symbol_table);
-    }
 }
 
 void resolve_identities_in_declaration_block(Compiler *c, Program *apm, Block *block)
@@ -711,11 +710,10 @@ void resolve_types_in_struct_type(Compiler *c, Program *apm, StructType *struct_
 {
     SymbolTable *declarations_symbol_table = get_symbol_table(apm->symbol_table, struct_type->declarations->symbol_table);
 
-    for (size_t i = 0; i < struct_type->properties.count; i++)
-    {
-        Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
+    Property *property;
+    PropertyIterator it = property_iterator(struct_type->properties);
+    while (property = next_property_iterator(&it))
         property->type = resolve_type_expression(c, apm, property->type_expression, declarations_symbol_table);
-    }
 }
 
 void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)

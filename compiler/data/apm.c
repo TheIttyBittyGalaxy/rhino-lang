@@ -14,6 +14,7 @@ DEFINE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
 DEFINE_LIST_ALLOCATOR(EnumValue, enum_value)
 DEFINE_LIST_ALLOCATOR(EnumType, enum_type)
+DEFINE_LIST_ALLOCATOR(Property, property)
 DEFINE_LIST_ALLOCATOR(StructType, struct_type)
 DEFINE_LIST_ALLOCATOR(Variable, variable)
 DEFINE_LIST_ALLOCATOR(Expression, expression)
@@ -25,10 +26,7 @@ DEFINE_LIST_ALLOCATOR(Parameter, parameter)
 
 // LIST TYPE //
 
-DEFINE_LIST_TYPE(Property, property)
 DEFINE_LIST_TYPE(SymbolTable, symbol_table)
-
-DEFINE_SLICE_TYPE(Property, property)
 DEFINE_SLICE_TYPE(SymbolTable, symbol_table)
 
 // RHINO TYPE //
@@ -45,6 +43,7 @@ void init_program(Program *apm, Allocator *allocator)
 {
     init_allocator(&apm->statement_lists, allocator, 1024);
     init_allocator(&apm->enum_value_lists, allocator, 1024);
+    init_allocator(&apm->property_lists, allocator, 1024);
     init_allocator(&apm->parameter_lists, allocator, 1024);
     init_allocator(&apm->arguments_lists, allocator, 1024);
 
@@ -56,7 +55,6 @@ void init_program(Program *apm, Allocator *allocator)
     init_block_list_allocator(&apm->block, allocator, 1024);
 
     // TODO: Old allocators, yet to be replaced
-    init_property_list(&apm->property);
     init_symbol_table_list(&apm->symbol_table);
 
     // Symbol tables treat `symbol_table.next = 0` as `symbol_table.next = NULL`. and so the first symbol table has to be empty
@@ -271,6 +269,7 @@ void dump_apm(Program *apm, const char *source_text)
     }
     printf("\n");
 
+    /*
     printf("PROPERTIES\n");
     for (size_t i = 0; i < apm->property.count; i++)
     {
@@ -281,6 +280,7 @@ void dump_apm(Program *apm, const char *source_text)
         printf("\n");
     }
     printf("\n");
+    */
 
     printf("SYMBOL TABLES\n");
     for (size_t i = 1; i < apm->symbol_table.count; i++)
@@ -376,9 +376,10 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
         if (subject_type.sort == SORT_STRUCT)
         {
             StructType *struct_type = subject_type.struct_type;
-            for (size_t i = 0; i < struct_type->properties.count; i++)
+            Property *property;
+            PropertyIterator it = property_iterator(struct_type->properties);
+            while (property = next_property_iterator(&it))
             {
-                Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
                 if (substr_match(source_text, property->identity, expr->field))
                     return property->type;
             }

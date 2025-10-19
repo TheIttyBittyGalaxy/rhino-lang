@@ -14,7 +14,9 @@ typedef struct EnumType EnumType;
 DECLARE_LIST_ALLOCATOR(EnumValue, enum_value)
 DECLARE_LIST_ALLOCATOR(EnumType, enum_type)
 
+typedef struct Property Property;
 typedef struct StructType StructType;
+DECLARE_LIST_ALLOCATOR(Property, property)
 DECLARE_LIST_ALLOCATOR(StructType, struct_type)
 
 typedef struct Variable Variable;
@@ -78,24 +80,20 @@ struct EnumType
 };
 
 // Property
-DECLARE_SLICE_TYPE(Property, property)
-
-typedef struct
+struct Property
 {
     substr span;
     substr identity;
     Expression *type_expression;
     RhinoType type;
-} Property;
-
-DECLARE_LIST_TYPE(Property, property)
+};
 
 // Struct type
 struct StructType
 {
     substr span;
     substr identity;
-    PropertySlice properties;
+    PropertyList properties;
     Block *declarations;
 };
 
@@ -416,6 +414,7 @@ typedef struct
 {
     Allocator statement_lists;
     Allocator enum_value_lists;
+    Allocator property_lists;
     Allocator parameter_lists;
     Allocator arguments_lists;
 
@@ -428,7 +427,6 @@ typedef struct
 
     // TODO: Old allocators, yet to be replaced
     EnumValueList enum_value;
-    PropertyList property;
     SymbolTableList symbol_table;
 
     Function *main;

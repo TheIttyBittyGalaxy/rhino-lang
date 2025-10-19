@@ -180,13 +180,16 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType rhino_type)
         EMIT_SUBSTR(struct_type->identity);
         EMIT("){ ");
 
-        for (size_t i = 0; i < struct_type->properties.count; i++)
+        Property *property;
+        PropertyIterator it = property_iterator(struct_type->properties);
+        size_t i = 0;
+        while (property = next_property_iterator(&it))
         {
             if (i > 0)
                 EMIT(", ");
 
-            Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
             transpile_default_value(t, apm, property->type);
+            i++;
         }
 
         EMIT(" }");
@@ -705,9 +708,11 @@ void transpile_program(Transpiler *t, Program *apm)
             EMIT_LINE("typedef struct");
             EMIT_OPEN_BRACE();
 
-            for (size_t i = 0; i < struct_type->properties.count; i++)
+            Property *property;
+            PropertyIterator it = property_iterator(struct_type->properties);
+            size_t i = 0;
+            while (property = next_property_iterator(&it))
             {
-                Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
                 transpile_type(t, apm, property->type);
                 EMIT(" ");
                 EMIT_SUBSTR(property->identity);

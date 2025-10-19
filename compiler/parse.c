@@ -40,7 +40,6 @@ Expression *parse_expression(Compiler *c, Program *apm);
 #define EAT(token_kind) eat(c, token_kind)
 #define TOKEN_STRING() token_string(c)
 
-#define PROPERTY(index) get_property(apm->property, index)
 #define SYMBOL_TABLE(index) get_symbol_table(apm->symbol_table, index)
 
 #define START_SPAN(node_ptr) node_ptr->span.pos = token_string(c).pos;
@@ -317,8 +316,8 @@ void parse_struct_type(Compiler *c, Program *apm, Block *parent, StatementListAl
     StatementListAllocator block_declarations;
     init_statement_list_allocator(&block_declarations, &apm->statement_lists, 512); // FIXME: 512 was chosen arbitrarily
 
-    size_t first_property = apm->property.count;
-    struct_type->properties.first = first_property;
+    PropertyListAllocator property_allocator;
+    init_property_list_allocator(&property_allocator, &apm->property_lists, 512); // FIXME: 512 was chosen arbitrarily
 
     EAT(CURLY_L);
     while (!PEEK(CURLY_R))
@@ -326,17 +325,17 @@ void parse_struct_type(Compiler *c, Program *apm, Block *parent, StatementListAl
         if (peek_expression(c))
         {
 
-            size_t property = add_property(&apm->property);
-            START_SPAN(PROPERTY(property));
+            Property *property = append_property(&property_allocator);
+            START_SPAN(property);
 
             Expression *type_expression = parse_expression(c, apm);
-            PROPERTY(property)->type_expression = type_expression;
+            property->type_expression = type_expression;
 
             substr identity = TOKEN_STRING();
-            PROPERTY(property)->identity = identity;
+            property->identity = identity;
             EAT(IDENTITY);
 
-            END_SPAN(PROPERTY(property));
+            END_SPAN(property);
 
             EAT(SEMI_COLON);
         }
@@ -358,8 +357,7 @@ void parse_struct_type(Compiler *c, Program *apm, Block *parent, StatementListAl
     }
     EAT(CURLY_R);
 
-    size_t property_count = apm->property.count - first_property;
-    struct_type->properties.count = property_count;
+    struct_type->properties = get_property_list(property_allocator);
 
     declarations->statements = get_statement_list(block_declarations);
 
