@@ -69,7 +69,7 @@ SymbolTable *allocate_symbol_table(Allocator *allocator, SymbolTable *parent)
     return table;
 }
 
-void append_symbol(Program *apm, SymbolTable *table, SymbolTag symbol_tag, SymbolPointer to, substr symbol_identity)
+void declare_symbol(Program *apm, SymbolTable *table, SymbolTag tag, void *ptr, substr identity)
 {
     while (table->symbol_count == SYMBOL_TABLE_SIZE && table->next)
         table = table->next;
@@ -81,16 +81,16 @@ void append_symbol(Program *apm, SymbolTable *table, SymbolTag symbol_tag, Symbo
 
         next->next = 0;
         next->symbol_count = 1;
-        next->symbol[0].to = to;
-        next->symbol[0].tag = symbol_tag;
-        next->symbol[0].identity = symbol_identity;
+        next->symbol[0].ptr = ptr;
+        next->symbol[0].tag = tag;
+        next->symbol[0].identity = identity;
         return;
     }
 
     size_t i = table->symbol_count++;
-    table->symbol[i].to = to;
-    table->symbol[i].tag = symbol_tag;
-    table->symbol[i].identity = symbol_identity;
+    table->symbol[i].ptr = ptr;
+    table->symbol[i].tag = tag;
+    table->symbol[i].identity = identity;
 }
 
 // DUMP PROGRAM //

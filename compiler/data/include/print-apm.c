@@ -566,7 +566,7 @@ void PRINT_STRUCT_TYPE(Program *apm, StructType *struct_type, const char *source
     PRINT_SUBSTR(struct_type->identity);
     INDENT();
 
-    Block *declarations = struct_type->declarations;
+    Block *declarations = struct_type->body;
     if (declarations->statements.count > 0)
     {
         NEWLINE();

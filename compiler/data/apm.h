@@ -42,16 +42,27 @@ DECLARE_LIST_ALLOCATOR(Argument, argument)
 typedef struct Program Program;
 
 // Types
-#define LIST_RHINO_SORTS(MACRO) \
-    MACRO(INVALID_SORT)         \
-    MACRO(ERROR_SORT)           \
-                                \
-    MACRO(SORT_NONE)            \
-    MACRO(SORT_BOOL)            \
-    MACRO(SORT_INT)             \
-    MACRO(SORT_NUM)             \
-    MACRO(SORT_STR)             \
-    MACRO(SORT_ENUM)            \
+#define LIST_RHINO_SORTS(MACRO)                                        \
+    /* The compiler has not correctly assigned a value to this sort */ \
+    MACRO(INVALID_SORT)                                                \
+                                                                       \
+    /* The compiler as marked this sort as "to be assigned" */         \
+    MACRO(UNINITIALISED_SORT)                                          \
+                                                                       \
+    /* This sort value cannot be determined due to user error */       \
+    MACRO(ERROR_SORT)                                                  \
+                                                                       \
+    /* This thing does not have a type */                              \
+    MACRO(SORT_NONE)                                                   \
+                                                                       \
+    /* Native types */                                                 \
+    MACRO(SORT_BOOL)                                                   \
+    MACRO(SORT_INT)                                                    \
+    MACRO(SORT_NUM)                                                    \
+    MACRO(SORT_STR)                                                    \
+                                                                       \
+    /* User types */                                                   \
+    MACRO(SORT_ENUM)                                                   \
     MACRO(SORT_STRUCT)
 
 DECLARE_ENUM(LIST_RHINO_SORTS, RhinoSort, rhino_sort)
@@ -97,7 +108,7 @@ struct StructType
     substr span;
     substr identity;
     PropertyList properties;
-    Block *declarations;
+    Block *body;
 };
 
 // Variable
@@ -118,10 +129,9 @@ struct Variable
 
 DECLARE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
-// FIXME: This is a hot patch while I rework how memory is managed in the compiler.
-//        In the long term I would hope to factor this out, or at least make it better.
 typedef struct
 {
+    SymbolTag tag;
     union
     {
         void *ptr;
@@ -131,12 +141,6 @@ typedef struct
         EnumType *enum_type;
         StructType *struct_type;
     };
-} SymbolPointer;
-
-typedef struct
-{
-    SymbolTag tag;
-    SymbolPointer to;
     substr identity;
 } Symbol;
 
@@ -150,7 +154,7 @@ struct SymbolTable
 };
 
 SymbolTable *allocate_symbol_table(Allocator *allocator, SymbolTable *parent);
-void append_symbol(Program *apm, SymbolTable *table, SymbolTag symbol_tag, SymbolPointer to, substr symbol_identity);
+void declare_symbol(Program *apm, SymbolTable *table, SymbolTag tag, void *ptr, substr identity);
 
 // Expression Precedence
 // Ordered from "happens last" to "happens first"

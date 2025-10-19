@@ -86,29 +86,29 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *exp
                 {
                 case VARIABLE_SYMBOL:
                     expr->kind = VARIABLE_REFERENCE;
-                    expr->variable = s.to.variable;
+                    expr->variable = s.variable;
                     break;
 
                 case PARAMETER_SYMBOL:
                     expr->kind = PARAMETER_REFERENCE;
-                    expr->parameter = s.to.parameter;
+                    expr->parameter = s.parameter;
                     break;
 
                 case FUNCTION_SYMBOL:
                     expr->kind = FUNCTION_REFERENCE;
-                    expr->function = s.to.function;
+                    expr->function = s.function;
                     break;
 
                 case ENUM_TYPE_SYMBOL:
                     expr->kind = TYPE_REFERENCE;
                     expr->type.sort = SORT_ENUM;
-                    expr->type.enum_type = s.to.enum_type;
+                    expr->type.enum_type = s.enum_type;
                     break;
 
                 case STRUCT_TYPE_SYMBOL:
                     expr->kind = TYPE_REFERENCE;
                     expr->type.sort = SORT_STRUCT;
-                    expr->type.struct_type = s.to.struct_type;
+                    expr->type.struct_type = s.struct_type;
                     break;
 
                 default:
@@ -220,7 +220,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
             continue;
 
         Function *funct = stmt->function;
-        append_symbol(apm, block->symbol_table, FUNCTION_SYMBOL, (SymbolPointer){.function = funct}, funct->identity);
+        declare_symbol(apm, block->symbol_table, FUNCTION_SYMBOL, funct, funct->identity);
     }
 
     // Sequentially resolve identities in each statement, adding variables and types to the symbol table as they are encountered
@@ -240,7 +240,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
                 resolve_identities_in_expression(c, apm, stmt->type_expression, block->symbol_table);
 
             Variable *var = stmt->variable;
-            append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, (SymbolPointer){.variable = stmt->variable}, var->identity);
+            declare_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, stmt->variable, var->identity);
 
             break;
         }
@@ -252,7 +252,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
         case ENUM_TYPE_DECLARATION:
         {
             EnumType *enum_type = stmt->enum_type;
-            append_symbol(apm, block->symbol_table, ENUM_TYPE_SYMBOL, (SymbolPointer){.enum_type = stmt->enum_type}, enum_type->identity);
+            declare_symbol(apm, block->symbol_table, ENUM_TYPE_SYMBOL, stmt->enum_type, enum_type->identity);
 
             break;
         }
@@ -262,7 +262,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
             resolve_identities_in_struct_type(c, apm, stmt->struct_type, block->symbol_table);
 
             StructType *struct_type = stmt->struct_type;
-            append_symbol(apm, block->symbol_table, STRUCT_TYPE_SYMBOL, (SymbolPointer){.struct_type = stmt->struct_type}, struct_type->identity);
+            declare_symbol(apm, block->symbol_table, STRUCT_TYPE_SYMBOL, stmt->struct_type, struct_type->identity);
 
             break;
         }
@@ -290,7 +290,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
             resolve_identities_in_expression(c, apm, stmt->iterable, block->symbol_table);
 
             Variable *iterator = stmt->iterator;
-            append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, (SymbolPointer){.variable = stmt->iterator}, iterator->identity);
+            declare_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, stmt->iterator, iterator->identity);
 
             resolve_identities_in_code_block(c, apm, stmt->body);
 
@@ -328,7 +328,7 @@ void resolve_identities_in_function(Compiler *c, Program *apm, Function *funct, 
     while (parameter = next_parameter_iterator(&it))
     {
         resolve_identities_in_expression(c, apm, parameter->type_expression, symbol_table);
-        append_symbol(apm, funct->body->symbol_table, PARAMETER_SYMBOL, (SymbolPointer){.parameter = parameter}, parameter->identity);
+        declare_symbol(apm, funct->body->symbol_table, PARAMETER_SYMBOL, parameter, parameter->identity);
     }
 
     resolve_identities_in_code_block(c, apm, funct->body);
@@ -339,7 +339,7 @@ void resolve_identities_in_struct_type(Compiler *c, Program *apm, StructType *st
     Property *property;
     PropertyIterator it = property_iterator(struct_type->properties);
     while (property = next_property_iterator(&it))
-        resolve_identities_in_expression(c, apm, property->type_expression, struct_type->declarations->symbol_table);
+        resolve_identities_in_expression(c, apm, property->type_expression, struct_type->body->symbol_table);
 }
 
 void resolve_identities_in_declaration_block(Compiler *c, Program *apm, Block *block)
@@ -401,7 +401,7 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, S
         if (subject_type.sort == SORT_STRUCT)
         {
             StructType *struct_type = subject_type.struct_type;
-            SymbolTable *current_table = struct_type->declarations->symbol_table;
+            SymbolTable *current_table = struct_type->body->symbol_table;
 
             while (true)
             {
@@ -417,14 +417,14 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, S
                     case ENUM_TYPE_SYMBOL:
                         expr->kind = TYPE_REFERENCE;
                         expr->type.sort = SORT_ENUM;
-                        expr->type.enum_type = s.to.enum_type;
+                        expr->type.enum_type = s.enum_type;
                         return expr->type;
                         break;
 
                     case STRUCT_TYPE_SYMBOL:
                         expr->kind = TYPE_REFERENCE;
                         expr->type.sort = SORT_STRUCT;
-                        expr->type.struct_type = s.to.struct_type;
+                        expr->type.struct_type = s.struct_type;
                         return expr->type;
                         break;
 
@@ -705,7 +705,7 @@ void resolve_types_in_struct_type(Compiler *c, Program *apm, StructType *struct_
     Property *property;
     PropertyIterator it = property_iterator(struct_type->properties);
     while (property = next_property_iterator(&it))
-        property->type = resolve_type_expression(c, apm, property->type_expression, struct_type->declarations->symbol_table);
+        property->type = resolve_type_expression(c, apm, property->type_expression, struct_type->body->symbol_table);
 }
 
 void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
