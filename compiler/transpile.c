@@ -17,9 +17,10 @@ typedef struct
 // FORWARD DECLARATIONS //
 
 void transpile_type(Transpiler *t, Program *apm, RhinoType rhino_type);
-void transpile_expression(Transpiler *t, Program *apm, size_t expr_index);
-void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index);
-void transpile_function(Transpiler *t, Program *apm, size_t funct_index);
+void transpile_expression(Transpiler *t, Program *apm, Expression *expr);
+void transpile_statement(Transpiler *t, Program *apm, Statement *stmt);
+void transpile_block(Transpiler *t, Program *apm, Block *block);
+void transpile_function(Transpiler *t, Program *apm, Function *funct);
 void transpile_program(Transpiler *t, Program *apm);
 
 // EMIT //
@@ -136,14 +137,14 @@ void transpile_type(Transpiler *t, Program *apm, RhinoType rhino_type)
 
     case SORT_ENUM:
     {
-        EnumType *enum_type = get_enum_type(apm->enum_type, rhino_type.index);
+        EnumType *enum_type = rhino_type.enum_type;
         EMIT_SUBSTR(enum_type->identity);
         break;
     }
 
     case SORT_STRUCT:
     {
-        StructType *struct_type = get_struct_type(apm->struct_type, rhino_type.index);
+        StructType *struct_type = rhino_type.struct_type;
         EMIT_SUBSTR(struct_type->identity);
         break;
     }
@@ -173,19 +174,22 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType rhino_type)
 
     case SORT_STRUCT:
     {
-        StructType *struct_type = get_struct_type(apm->struct_type, rhino_type.index);
+        StructType *struct_type = rhino_type.struct_type;
 
         EMIT("(");
         EMIT_SUBSTR(struct_type->identity);
         EMIT("){ ");
 
-        for (size_t i = 0; i < struct_type->properties.count; i++)
+        Property *property;
+        PropertyIterator it = property_iterator(struct_type->properties);
+        size_t i = 0;
+        while (property = next_property_iterator(&it))
         {
             if (i > 0)
                 EMIT(", ");
 
-            Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
             transpile_default_value(t, apm, property->type);
+            i++;
         }
 
         EMIT(" }");
@@ -197,7 +201,7 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType rhino_type)
     //        (Though, none is the default of noneable enums).
     case SORT_ENUM:
     {
-        EnumType *enum_type = get_enum_type(apm->enum_type, rhino_type.index);
+        EnumType *enum_type = rhino_type.enum_type;
         EMIT("(");
         EMIT_SUBSTR(enum_type->identity);
         EMIT(")0");
@@ -209,10 +213,8 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType rhino_type)
     }
 }
 
-void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
+void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
 {
-    Expression *expr = get_expression(apm->expression, expr_index);
-
     switch (expr->kind)
     {
     case IDENTITY_LITERAL:
@@ -239,9 +241,8 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
 
     case ENUM_VALUE_LITERAL:
     {
-        EnumValue *enum_value = get_enum_value(apm->enum_value, expr->enum_value);
-        size_t enum_type_index = get_enum_type_of_enum_value(apm, expr->enum_value);
-        EnumType *enum_type = get_enum_type(apm->enum_type, enum_type_index);
+        EnumValue *enum_value = expr->enum_value;
+        EnumType *enum_type = enum_value->type_of_enum_value;
 
         EMIT_SUBSTR(enum_type->identity);
         EMIT("__");
@@ -251,32 +252,36 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
 
     case VARIABLE_REFERENCE:
     {
-        Variable *var = get_variable(apm->variable, expr->variable);
+        Variable *var = expr->variable;
         EMIT_SUBSTR(var->identity);
         break;
     }
 
     case PARAMETER_REFERENCE:
     {
-        Parameter *param = get_parameter(apm->parameter, expr->parameter);
-        EMIT_SUBSTR(param->identity);
+        EMIT_SUBSTR(expr->parameter->identity);
         break;
     }
 
     case FUNCTION_CALL:
     {
-        Expression *reference = get_expression(apm->expression, expr->callee);
-        Function *callee = get_function(apm->function, reference->function);
+        Expression *reference = expr->callee;
+        Function *callee = reference->function;
         EMIT_SUBSTR(callee->identity);
         EMIT("(");
-        for (size_t i = 0; i < expr->arguments.count; i++)
+
+        Argument *arg;
+        ArgumentIterator it = argument_iterator(expr->arguments);
+        size_t i = 0;
+        while (arg = next_argument_iterator(&it))
         {
             if (i > 0)
                 EMIT(",");
 
-            Argument *arg = get_argument_from_slice(apm->argument, expr->arguments, i);
             transpile_expression(t, apm, arg->expr);
+            i++;
         }
+
         EMIT(")");
         break;
     }
@@ -349,10 +354,8 @@ void transpile_expression(Transpiler *t, Program *apm, size_t expr_index)
     }
 }
 
-void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
+void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
 {
-    Statement *stmt = get_statement(apm->statement, stmt_index);
-
     switch (stmt->kind)
     {
 
@@ -362,21 +365,8 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         break;
 
     case CODE_BLOCK:
-    case SINGLE_BLOCK:
     {
-        EMIT_OPEN_BRACE();
-
-        // TODO: At the moment we are walking the APM as a tree. However, it is probably possible
-        //       and also faster to just walk it as a list, where we create a "{" whenever we
-        //       encounter a code block, and use a stack to track where we should insert the "}".
-        size_t n = get_first_statement_in_block(apm, stmt);
-        while (n < stmt->statements.count)
-        {
-            transpile_statement(t, apm, stmt->statements.first + n);
-            n = get_next_statement_in_block(apm, stmt, n);
-        }
-
-        EMIT_CLOSE_BRACE();
+        transpile_block(t, apm, stmt->block);
         break;
     }
 
@@ -386,27 +376,27 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         EMIT("if (");
         transpile_expression(t, apm, stmt->condition);
         EMIT(")");
-        transpile_statement(t, apm, stmt->body);
+        transpile_block(t, apm, stmt->body);
         break;
 
     case ELSE_SEGMENT:
     {
         EMIT("else ");
-        transpile_statement(t, apm, stmt->body);
+        transpile_block(t, apm, stmt->body);
         break;
     }
 
     case BREAK_LOOP:
     {
         EMIT_LINE("while (true)");
-        transpile_statement(t, apm, stmt->body);
+        transpile_block(t, apm, stmt->body);
         break;
     }
 
     case FOR_LOOP:
     {
-        Variable *iterator = get_variable(apm->variable, stmt->iterator);
-        Expression *iterable = get_expression(apm->expression, stmt->iterable);
+        Variable *iterator = stmt->iterator;
+        Expression *iterable = stmt->iterable;
 
         if (iterable->kind == RANGE_LITERAL)
         {
@@ -424,13 +414,13 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
             EMIT_SUBSTR(iterator->identity);
             EMIT(")");
 
-            transpile_statement(t, apm, stmt->body);
+            transpile_block(t, apm, stmt->body);
             break;
         }
 
         if (iterable->kind == TYPE_REFERENCE && iterable->type.sort == SORT_ENUM)
         {
-            EnumType *enum_type = get_enum_type(apm->enum_type, iterable->type.index);
+            EnumType *enum_type = iterable->type.enum_type;
 
             EMIT("for (");
             EMIT_SUBSTR(enum_type->identity);
@@ -450,7 +440,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
             EMIT_SUBSTR(iterator->identity);
             EMIT(" + 1))");
 
-            transpile_statement(t, apm, stmt->body);
+            transpile_block(t, apm, stmt->body);
             break;
         }
 
@@ -476,7 +466,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
     case VARIABLE_DECLARATION:
     {
-        Variable *var = get_variable(apm->variable, stmt->variable);
+        Variable *var = stmt->variable;
         transpile_type(t, apm, var->type);
         EMIT(" ");
         EMIT_SUBSTR(var->identity);
@@ -493,8 +483,8 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
     case OUTPUT_STATEMENT:
     {
-        size_t expr_index = stmt->expression;
-        RhinoType expr_type = get_expression_type(apm, t->source_text, expr_index);
+        Expression *expr = stmt->expression;
+        RhinoType expr_type = get_expression_type(apm, t->source_text, expr);
 
         switch (expr_type.sort)
         {
@@ -502,15 +492,13 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         case SORT_BOOL:
         {
             EMIT_ESCAPED("printf(\"%s\\n\", (");
-            transpile_expression(t, apm, expr_index);
+            transpile_expression(t, apm, expr);
             EMIT_LINE(") ? \"true\" : \"false\");");
             break;
         }
 
         case SORT_STR:
         {
-            Expression *expr = get_expression(apm->expression, expr_index);
-
             if (expr->kind == STRING_LITERAL)
             {
                 EMIT("printf(\"");
@@ -520,7 +508,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
             else
             {
                 EMIT_ESCAPED("printf(\"%s\\n\", ");
-                transpile_expression(t, apm, expr_index);
+                transpile_expression(t, apm, expr);
                 EMIT_LINE(");");
             }
             break;
@@ -529,7 +517,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
         case SORT_INT:
         {
             EMIT_ESCAPED("printf(\"%d\\n\", ");
-            transpile_expression(t, apm, expr_index);
+            transpile_expression(t, apm, expr);
             EMIT_LINE(");");
             break;
         }
@@ -539,7 +527,7 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
             EMIT_OPEN_BRACE();
 
             EMIT("float_to_str(");
-            transpile_expression(t, apm, expr_index);
+            transpile_expression(t, apm, expr);
             EMIT_LINE(");");
 
             EMIT_ESCAPED("printf(\"%s\\n\", __to_str_buffer);");
@@ -550,12 +538,12 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
 
         case SORT_ENUM:
         {
-            EnumType *enum_type = get_enum_type(apm->enum_type, expr_type.index);
+            EnumType *enum_type = expr_type.enum_type;
 
             EMIT_ESCAPED("printf(\"%s\\n\", string_of_");
             EMIT_SUBSTR(enum_type->identity);
             EMIT("(");
-            transpile_expression(t, apm, expr_index);
+            transpile_expression(t, apm, expr);
             EMIT_LINE("));");
             break;
         }
@@ -588,35 +576,46 @@ void transpile_statement(Transpiler *t, Program *apm, size_t stmt_index)
     }
 }
 
-void transpile_function_signature(Transpiler *t, Program *apm, size_t funct_index)
+void transpile_block(Transpiler *t, Program *apm, Block *block)
 {
-    Function *funct = get_function(apm->function, funct_index);
+    EMIT_OPEN_BRACE();
 
+    Statement *child;
+    StatementIterator it = statement_iterator(block->statements);
+    while (child = next_statement_iterator(&it))
+        transpile_statement(t, apm, child);
+
+    EMIT_CLOSE_BRACE();
+}
+
+void transpile_function_signature(Transpiler *t, Program *apm, Function *funct)
+{
     transpile_type(t, apm, funct->return_type);
     EMIT(" ");
     EMIT_SUBSTR(funct->identity);
     EMIT("(");
 
-    for (size_t i = 0; i < funct->parameters.count; i++)
+    Parameter *parameter;
+    ParameterIterator it = parameter_iterator(funct->parameters);
+    size_t i = 0;
+    while (parameter = next_parameter_iterator(&it))
     {
         if (i > 0)
             EMIT(", ");
 
-        Parameter *parameter = get_parameter_from_slice(apm->parameter, funct->parameters, i);
         transpile_type(t, apm, parameter->type);
         EMIT(" ");
         EMIT_SUBSTR(parameter->identity);
+        i++;
     }
 
     EMIT(")");
 }
 
-void transpile_function(Transpiler *t, Program *apm, size_t funct_index)
+void transpile_function(Transpiler *t, Program *apm, Function *funct)
 {
-    Function *funct = get_function(apm->function, funct_index);
-
-    transpile_function_signature(t, apm, funct_index);
-    transpile_statement(t, apm, funct->body);
+    transpile_function_signature(t, apm, funct);
+    transpile_block(t, apm, funct->body);
 }
 
 void transpile_program(Transpiler *t, Program *apm)
@@ -628,141 +627,156 @@ void transpile_program(Transpiler *t, Program *apm)
 #include "rhino/runtime_as_str.c"
     );
 
-    // Enum types
-    for (size_t i = 0; i < apm->enum_type.count; i++)
+    Statement *declaration;
+    StatementIterator it;
+
+    // Global enum types
+    it = statement_iterator(apm->program_block->statements);
+    while (declaration = next_statement_iterator(&it))
     {
-        EnumType *enum_type = get_enum_type(apm->enum_type, i);
-
-        // Enum declaration
-        EMIT("typedef enum { ");
-        for (size_t i = 0; i < enum_type->values.count; i++)
+        if (declaration->kind == ENUM_TYPE_DECLARATION)
         {
-            if (i > 0)
-                EMIT(", ");
+            EnumType *enum_type = declaration->enum_type;
+            EnumValue *enum_value;
+            EnumValueIterator it;
+            size_t i = 0;
 
-            EnumValue *enum_value = get_enum_value_from_slice(apm->enum_value, enum_type->values, i);
+            // Enum declaration
+            EMIT("typedef enum { ");
+
+            it = enum_value_iterator(enum_type->values);
+            i = 0;
+            while (enum_value = next_enum_value_iterator(&it))
+            {
+                if (i > 0)
+                    EMIT(", ");
+
+                EMIT_SUBSTR(enum_type->identity);
+                EMIT("__");
+                EMIT_SUBSTR(enum_value->identity);
+
+                i++;
+            }
+
+            EMIT(" } ");
             EMIT_SUBSTR(enum_type->identity);
-            EMIT("__");
-            EMIT_SUBSTR(enum_value->identity);
-        }
+            EMIT_LINE(";");
+            EMIT_NEWLINE();
 
-        EMIT(" } ");
-        EMIT_SUBSTR(enum_type->identity);
-        EMIT_LINE(";");
-        EMIT_NEWLINE();
-
-        // To string function
-        EMIT("const char* string_of_");
-        EMIT_SUBSTR(enum_type->identity);
-        EMIT("(");
-        EMIT_SUBSTR(enum_type->identity);
-        EMIT(" value)");
-        EMIT_NEWLINE();
-
-        EMIT_OPEN_BRACE();
-        EMIT_LINE("switch(value)");
-        EMIT_OPEN_BRACE();
-        for (size_t i = 0; i < enum_type->values.count; i++)
-        {
-            EnumValue *enum_value = get_enum_value_from_slice(apm->enum_value, enum_type->values, i);
-            EMIT("case ");
+            // To string function
+            EMIT("const char* string_of_");
             EMIT_SUBSTR(enum_type->identity);
-            EMIT("__");
-            EMIT_SUBSTR(enum_value->identity);
+            EMIT("(");
+            EMIT_SUBSTR(enum_type->identity);
+            EMIT(" value)");
+            EMIT_NEWLINE();
 
-            EMIT(": return \"");
-            EMIT_SUBSTR(enum_value->identity);
-            EMIT_LINE("\";");
+            EMIT_OPEN_BRACE();
+            EMIT_LINE("switch(value)");
+            EMIT_OPEN_BRACE();
+
+            it = enum_value_iterator(enum_type->values);
+            i = 0;
+            while (enum_value = next_enum_value_iterator(&it))
+            {
+                EMIT("case ");
+                EMIT_SUBSTR(enum_type->identity);
+                EMIT("__");
+                EMIT_SUBSTR(enum_value->identity);
+
+                EMIT(": return \"");
+                EMIT_SUBSTR(enum_value->identity);
+                EMIT_LINE("\";");
+            }
+
+            EMIT_CLOSE_BRACE();
+            EMIT_CLOSE_BRACE();
+            EMIT_NEWLINE();
         }
-        EMIT_CLOSE_BRACE();
-        EMIT_CLOSE_BRACE();
-        EMIT_NEWLINE();
     }
     EMIT_NEWLINE();
 
-    // Struct types
-    for (size_t i = 0; i < apm->struct_type.count; i++)
+    // Global struct types
+    it = statement_iterator(apm->program_block->statements);
+    while (declaration = next_statement_iterator(&it))
     {
-        StructType *struct_type = get_struct_type(apm->struct_type, i);
-
-        // Sstruct declaration
-        EMIT_LINE("typedef struct");
-        EMIT_OPEN_BRACE();
-
-        for (size_t i = 0; i < struct_type->properties.count; i++)
+        if (declaration->kind == STRUCT_TYPE_DECLARATION)
         {
-            Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
-            transpile_type(t, apm, property->type);
-            EMIT(" ");
-            EMIT_SUBSTR(property->identity);
+            StructType *struct_type = declaration->struct_type;
+
+            // Sstruct declaration
+            EMIT_LINE("typedef struct");
+            EMIT_OPEN_BRACE();
+
+            Property *property;
+            PropertyIterator it = property_iterator(struct_type->properties);
+            size_t i = 0;
+            while (property = next_property_iterator(&it))
+            {
+                transpile_type(t, apm, property->type);
+                EMIT(" ");
+                EMIT_SUBSTR(property->identity);
+                EMIT_LINE(";");
+            }
+
+            EMIT_CLOSE_BRACE();
+            EMIT_SUBSTR(struct_type->identity);
             EMIT_LINE(";");
+            EMIT_NEWLINE();
+
+            // To string function
+            EMIT("const char* string_of_");
+            EMIT_SUBSTR(struct_type->identity);
+            EMIT("(");
+            EMIT_SUBSTR(struct_type->identity);
+            EMIT(" value)");
+            EMIT_NEWLINE();
+
+            // TODO: Serialise the struct in some helpful way
+            EMIT_OPEN_BRACE();
+            EMIT("return \"");
+            EMIT_SUBSTR(struct_type->identity);
+            EMIT("\";");
+            EMIT_NEWLINE();
+            EMIT_CLOSE_BRACE();
+            EMIT_NEWLINE();
         }
-
-        EMIT_CLOSE_BRACE();
-        EMIT_SUBSTR(struct_type->identity);
-        EMIT_LINE(";");
-        EMIT_NEWLINE();
-
-        // To string function
-        EMIT("const char* string_of_");
-        EMIT_SUBSTR(struct_type->identity);
-        EMIT("(");
-        EMIT_SUBSTR(struct_type->identity);
-        EMIT(" value)");
-        EMIT_NEWLINE();
-
-        // TODO: Serialise the struct in some helpful way
-        EMIT_OPEN_BRACE();
-        EMIT("return \"");
-        EMIT_SUBSTR(struct_type->identity);
-        EMIT("\";");
-        EMIT_NEWLINE();
-        EMIT_CLOSE_BRACE();
-        EMIT_NEWLINE();
     }
     EMIT_NEWLINE();
 
     // Global variables
+    it = statement_iterator(apm->program_block->statements);
+    while (declaration = next_statement_iterator(&it))
     {
-        Statement *program_block = get_statement(apm->statement, apm->program_block);
-        size_t i = get_first_statement_in_block(apm, program_block);
-        while (i < program_block->statements.count)
-        {
-            size_t n = program_block->statements.first + i;
-            Statement *declaration = get_statement(apm->statement, n);
-
-            if (declaration->kind == VARIABLE_DECLARATION)
-                transpile_statement(t, apm, n);
-
-            i = get_next_statement_in_block(apm, program_block, i);
-        }
+        if (declaration->kind == VARIABLE_DECLARATION)
+            transpile_statement(t, apm, declaration);
     }
 
-    // Forward function declarations
-    for (size_t i = 0; i < apm->function.count; i++)
+    // Forward declarations for global functoins
+    it = statement_iterator(apm->program_block->statements);
+    while (declaration = next_statement_iterator(&it))
     {
-        if (i == apm->main)
-            continue;
-        transpile_function_signature(t, apm, i);
-        EMIT_LINE(";");
+        if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
+        {
+            transpile_function_signature(t, apm, declaration->function);
+            EMIT_LINE(";");
+        }
     }
     EMIT_NEWLINE();
 
-    // Function definitions
-    for (size_t i = 0; i < apm->function.count; i++)
+    // Function definitions for global functoins
+    it = statement_iterator(apm->program_block->statements);
+    while (declaration = next_statement_iterator(&it))
     {
-        if (i == apm->main)
-            continue;
-        transpile_function(t, apm, i);
-        EMIT_NEWLINE();
+        if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
+            transpile_function(t, apm, declaration->function);
     }
+    EMIT_NEWLINE();
 
     // Main
-    Function *main_funct = get_function(apm->function, apm->main);
-
     EMIT_LINE("int main(int argc, char *argv[])");
     EMIT_OPEN_BRACE();
-    transpile_statement(t, apm, main_funct->body);
+    transpile_block(t, apm, apm->main->body);
     EMIT_CLOSE_BRACE();
 }
 

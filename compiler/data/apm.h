@@ -3,8 +3,44 @@
 
 #include "list.h"
 #include "macro.h"
+#include "../memory.h"
 #include "substr.h"
 #include <stdbool.h>
+
+// Forward Declarations
+
+typedef struct EnumValue EnumValue;
+typedef struct EnumType EnumType;
+DECLARE_LIST_ALLOCATOR(EnumValue, enum_value)
+DECLARE_LIST_ALLOCATOR(EnumType, enum_type)
+
+typedef struct Property Property;
+typedef struct StructType StructType;
+DECLARE_LIST_ALLOCATOR(Property, property)
+DECLARE_LIST_ALLOCATOR(StructType, struct_type)
+
+typedef struct Variable Variable;
+DECLARE_LIST_ALLOCATOR(Variable, variable)
+
+typedef struct Expression Expression;
+DECLARE_LIST_ALLOCATOR(Expression, expression)
+
+typedef struct Statement Statement;
+DECLARE_LIST_ALLOCATOR(Statement, statement)
+
+typedef struct Block Block;
+typedef struct SymbolTable SymbolTable;
+DECLARE_LIST_ALLOCATOR(Block, block)
+DECLARE_LIST_ALLOCATOR(SymbolTable, symbol_table)
+
+typedef struct Function Function;
+typedef struct Parameter Parameter;
+typedef struct Argument Argument;
+DECLARE_LIST_ALLOCATOR(Function, function)
+DECLARE_LIST_ALLOCATOR(Parameter, parameter)
+DECLARE_LIST_ALLOCATOR(Argument, argument)
+
+typedef struct Program Program;
 
 // Types
 #define LIST_RHINO_SORTS(MACRO) \
@@ -24,68 +60,53 @@ DECLARE_ENUM(LIST_RHINO_SORTS, RhinoSort, rhino_sort)
 typedef struct
 {
     RhinoSort sort;
-    size_t index;
+    union
+    {
+        EnumType *enum_type;
+        StructType *struct_type;
+    };
 } RhinoType;
 
 // Enum value
-DECLARE_SLICE_TYPE(EnumValue, enum_value)
-
-typedef struct
+struct EnumValue
 {
     substr span;
     substr identity;
-} EnumValue;
-
-DECLARE_LIST_TYPE(EnumValue, enum_value)
+    EnumType *type_of_enum_value; // FIXME: I would like to not have this if possible
+};
 
 // Enum type
-DECLARE_SLICE_TYPE(EnumType, enum_type)
-
-typedef struct
+struct EnumType
 {
     substr span;
     substr identity;
-    EnumValueSlice values;
-} EnumType;
-
-DECLARE_LIST_TYPE(EnumType, enum_type)
+    EnumValueList values;
+};
 
 // Property
-DECLARE_SLICE_TYPE(Property, property)
-
-typedef struct
+struct Property
 {
     substr span;
     substr identity;
-    size_t type_expression;
+    Expression *type_expression;
     RhinoType type;
-} Property;
-
-DECLARE_LIST_TYPE(Property, property)
+};
 
 // Struct type
-DECLARE_SLICE_TYPE(StructType, struct_type)
-
-typedef struct
+struct StructType
 {
     substr span;
     substr identity;
-    PropertySlice properties;
-    size_t declarations; // DECLARATION_BLOCK
-} StructType;
-
-DECLARE_LIST_TYPE(StructType, struct_type)
+    PropertyList properties;
+    Block *declarations;
+};
 
 // Variable
-DECLARE_SLICE_TYPE(Variable, variable)
-
-typedef struct
+struct Variable
 {
     substr identity;
     RhinoType type;
-} Variable;
-
-DECLARE_LIST_TYPE(Variable, variable)
+};
 
 // Symbol table
 #define LIST_SYMBOL_TAG(MACRO) \
@@ -98,37 +119,39 @@ DECLARE_LIST_TYPE(Variable, variable)
 
 DECLARE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
+// FIXME: This is a hot patch while I rework how memory is managed in the compiler.
+//        In the long term I would hope to factor this out, or at least make it better.
+typedef struct
+{
+    union
+    {
+        void *ptr;
+        Function *function;
+        Variable *variable;
+        Parameter *parameter;
+        EnumType *enum_type;
+        StructType *struct_type;
+    };
+} SymbolPointer;
+
 typedef struct
 {
     SymbolTag tag;
-    size_t index;
+    SymbolPointer to;
     substr identity;
 } Symbol;
 
 #define SYMBOL_TABLE_SIZE 16
 
-typedef struct
+struct SymbolTable
 {
-    size_t next;
     size_t symbol_count;
+    SymbolTable *next;
     Symbol symbol[SYMBOL_TABLE_SIZE];
-} SymbolTable;
+};
 
-DECLARE_SLICE_TYPE(SymbolTable, symbol_table)
-DECLARE_LIST_TYPE(SymbolTable, symbol_table)
-
-void init_symbol_table(SymbolTable *symbol_table);
-void set_symbol_table_parent(SymbolTable *symbol_table, size_t parent_index);
-
-// Argument
-DECLARE_SLICE_TYPE(Argument, argument)
-
-typedef struct
-{
-    size_t expr;
-} Argument;
-
-DECLARE_LIST_TYPE(Argument, argument)
+SymbolTable *allocate_symbol_table(Allocator *allocator, SymbolTable *parent);
+void append_symbol(Program *apm, SymbolTable *table, SymbolTag symbol_tag, SymbolPointer to, substr symbol_identity);
 
 // Expression Precedence
 // Ordered from "happens last" to "happens first"
@@ -190,9 +213,7 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
 
 DECLARE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 
-DECLARE_SLICE_TYPE(Expression, expression)
-
-typedef struct
+struct Expression
 {
     ExpressionKind kind;
     substr span;
@@ -221,19 +242,19 @@ typedef struct
         };
         struct // ENUM_VALUE_LITERAL
         {
-            size_t enum_value; // EnumValue
+            EnumValue *enum_value;
         };
         struct // VARIABLE_REFERENCE
         {
-            size_t variable;
+            Variable *variable;
         };
         struct // FUNCTION_REFERENCE
         {
-            size_t function;
+            Function *function;
         };
         struct // PARAMETER_REFERENCE
         {
-            size_t parameter;
+            Parameter *parameter;
         };
         struct // TYPE_REFERENCE
         {
@@ -241,32 +262,30 @@ typedef struct
         };
         struct // FUNCTION_CALL
         {
-            size_t callee; // Expression
-            ArgumentSlice arguments;
+            Expression *callee;
+            ArgumentList arguments;
         };
         struct // INDEX_BY_FIELD
         {
-            size_t subject; // Expression
+            Expression *subject;
             substr field;
         };
         struct // RANGE
         {
-            size_t first; // Expression
-            size_t last;  // Expression
+            Expression *first;
+            Expression *last;
         };
         struct // UNARY_*
         {
-            size_t operand; // Expression
+            Expression *operand;
         };
         struct // BINARY_*
         {
-            size_t lhs; // Expression
-            size_t rhs; // Expression
+            Expression *lhs;
+            Expression *rhs;
         };
     };
-} Expression;
-
-DECLARE_LIST_TYPE(Expression, expression)
+};
 
 // Statement
 #define LIST_STATEMENTS(MACRO)     \
@@ -277,9 +296,7 @@ DECLARE_LIST_TYPE(Expression, expression)
     MACRO(STRUCT_TYPE_DECLARATION) \
     MACRO(VARIABLE_DECLARATION)    \
                                    \
-    MACRO(DECLARATION_BLOCK)       \
     MACRO(CODE_BLOCK)              \
-    MACRO(SINGLE_BLOCK)            \
                                    \
     MACRO(IF_SEGMENT)              \
     MACRO(ELSE_IF_SEGMENT)         \
@@ -297,9 +314,7 @@ DECLARE_LIST_TYPE(Expression, expression)
 
 DECLARE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
 
-DECLARE_SLICE_TYPE(Statement, statement)
-
-typedef struct
+struct Statement
 {
     StatementKind kind;
     substr span;
@@ -307,117 +322,120 @@ typedef struct
     {
         struct // VARIABLE_DECLARATION
         {
-            size_t variable;        // Variable
-            size_t initial_value;   // Expression
-            size_t type_expression; // Expression
+            Variable *variable;
+            Expression *initial_value;
+            Expression *type_expression;
             bool has_type_expression;
             bool has_initial_value;
         };
         struct // FUNCTION_DECLARATION
         {
-            size_t function; // Function
+            Function *function;
         };
         struct // ENUM_TYPE_DECLARATION
         {
-            size_t enum_type; // EnumType
+            EnumType *enum_type;
         };
         struct // STRUCT_TYPE_DECLARATION
         {
-            size_t struct_type; // StructType
+            StructType *struct_type;
         };
-        struct // DECLARATION_BLOCK / CODE_BLOCK / SINGLE_BLOCK
+        struct // CODE_BLOCK
         {
-            StatementSlice statements;
-            size_t symbol_table;
+            Block *block;
         };
         struct // IF_SEGMENT / ELSE_IF_SEGMENT / ELSE_SEGMENT
         {
-            size_t body;      // Statement
-            size_t condition; // Expression
+            Block *body;
+            Expression *condition;
         };
         struct // BREAK_LOOP
         {
-            size_t __loop_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
+            Block *__loop_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
         };
         struct // FOR_LOOP
         {
-            size_t __for_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
-            size_t iterator;   // Variable
-            size_t iterable;   // Expression
+            Block *__for_body; // NOTE: KEEP SYNCED WITH IF_SEGMENT body
+            Variable *iterator;
+            Expression *iterable;
         };
         struct // ASSIGNMENT_STATEMENT
         {
-            size_t assignment_lhs; // Expression
-            size_t assignment_rhs; // Expression
+            Expression *assignment_lhs;
+            Expression *assignment_rhs;
         };
         struct // OUTPUT_STATEMENT / EXPRESSION_STMT / RETURN_STATEMENT
         {
-            size_t expression; // Expression
+            Expression *expression;
         };
     };
-} Statement;
+};
 
-DECLARE_LIST_TYPE(Statement, statement)
+// Block
 
-// Parameter
-DECLARE_SLICE_TYPE(Parameter, parameter)
-
-typedef struct
+struct Block
 {
-    substr span;
-    substr identity;
-    size_t type_expression;
-    RhinoType type;
-} Parameter;
-
-DECLARE_LIST_TYPE(Parameter, parameter)
+    bool declaration_block;
+    bool singleton_block;
+    SymbolTable *symbol_table;
+    StatementList statements;
+};
 
 // Function
-DECLARE_SLICE_TYPE(Function, function)
-
-typedef struct
+struct Function
 {
     substr span;
     substr identity;
-    size_t body; // Statement
+    Block *body;
 
-    size_t return_type_expression; // Expression
+    Expression *return_type_expression;
     bool has_return_type_expression;
     RhinoType return_type;
 
-    ParameterSlice parameters;
-} Function;
+    ParameterList parameters;
+};
 
-DECLARE_LIST_TYPE(Function, function)
+// Parameter
+struct Parameter
+{
+    substr span;
+    substr identity;
+    Expression *type_expression;
+    RhinoType type;
+};
+
+// Argument
+struct Argument
+{
+    Expression *expr;
+};
 
 // Program
-typedef struct
+struct Program
 {
-    FunctionList function;
-    ParameterList parameter;
-    ArgumentList argument;
+    Allocator statement_lists;
+    Allocator enum_value_lists;
+    Allocator property_lists;
+    Allocator parameter_lists;
+    Allocator arguments_lists;
 
-    StatementList statement;
-    ExpressionList expression;
-    VariableList variable;
+    Allocator symbol_table;
 
-    EnumTypeList enum_type;
+    ExpressionListAllocator expression;
+    FunctionListAllocator function;
+    VariableListAllocator variable;
     EnumValueList enum_value;
+    EnumTypeListAllocator enum_type;
+    StructTypeListAllocator struct_type;
+    BlockListAllocator block;
 
-    StructTypeList struct_type;
-    PropertyList property;
+    Function *main;
 
-    SymbolTableList symbol_table;
+    Block *program_block;
+    SymbolTable *global_symbol_table;
+};
 
-    size_t main; // Function
-
-    size_t program_block;       // Statement
-    size_t global_symbol_table; // SymbolTable
-} Program;
-
-void init_program(Program *apm);
-
-void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, size_t symbol_index, substr symbol_identity);
+void init_program(Program *apm, Allocator *allocator);
 
 // Display APM
 const char *rhino_type_string(Program *apm, RhinoType ty);
@@ -425,14 +443,8 @@ void dump_apm(Program *apm, const char *source_text);
 void print_parsed_apm(Program *apm, const char *source_text);
 void print_resolved_apm(Program *apm, const char *source_text);
 
-// Access methods
-size_t get_next_statement_in_block(Program *apm, Statement *code_block, size_t n);
-size_t get_first_statement_in_block(Program *apm, Statement *code_block);
-size_t get_last_statement_in_block(Program *apm, Statement *code_block);
-
 // Type analysis methods
-RhinoType get_expression_type(Program *apm, const char *source_text, size_t expr_index);
-size_t get_enum_type_of_enum_value(Program *apm, size_t enum_value_index);
+RhinoType get_expression_type(Program *apm, const char *source_text, Expression *expr);
 bool are_types_equal(RhinoType a, RhinoType b);
 bool allow_assign_a_to_b(RhinoType a, RhinoType b);
 

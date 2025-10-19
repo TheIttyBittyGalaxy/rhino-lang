@@ -89,6 +89,13 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    // Global allocator
+    Allocator global_allocator;
+
+    // FIXME: The bucket size of the global allocator is supposed to be 32KB so that it may store 32 x 1 KB buckets.
+    //        However, because some space is used by the allocator itself, it can only store 31
+    init_allocator(&global_allocator, NULL, 32768);
+
     // Test mode
     if (flag_test_mode)
     {
@@ -103,7 +110,7 @@ int main(int argc, char *argv[])
         tokenise(&compiler);
 
         Program apm;
-        init_program(&apm);
+        init_program(&apm, &global_allocator);
         parse(&compiler, &apm);
         resolve(&compiler, &apm);
         check(&compiler, &apm);
@@ -157,7 +164,7 @@ int main(int argc, char *argv[])
 
     HEADING("Parse");
     Program apm;
-    init_program(&apm);
+    init_program(&apm, &global_allocator);
     parse(&compiler, &apm);
     if (flag_parse_dump)
     {

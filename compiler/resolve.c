@@ -5,13 +5,18 @@
 
 void determine_main_function(Compiler *c, Program *apm)
 {
-    for (size_t i = 0; i < apm->function.count; i++)
+    Statement *declaration;
+    StatementIterator it = statement_iterator(apm->program_block->statements);
+    while (declaration = next_statement_iterator(&it))
     {
-        Function *funct = get_function(apm->function, i);
-        if (substr_is(c->source_text, funct->identity, "main"))
+        if (declaration->kind == FUNCTION_DECLARATION)
         {
-            apm->main = i;
-            return;
+            Function *funct = declaration->function;
+            if (substr_is(c->source_text, funct->identity, "main"))
+            {
+                apm->main = funct;
+                return;
+            }
         }
     }
 
@@ -25,16 +30,14 @@ void determine_main_function(Compiler *c, Program *apm)
 // This is the first pass for resolving literals.
 // Other identity literals may be resolved in later passes.
 
-void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table);
-void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_index);
-void resolve_identities_in_function(Compiler *c, Program *apm, size_t funct_index, SymbolTable *symbol_table);
-void resolve_identities_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table);
-void resolve_identities_in_declaration_block(Compiler *c, Program *apm, size_t block_index);
+void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table);
+void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block);
+void resolve_identities_in_function(Compiler *c, Program *apm, Function *funct, SymbolTable *symbol_table);
+void resolve_identities_in_struct_type(Compiler *c, Program *apm, StructType *struct_type, SymbolTable *symbol_table);
+void resolve_identities_in_declaration_block(Compiler *c, Program *apm, Block *block);
 
-void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table)
+void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table)
 {
-    Expression *expr = get_expression(apm->expression, expr_index);
-
     switch (expr->kind)
     {
     case INVALID_EXPRESSION:
@@ -81,29 +84,29 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_ind
                 {
                 case VARIABLE_SYMBOL:
                     expr->kind = VARIABLE_REFERENCE;
-                    expr->variable = s.index;
+                    expr->variable = s.to.variable;
                     break;
 
                 case PARAMETER_SYMBOL:
                     expr->kind = PARAMETER_REFERENCE;
-                    expr->variable = s.index;
+                    expr->parameter = s.to.parameter;
                     break;
 
                 case FUNCTION_SYMBOL:
                     expr->kind = FUNCTION_REFERENCE;
-                    expr->function = s.index;
+                    expr->function = s.to.function;
                     break;
 
                 case ENUM_TYPE_SYMBOL:
                     expr->kind = TYPE_REFERENCE;
                     expr->type.sort = SORT_ENUM;
-                    expr->type.index = s.index;
+                    expr->type.enum_type = s.to.enum_type;
                     break;
 
                 case STRUCT_TYPE_SYMBOL:
                     expr->kind = TYPE_REFERENCE;
                     expr->type.sort = SORT_STRUCT;
-                    expr->type.index = s.index;
+                    expr->type.struct_type = s.to.struct_type;
                     break;
 
                 default:
@@ -117,10 +120,10 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_ind
             if (found_symbol)
                 break;
 
-            if (current_table->next == 0)
+            if (current_table->next == NULL)
                 break;
 
-            current_table = get_symbol_table(apm->symbol_table, current_table->next);
+            current_table = current_table->next;
         }
 
         break;
@@ -142,7 +145,7 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_ind
     {
         resolve_identities_in_expression(c, apm, expr->callee, symbol_table);
 
-        Expression *callee = get_expression(apm->expression, expr->callee);
+        Expression *callee = expr->callee;
         if (callee->kind == IDENTITY_LITERAL)
         {
             raise_compilation_error(c, FUNCTION_DOES_NOT_EXIST, callee->span);
@@ -153,11 +156,10 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_ind
             raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, callee->span);
         }
 
-        for (size_t i = 0; i < expr->arguments.count; i++)
-        {
-            Argument *arg = get_argument_from_slice(apm->argument, expr->arguments, i);
+        Argument *arg;
+        ArgumentIterator it = argument_iterator(expr->arguments);
+        while (arg = next_argument_iterator(&it))
             resolve_identities_in_expression(c, apm, arg->expr, symbol_table);
-        }
 
         break;
     }
@@ -201,38 +203,28 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, size_t expr_ind
     }
 }
 
-// TODO: Strictly speaking, I'm not sure this function needs to use recursive decent.
-//       It may be possible to iterate over the entire apm->statements array in order,
-//       switching out the 'active' symbol table as appropriate.
-void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_index)
+void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
 {
-    Statement *block = get_statement(apm->statement, block_index);
-    assert(block->kind == CODE_BLOCK || block->kind == SINGLE_BLOCK);
+    assert(!block->declaration_block);
 
-    SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, block->symbol_table);
-    size_t n;
+    Statement *stmt;
+    StatementIterator it;
 
     // Add all functions to symbol table. This allows functions to recursively refer to each other.
-    n = get_first_statement_in_block(apm, block);
-    while (n < block->statements.count)
+    it = statement_iterator(block->statements);
+    while (stmt = next_statement_iterator(&it))
     {
-        Statement *stmt = get_statement(apm->statement, block->statements.first + n);
+        if (stmt->kind != FUNCTION_DECLARATION)
+            continue;
 
-        if (stmt->kind == FUNCTION_DECLARATION)
-        {
-            Function *funct = get_function(apm->function, stmt->function);
-            append_symbol(apm, block->symbol_table, FUNCTION_SYMBOL, n, funct->identity);
-        }
-
-        n = get_next_statement_in_block(apm, block, n);
+        Function *funct = stmt->function;
+        append_symbol(apm, block->symbol_table, FUNCTION_SYMBOL, (SymbolPointer){.function = funct}, funct->identity);
     }
 
     // Sequentially resolve identities in each statement, adding variables and types to the symbol table as they are encountered
-    n = get_first_statement_in_block(apm, block);
-    while (n < block->statements.count)
+    it = statement_iterator(block->statements);
+    while (stmt = next_statement_iterator(&it))
     {
-        Statement *stmt = get_statement(apm->statement, block->statements.first + n);
-
         switch (stmt->kind)
         {
         case INVALID_STATEMENT:
@@ -241,46 +233,45 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_in
         case VARIABLE_DECLARATION:
         {
             if (stmt->has_initial_value)
-                resolve_identities_in_expression(c, apm, stmt->initial_value, symbol_table);
+                resolve_identities_in_expression(c, apm, stmt->initial_value, block->symbol_table);
             if (stmt->has_type_expression)
-                resolve_identities_in_expression(c, apm, stmt->type_expression, symbol_table);
+                resolve_identities_in_expression(c, apm, stmt->type_expression, block->symbol_table);
 
-            Variable *var = get_variable(apm->variable, stmt->variable);
-            append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, stmt->variable, var->identity);
+            Variable *var = stmt->variable;
+            append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, (SymbolPointer){.variable = stmt->variable}, var->identity);
 
             break;
         }
 
         case FUNCTION_DECLARATION:
-            resolve_identities_in_function(c, apm, stmt->function, symbol_table);
+            resolve_identities_in_function(c, apm, stmt->function, block->symbol_table);
             break;
 
         case ENUM_TYPE_DECLARATION:
         {
-            EnumType *enum_type = get_enum_type(apm->enum_type, stmt->enum_type);
-            append_symbol(apm, block->symbol_table, ENUM_TYPE_SYMBOL, stmt->enum_type, enum_type->identity);
+            EnumType *enum_type = stmt->enum_type;
+            append_symbol(apm, block->symbol_table, ENUM_TYPE_SYMBOL, (SymbolPointer){.enum_type = stmt->enum_type}, enum_type->identity);
 
             break;
         }
 
         case STRUCT_TYPE_DECLARATION:
         {
-            resolve_identities_in_struct_type(c, apm, stmt->struct_type, symbol_table);
+            resolve_identities_in_struct_type(c, apm, stmt->struct_type, block->symbol_table);
 
-            StructType *struct_type = get_struct_type(apm->struct_type, stmt->struct_type);
-            append_symbol(apm, block->symbol_table, STRUCT_TYPE_SYMBOL, stmt->struct_type, struct_type->identity);
+            StructType *struct_type = stmt->struct_type;
+            append_symbol(apm, block->symbol_table, STRUCT_TYPE_SYMBOL, (SymbolPointer){.struct_type = stmt->struct_type}, struct_type->identity);
 
             break;
         }
 
         case CODE_BLOCK:
-        case SINGLE_BLOCK:
-            resolve_identities_in_code_block(c, apm, block->statements.first + n);
+            resolve_identities_in_code_block(c, apm, stmt->block);
             break;
 
         case IF_SEGMENT:
         case ELSE_IF_SEGMENT:
-            resolve_identities_in_expression(c, apm, stmt->condition, symbol_table);
+            resolve_identities_in_expression(c, apm, stmt->condition, block->symbol_table);
             resolve_identities_in_code_block(c, apm, stmt->body);
             break;
 
@@ -294,10 +285,10 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_in
 
         case FOR_LOOP:
         {
-            resolve_identities_in_expression(c, apm, stmt->iterable, symbol_table);
+            resolve_identities_in_expression(c, apm, stmt->iterable, block->symbol_table);
 
-            Variable *iterator = get_variable(apm->variable, stmt->iterator);
-            append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, stmt->iterator, iterator->identity);
+            Variable *iterator = stmt->iterator;
+            append_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, (SymbolPointer){.variable = stmt->iterator}, iterator->identity);
 
             resolve_identities_in_code_block(c, apm, stmt->body);
 
@@ -308,104 +299,86 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, size_t block_in
             break;
 
         case ASSIGNMENT_STATEMENT:
-            resolve_identities_in_expression(c, apm, stmt->assignment_lhs, symbol_table);
-            resolve_identities_in_expression(c, apm, stmt->assignment_rhs, symbol_table);
+            resolve_identities_in_expression(c, apm, stmt->assignment_lhs, block->symbol_table);
+            resolve_identities_in_expression(c, apm, stmt->assignment_rhs, block->symbol_table);
             break;
 
         case OUTPUT_STATEMENT:
         case EXPRESSION_STMT:
         case RETURN_STATEMENT:
-            resolve_identities_in_expression(c, apm, stmt->expression, symbol_table);
+            resolve_identities_in_expression(c, apm, stmt->expression, block->symbol_table);
             break;
 
         default:
             fatal_error("Could not resolve identity literals in %s statement", statement_kind_string(stmt->kind));
             break;
         }
-
-        n = get_next_statement_in_block(apm, block, n);
     }
 }
 
-void resolve_identities_in_function(Compiler *c, Program *apm, size_t funct_index, SymbolTable *symbol_table)
+void resolve_identities_in_function(Compiler *c, Program *apm, Function *funct, SymbolTable *symbol_table)
 {
-    Function *funct = get_function(apm->function, funct_index);
-
     if (funct->has_return_type_expression)
         resolve_identities_in_expression(c, apm, funct->return_type_expression, symbol_table);
 
-    size_t body_symbol_table = get_statement(apm->statement, funct->body)->symbol_table;
-
-    for (size_t i = 0; i < funct->parameters.count; i++)
+    Parameter *parameter;
+    ParameterIterator it = parameter_iterator(funct->parameters);
+    while (parameter = next_parameter_iterator(&it))
     {
-        Parameter *parameter = get_parameter_from_slice(apm->parameter, funct->parameters, i);
         resolve_identities_in_expression(c, apm, parameter->type_expression, symbol_table);
-        append_symbol(apm, body_symbol_table, PARAMETER_SYMBOL, funct->parameters.first + i, parameter->identity);
+        append_symbol(apm, funct->body->symbol_table, PARAMETER_SYMBOL, (SymbolPointer){.parameter = parameter}, parameter->identity);
     }
 
     resolve_identities_in_code_block(c, apm, funct->body);
 }
 
-void resolve_identities_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table)
+void resolve_identities_in_struct_type(Compiler *c, Program *apm, StructType *struct_type, SymbolTable *symbol_table)
 {
-    StructType *struct_type = get_struct_type(apm->struct_type, struct_type_index);
-    Statement *declarations = get_statement(apm->statement, struct_type->declarations);
-    SymbolTable *declarations_symbol_table = get_symbol_table(apm->symbol_table, declarations->symbol_table);
-
-    for (size_t i = 0; i < struct_type->properties.count; i++)
-    {
-        Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
-        resolve_identities_in_expression(c, apm, property->type_expression, declarations_symbol_table);
-    }
+    Property *property;
+    PropertyIterator it = property_iterator(struct_type->properties);
+    while (property = next_property_iterator(&it))
+        resolve_identities_in_expression(c, apm, property->type_expression, struct_type->declarations->symbol_table);
 }
 
-void resolve_identities_in_declaration_block(Compiler *c, Program *apm, size_t block_index)
+void resolve_identities_in_declaration_block(Compiler *c, Program *apm, Block *block)
 {
-    Statement *block = get_statement(apm->statement, block_index);
-    assert(block->kind == DECLARATION_BLOCK);
-
-    SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, block->symbol_table);
+    assert(block->declaration_block);
 
     // NOTE: Currently, the only declaration block is the program scope
     //       and we add all symbols to the symbol table during parsing.
     //       Presumably, this may change at some point in the future?
 
-    size_t n = get_first_statement_in_block(apm, block);
-    while (n < block->statements.count)
+    Statement *stmt;
+    StatementIterator it = statement_iterator(block->statements);
+    while (stmt = next_statement_iterator(&it))
     {
-        Statement *stmt = get_statement(apm->statement, block->statements.first + n);
-
         if (stmt->kind == FUNCTION_DECLARATION)
-            resolve_identities_in_function(c, apm, stmt->function, symbol_table);
+            resolve_identities_in_function(c, apm, stmt->function, block->symbol_table);
         else if (stmt->kind == STRUCT_TYPE_DECLARATION)
-            resolve_identities_in_struct_type(c, apm, stmt->function, symbol_table);
+            resolve_identities_in_struct_type(c, apm, stmt->struct_type, block->symbol_table);
         else if (stmt->kind == VARIABLE_DECLARATION)
         {
             // TODO: This is copy/pasted and modified from resolve_identities_in_code_block.
             //       Find an effective way to tidy.
             if (stmt->has_initial_value)
-                resolve_identities_in_expression(c, apm, stmt->initial_value, symbol_table);
+                resolve_identities_in_expression(c, apm, stmt->initial_value, block->symbol_table);
             if (stmt->has_type_expression)
-                resolve_identities_in_expression(c, apm, stmt->type_expression, symbol_table);
+                resolve_identities_in_expression(c, apm, stmt->type_expression, block->symbol_table);
         }
-
-        n = get_next_statement_in_block(apm, block, n);
     }
 }
 
 // RESOLVE TYPES //
 
-RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table);
-void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table);
-void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index);
-void resolve_types_in_function(Compiler *c, Program *apm, size_t funct_index, SymbolTable *symbol_table);
-void resolve_types_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table);
-void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_index);
+RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table);
+void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table, RhinoType type_hint);
+void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block);
+void resolve_types_in_function(Compiler *c, Program *apm, Function *funct, SymbolTable *symbol_table);
+void resolve_types_in_struct_type(Compiler *c, Program *apm, StructType *struct_type, SymbolTable *symbol_table);
+void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block);
 
-RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table)
+RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table)
 {
-    Expression *expr = get_expression(apm->expression, expr_index);
-
     if (expr->kind == TYPE_REFERENCE)
         return expr->type;
 
@@ -425,9 +398,8 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, 
 
         if (subject_type.sort == SORT_STRUCT)
         {
-            StructType *struct_type = get_struct_type(apm->struct_type, subject_type.index);
-            Statement *declarations = get_statement(apm->statement, struct_type->declarations);
-            SymbolTable *current_table = get_symbol_table(apm->symbol_table, declarations->symbol_table);
+            StructType *struct_type = subject_type.struct_type;
+            SymbolTable *current_table = struct_type->declarations->symbol_table;
 
             while (true)
             {
@@ -443,15 +415,15 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, 
                     case ENUM_TYPE_SYMBOL:
                         expr->kind = TYPE_REFERENCE;
                         expr->type.sort = SORT_ENUM;
-                        expr->type.index = s.index;
-                        return (RhinoType){SORT_ENUM, s.index};
+                        expr->type.enum_type = s.to.enum_type;
+                        return expr->type;
                         break;
 
                     case STRUCT_TYPE_SYMBOL:
                         expr->kind = TYPE_REFERENCE;
                         expr->type.sort = SORT_STRUCT;
-                        expr->type.index = s.index;
-                        return (RhinoType){SORT_STRUCT, s.index};
+                        expr->type.struct_type = s.to.struct_type;
+                        return expr->type;
                         break;
 
                     default:
@@ -459,10 +431,10 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, 
                     }
                 }
 
-                if (current_table->next == 0)
+                if (current_table->next == NULL)
                     break;
 
-                current_table = get_symbol_table(apm->symbol_table, current_table->next);
+                current_table = current_table->next;
             }
 
             raise_compilation_error(c, TYPE_DOES_NOT_EXIST, expr->span);
@@ -474,10 +446,8 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, size_t expr_index, 
     return (RhinoType){ERROR_SORT, 0};
 }
 
-void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, SymbolTable *symbol_table, RhinoType type_hint)
+void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table, RhinoType type_hint)
 {
-    Expression *expr = get_expression(apm->expression, expr_index);
-
     switch (expr->kind)
     {
     case INVALID_EXPRESSION:
@@ -487,14 +457,15 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
     {
         if (type_hint.sort == SORT_ENUM)
         {
-            EnumType *enum_type = get_enum_type(apm->enum_type, type_hint.index);
-            for (size_t n = enum_type->values.first; n < enum_type->values.first + enum_type->values.count; n++)
+            EnumType *enum_type = type_hint.enum_type;
+            EnumValue *enum_value;
+            EnumValueIterator it = enum_value_iterator(enum_type->values);
+            while (enum_value = next_enum_value_iterator(&it))
             {
-                EnumValue *enum_value = get_enum_value(apm->enum_value, n);
                 if (substr_match(c->source_text, expr->identity, enum_value->identity))
                 {
                     expr->kind = ENUM_VALUE_LITERAL;
-                    expr->enum_value = n;
+                    expr->enum_value = enum_value;
                     return;
                 }
             }
@@ -520,11 +491,10 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
         resolve_types_in_expression(c, apm, expr->callee, symbol_table, (RhinoType){SORT_NONE});
 
         // TODO: Use the parameter types as type hints for the arguments
-        for (size_t i = 0; i < expr->arguments.count; i++)
-        {
-            Argument *arg = get_argument_from_slice(apm->argument, expr->arguments, i);
+        Argument *arg;
+        ArgumentIterator it = argument_iterator(expr->arguments);
+        while (arg = next_argument_iterator(&it))
             resolve_types_in_expression(c, apm, arg->expr, symbol_table, (RhinoType){SORT_NONE});
-        }
 
         break;
     }
@@ -534,21 +504,22 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
         resolve_types_in_expression(c, apm, expr->subject, symbol_table, (RhinoType){SORT_NONE});
 
         // Resolve enum values
-        Expression *subject = get_expression(apm->expression, expr->subject);
+        Expression *subject = expr->subject;
         if (subject->kind != TYPE_REFERENCE)
             return;
 
         if (subject->type.sort != SORT_ENUM)
             return;
 
-        EnumType *enum_type = get_enum_type(apm->enum_type, subject->type.index);
-        for (size_t n = enum_type->values.first; n < enum_type->values.first + enum_type->values.count; n++)
+        EnumType *enum_type = subject->type.enum_type;
+        EnumValue *enum_value;
+        EnumValueIterator it = enum_value_iterator(enum_type->values);
+        while (enum_value = next_enum_value_iterator(&it))
         {
-            EnumValue *enum_value = get_enum_value(apm->enum_value, n);
             if (substr_match(c->source_text, expr->field, enum_value->identity))
             {
                 expr->kind = ENUM_VALUE_LITERAL;
-                expr->enum_value = n;
+                expr->enum_value = enum_value;
                 return;
             }
         }
@@ -592,17 +563,14 @@ void resolve_types_in_expression(Compiler *c, Program *apm, size_t expr_index, S
     }
 }
 
-void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
+void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
 {
-    Statement *block = get_statement(apm->statement, block_index);
-    assert(block->kind == CODE_BLOCK || block->kind == SINGLE_BLOCK);
+    assert(!block->declaration_block);
 
-    SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, block->symbol_table);
-    size_t n = get_first_statement_in_block(apm, block);
-    while (n < block->statements.count)
+    Statement *stmt;
+    StatementIterator it = statement_iterator(block->statements);
+    while (stmt = next_statement_iterator(&it))
     {
-        Statement *stmt = get_statement(apm->statement, block->statements.first + n);
-
         switch (stmt->kind)
         {
         case INVALID_STATEMENT:
@@ -611,19 +579,19 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
         // Variable declarations, including type inference
         case VARIABLE_DECLARATION:
         {
-            Variable *var = get_variable(apm->variable, stmt->variable);
+            Variable *var = stmt->variable;
             var->type.sort = INVALID_SORT;
 
             if (stmt->has_type_expression)
             {
-                var->type = resolve_type_expression(c, apm, stmt->type_expression, symbol_table);
+                var->type = resolve_type_expression(c, apm, stmt->type_expression, block->symbol_table);
 
                 if (stmt->has_initial_value)
-                    resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table, var->type);
+                    resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, var->type);
             }
             else if (stmt->has_initial_value)
             {
-                resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table, (RhinoType){SORT_NONE});
+                resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, (RhinoType){SORT_NONE});
                 var->type = get_expression_type(apm, c->source_text, stmt->initial_value);
             }
             else
@@ -636,24 +604,23 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
         }
 
         case FUNCTION_DECLARATION:
-            resolve_types_in_function(c, apm, stmt->function, symbol_table);
+            resolve_types_in_function(c, apm, stmt->function, block->symbol_table);
             break;
 
         case ENUM_TYPE_DECLARATION:
             break;
 
         case STRUCT_TYPE_DECLARATION:
-            resolve_types_in_struct_type(c, apm, stmt->struct_type, symbol_table);
+            resolve_types_in_struct_type(c, apm, stmt->struct_type, block->symbol_table);
             break;
 
         case CODE_BLOCK:
-        case SINGLE_BLOCK:
-            resolve_types_in_code_block(c, apm, block->statements.first + n);
+            resolve_types_in_code_block(c, apm, stmt->block);
             break;
 
         case IF_SEGMENT:
         case ELSE_IF_SEGMENT:
-            resolve_types_in_expression(c, apm, stmt->condition, symbol_table, (RhinoType){SORT_BOOL});
+            resolve_types_in_expression(c, apm, stmt->condition, block->symbol_table, (RhinoType){SORT_BOOL});
             resolve_types_in_code_block(c, apm, stmt->body);
             break;
 
@@ -668,10 +635,10 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
         // For loops, including type inference of the iterator
         case FOR_LOOP:
         {
-            resolve_types_in_expression(c, apm, stmt->iterable, symbol_table, (RhinoType){SORT_NONE});
+            resolve_types_in_expression(c, apm, stmt->iterable, block->symbol_table, (RhinoType){SORT_NONE});
 
-            Variable *iterator = get_variable(apm->variable, stmt->iterator);
-            Expression *iterable = get_expression(apm->expression, stmt->iterable);
+            Variable *iterator = stmt->iterator;
+            Expression *iterable = stmt->iterable;
             if (iterable->kind == RANGE_LITERAL)
             {
                 iterator->type.sort = SORT_INT;
@@ -679,7 +646,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
             else if (iterable->kind == TYPE_REFERENCE && iterable->type.sort == SORT_ENUM)
             {
                 iterator->type.sort = SORT_ENUM;
-                iterator->type.index = iterable->type.index;
+                iterator->type.enum_type = iterable->type.enum_type;
             }
             else
             {
@@ -695,92 +662,80 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, size_t block_index)
 
         case ASSIGNMENT_STATEMENT:
         {
-            resolve_types_in_expression(c, apm, stmt->assignment_lhs, symbol_table, (RhinoType){SORT_NONE});
+            resolve_types_in_expression(c, apm, stmt->assignment_lhs, block->symbol_table, (RhinoType){SORT_NONE});
             RhinoType lhs_type = get_expression_type(apm, c->source_text, stmt->assignment_lhs);
-            resolve_types_in_expression(c, apm, stmt->assignment_rhs, symbol_table, lhs_type);
+            resolve_types_in_expression(c, apm, stmt->assignment_rhs, block->symbol_table, lhs_type);
             break;
         }
         case OUTPUT_STATEMENT:
         case EXPRESSION_STMT:
         case RETURN_STATEMENT:
             // TODO: Use the return type of the function as a type hint for return statements
-            resolve_types_in_expression(c, apm, stmt->expression, symbol_table, (RhinoType){SORT_NONE});
+            resolve_types_in_expression(c, apm, stmt->expression, block->symbol_table, (RhinoType){SORT_NONE});
             break;
 
         default:
             fatal_error("Could not resolve types in %s statement", statement_kind_string(stmt->kind));
             break;
         }
-
-        n = get_next_statement_in_block(apm, block, n);
     }
 }
 
-void resolve_types_in_function(Compiler *c, Program *apm, size_t funct_index, SymbolTable *symbol_table)
+void resolve_types_in_function(Compiler *c, Program *apm, Function *funct, SymbolTable *symbol_table)
 {
-    Function *funct = get_function(apm->function, funct_index);
-
     if (funct->has_return_type_expression)
         funct->return_type = resolve_type_expression(c, apm, funct->return_type_expression, symbol_table);
     else
         funct->return_type.sort = SORT_NONE;
 
-    for (size_t i = 0; i < funct->parameters.count; i++)
+    Parameter *parameter;
+    ParameterIterator it = parameter_iterator(funct->parameters);
+    while (parameter = next_parameter_iterator(&it))
     {
-        Parameter *parameter = get_parameter_from_slice(apm->parameter, funct->parameters, i);
         parameter->type = resolve_type_expression(c, apm, parameter->type_expression, symbol_table);
     }
 
     resolve_types_in_code_block(c, apm, funct->body);
 }
 
-void resolve_types_in_struct_type(Compiler *c, Program *apm, size_t struct_type_index, SymbolTable *symbol_table)
+void resolve_types_in_struct_type(Compiler *c, Program *apm, StructType *struct_type, SymbolTable *symbol_table)
 {
-    StructType *struct_type = get_struct_type(apm->struct_type, struct_type_index);
-    Statement *declarations = get_statement(apm->statement, struct_type->declarations);
-    SymbolTable *declarations_symbol_table = get_symbol_table(apm->symbol_table, declarations->symbol_table);
-
-    for (size_t i = 0; i < struct_type->properties.count; i++)
-    {
-        Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
-        property->type = resolve_type_expression(c, apm, property->type_expression, declarations_symbol_table);
-    }
+    Property *property;
+    PropertyIterator it = property_iterator(struct_type->properties);
+    while (property = next_property_iterator(&it))
+        property->type = resolve_type_expression(c, apm, property->type_expression, struct_type->declarations->symbol_table);
 }
 
-void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_index)
+void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
 {
-    Statement *block = get_statement(apm->statement, block_index);
-    assert(block->kind == DECLARATION_BLOCK);
+    assert(block->declaration_block);
 
-    SymbolTable *symbol_table = get_symbol_table(apm->symbol_table, block->symbol_table);
-
-    size_t n = get_first_statement_in_block(apm, block);
-    while (n < block->statements.count)
+    Statement *stmt;
+    StatementIterator it = statement_iterator(block->statements);
+    while (stmt = next_statement_iterator(&it))
     {
-        Statement *stmt = get_statement(apm->statement, block->statements.first + n);
-
         if (stmt->kind == FUNCTION_DECLARATION)
-            resolve_types_in_function(c, apm, stmt->function, symbol_table);
+            resolve_types_in_function(c, apm, stmt->function, block->symbol_table);
         if (stmt->kind == STRUCT_TYPE_DECLARATION)
-            resolve_types_in_struct_type(c, apm, stmt->struct_type, symbol_table);
+            resolve_types_in_struct_type(c, apm, stmt->struct_type, block->symbol_table);
         if (stmt->kind == VARIABLE_DECLARATION)
         {
             // TODO: This is copy/pasted and modified from resolve_types_in_code_block.
             //       Find an effective way to tidy.
 
-            Variable *var = get_variable(apm->variable, stmt->variable);
+            Variable *var = stmt->variable;
             var->type.sort = INVALID_SORT;
 
             if (stmt->has_type_expression)
             {
-                var->type = resolve_type_expression(c, apm, stmt->type_expression, symbol_table);
+                var->type = resolve_type_expression(c, apm, stmt->type_expression, block->symbol_table);
 
                 if (stmt->has_initial_value)
-                    resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table, var->type);
+                    resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, var->type);
             }
             else if (stmt->has_initial_value)
             {
-                resolve_types_in_expression(c, apm, stmt->initial_value, symbol_table, (RhinoType){SORT_NONE});
+                resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, (RhinoType){SORT_NONE});
                 var->type = get_expression_type(apm, c->source_text, stmt->initial_value);
             }
             else
@@ -789,8 +744,6 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, size_t block_
                 //       declaration that was defined without an initial value?
             }
         }
-
-        n = get_next_statement_in_block(apm, block, n);
     }
 }
 

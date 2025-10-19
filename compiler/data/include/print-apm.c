@@ -79,6 +79,7 @@ enum LineStatus
 #ifdef PRINT_PARSED
 #define PRINT_EXPRESSION print_parsed_expression
 #define PRINT_STATEMENT print_parsed_statement
+#define PRINT_BLOCK print_parsed_block
 #define PRINT_FUNCTION print_parsed_function
 #define PRINT_VARIABLE print_parsed_variable
 #define PRINT_ENUM_TYPE print_parsed_enum_type
@@ -89,6 +90,7 @@ enum LineStatus
 #ifdef PRINT_RESOLVED
 #define PRINT_EXPRESSION print_resolved_expression
 #define PRINT_STATEMENT print_resolved_statement
+#define PRINT_BLOCK print_resolved_block
 #define PRINT_VARIABLE print_resolved_variable
 #define PRINT_ENUM_TYPE print_resolved_enum_type
 #define PRINT_STRUCT_TYPE print_resolved_struct_type
@@ -97,30 +99,27 @@ enum LineStatus
 
 // FORWARD DECLARATIONS //
 
-void PRINT_VARIABLE(Program *apm, size_t var_index, const char *source_text);
-void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text);
-void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text);
-void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text);
-void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_text);
-void PRINT_STRUCT_TYPE(Program *apm, size_t struct_type_index, const char *source_text);
+void PRINT_VARIABLE(Program *apm, Variable *var, const char *source_text);
+void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text);
+void PRINT_STATEMENT(Program *apm, Statement *stmt, const char *source_text);
+void PRINT_BLOCK(Program *apm, Block *block, const char *source_text);
+void PRINT_FUNCTION(Program *apm, Function *funct, const char *source_text);
+void PRINT_ENUM_TYPE(Program *apm, EnumType *enum_type, const char *source_text);
+void PRINT_STRUCT_TYPE(Program *apm, StructType *struct_type, const char *source_text);
 void PRINT_APM(Program *apm, const char *source_text);
 
 // PRINT VARIABLE //
 
-void PRINT_VARIABLE(Program *apm, size_t var_index, const char *source_text)
+void PRINT_VARIABLE(Program *apm, Variable *var, const char *source_text)
 {
-    Variable *var = get_variable(apm->variable, var_index);
-
     PRINT_SUBSTR(var->identity);
-    PRINT(" v%02d (%s)", var_index, rhino_type_string(apm, var->type));
+    PRINT(" v%p (%s)", var, rhino_type_string(apm, var->type));
 }
 
 // PRINT EXPRESSION //
 
-void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
+void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text)
 {
-    Expression *expr = get_expression(apm->expression, expr_index);
-
     switch (expr->kind)
     {
     case INVALID_EXPRESSION:
@@ -151,8 +150,7 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
 
     case ENUM_VALUE_LITERAL:
     {
-        EnumValue *enum_value = get_enum_value(apm->enum_value, expr->enum_value);
-        PRINT_SUBSTR(enum_value->identity);
+        PRINT_SUBSTR(expr->enum_value->identity);
         break;
     }
 
@@ -190,16 +188,21 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
             PRINT("arguments:");
             NEWLINE();
             INDENT();
-            size_t last = expr->arguments.first + expr->arguments.count - 1;
-            for (size_t n = expr->arguments.first; n <= last; n++)
-            {
-                Argument *arg = get_argument(apm->argument, n);
 
-                if (n == last)
+            Argument *arg;
+            ArgumentIterator it = argument_iterator(expr->arguments);
+            size_t i = 0;
+            while (arg = next_argument_iterator(&it))
+            {
+                if (i == expr->arguments.count - 1)
                     LAST_ON_LINE();
+
                 PRINT_EXPRESSION(apm, arg->expr, source_text);
                 NEWLINE();
+
+                i++;
             }
+
             UNINDENT();
         }
 
@@ -295,10 +298,8 @@ void PRINT_EXPRESSION(Program *apm, size_t expr_index, const char *source_text)
 
 // PRINT STATEMENT //
 
-void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
+void PRINT_STATEMENT(Program *apm, Statement *stmt, const char *source_text)
 {
-    Statement *stmt = get_statement(apm->statement, stmt_index);
-
     if (stmt->kind == EXPRESSION_STMT)
     {
         PRINT_EXPRESSION(apm, stmt->expression, source_text);
@@ -307,20 +308,9 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         return;
     }
 
-    if (stmt->kind == DECLARATION_BLOCK)
+    if (stmt->kind == CODE_BLOCK)
     {
-        size_t last = get_last_statement_in_block(apm, stmt);
-        size_t n = get_first_statement_in_block(apm, stmt);
-        while (n < stmt->statements.count)
-        {
-            if (n == last)
-                LAST_ON_LINE();
-
-            PRINT_STATEMENT(apm, stmt->statements.first + n, source_text);
-            n = get_next_statement_in_block(apm, stmt, n);
-        }
-
-        NEWLINE();
+        PRINT_BLOCK(apm, stmt->block, source_text);
         return;
     }
 
@@ -352,28 +342,6 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
         PRINT("<INVALID_STMT>");
         break;
 
-    case CODE_BLOCK:
-    case SINGLE_BLOCK:
-    {
-        size_t last = get_last_statement_in_block(apm, stmt);
-        size_t n = get_first_statement_in_block(apm, stmt);
-
-        if (stmt->statements.count > 1)
-            NEWLINE();
-
-        while (n < stmt->statements.count)
-        {
-            if (n == last)
-                LAST_ON_LINE();
-
-            PRINT_STATEMENT(apm, stmt->statements.first + n, source_text);
-            n = get_next_statement_in_block(apm, stmt, n);
-        }
-
-        NEWLINE();
-        break;
-    }
-
     case IF_SEGMENT:
     case ELSE_IF_SEGMENT:
         PRINT("condition: ");
@@ -383,7 +351,7 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
     case ELSE_SEGMENT:
         LAST_ON_LINE();
         PRINT("body: ");
-        PRINT_STATEMENT(apm, stmt->body, source_text);
+        PRINT_BLOCK(apm, stmt->body, source_text);
         NEWLINE();
 
         break;
@@ -391,7 +359,7 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
     case BREAK_LOOP:
         LAST_ON_LINE();
         PRINT("body: ");
-        PRINT_STATEMENT(apm, stmt->body, source_text);
+        PRINT_BLOCK(apm, stmt->body, source_text);
         NEWLINE();
 
         break;
@@ -407,7 +375,7 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
 
         LAST_ON_LINE();
         PRINT("body: ");
-        PRINT_STATEMENT(apm, stmt->body, source_text);
+        PRINT_BLOCK(apm, stmt->body, source_text);
         NEWLINE();
 
         break;
@@ -474,12 +442,33 @@ void PRINT_STATEMENT(Program *apm, size_t stmt_index, const char *source_text)
     NEWLINE();
 }
 
+// PRINT BLOCK //
+
+void PRINT_BLOCK(Program *apm, Block *block, const char *source_text)
+{
+    PRINT(block->declaration_block ? "DECLARATIONS" : "BLOCK");
+    INDENT();
+    NEWLINE();
+
+    Statement *stmt;
+    StatementIterator it = statement_iterator(block->statements);
+    size_t i = 0;
+    while (stmt = next_statement_iterator(&it))
+    {
+        if (i == block->statements.count - 1)
+            LAST_ON_LINE();
+
+        PRINT_STATEMENT(apm, stmt, source_text);
+        i++;
+    }
+
+    UNINDENT();
+}
+
 // PRINT FUNCTION //
 
-void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text)
+void PRINT_FUNCTION(Program *apm, Function *funct, const char *source_text)
 {
-    Function *funct = get_function(apm->function, funct_index);
-
     PRINT("FUNCTION ");
     PRINT_SUBSTR(funct->identity);
     INDENT();
@@ -508,12 +497,15 @@ void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text)
         PRINT("parameters:");
         NEWLINE();
         INDENT();
-        size_t last = funct->parameters.first + funct->parameters.count - 1;
-        for (size_t n = funct->parameters.first; n <= last; n++)
+
+        Parameter *parameter;
+        ParameterIterator it = parameter_iterator(funct->parameters);
+        size_t i = 0;
+        while (parameter = next_parameter_iterator(&it))
         {
-            Parameter *parameter = get_parameter(apm->parameter, n);
-            if (n == last)
+            if (i == funct->parameters.count - 1)
                 LAST_ON_LINE();
+
 #ifdef PRINT_PARSED
             PRINT_EXPRESSION(apm, parameter->type_expression, source_text);
             PRINT(" ");
@@ -530,7 +522,7 @@ void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text)
 
     LAST_ON_LINE();
     PRINT("body: ");
-    PRINT_STATEMENT(apm, funct->body, source_text);
+    PRINT_BLOCK(apm, funct->body, source_text);
 
     UNINDENT();
     NEWLINE();
@@ -538,10 +530,8 @@ void PRINT_FUNCTION(Program *apm, size_t funct_index, const char *source_text)
 
 // PRINT ENUM //
 
-void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_text)
+void PRINT_ENUM_TYPE(Program *apm, EnumType *enum_type, const char *source_text)
 {
-    EnumType *enum_type = get_enum_type(apm->enum_type, enum_type_index);
-
     PRINT("ENUM ");
     PRINT_SUBSTR(enum_type->identity);
 
@@ -549,14 +539,19 @@ void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_te
     {
         INDENT();
         NEWLINE();
-        size_t last = enum_type->values.first + enum_type->values.count - 1;
-        for (size_t n = enum_type->values.first; n <= last; n++)
+
+        EnumValue *enum_value;
+        EnumValueIterator it = enum_value_iterator(enum_type->values);
+        size_t i = 0;
+        while (enum_value = next_enum_value_iterator(&it))
         {
-            EnumValue *enum_value = get_enum_value(apm->enum_value, n);
-            if (n == last)
+            if (i == enum_type->values.count - 1)
                 LAST_ON_LINE();
+
             PRINT_SUBSTR(enum_value->identity);
             NEWLINE();
+
+            i++;
         }
         UNINDENT();
     }
@@ -565,38 +560,35 @@ void PRINT_ENUM_TYPE(Program *apm, size_t enum_type_index, const char *source_te
 
 // PRINT STRUCT //
 
-void PRINT_STRUCT_TYPE(Program *apm, size_t struct_type_index, const char *source_text)
+void PRINT_STRUCT_TYPE(Program *apm, StructType *struct_type, const char *source_text)
 {
-    StructType *struct_type = get_struct_type(apm->struct_type, struct_type_index);
-
     PRINT("STRUCT ");
     PRINT_SUBSTR(struct_type->identity);
     INDENT();
 
-    Statement *declarations = get_statement(apm->statement, struct_type->declarations);
+    Block *declarations = struct_type->declarations;
     if (declarations->statements.count > 0)
     {
         NEWLINE();
-        PRINT("DECLARATIONS")
-        INDENT();
-        NEWLINE();
-        PRINT_STATEMENT(apm, struct_type->declarations, source_text);
-        UNINDENT();
+        PRINT_BLOCK(apm, declarations, source_text);
     }
 
     if (struct_type->properties.count > 0)
     {
         NEWLINE();
-        size_t last = struct_type->properties.first + struct_type->properties.count - 1;
-        for (size_t n = struct_type->properties.first; n <= last; n++)
+
+        Property *property;
+        PropertyIterator it = property_iterator(struct_type->properties);
+        size_t i = 0;
+        while (property = next_property_iterator(&it))
         {
-            Property *property = get_property(apm->property, n);
-            if (n == last)
+            if (i == struct_type->properties.count - 1)
                 LAST_ON_LINE();
 
             PRINT("%s ", rhino_type_string(apm, property->type));
             PRINT_SUBSTR(property->identity);
             NEWLINE();
+            i++;
         }
     }
 
@@ -625,7 +617,17 @@ void PRINT_APM(Program *apm, const char *source_text)
 
     NEWLINE();
     NEWLINE();
-    PRINT_STATEMENT(apm, apm->program_block, source_text);
+    Statement *stmt;
+    StatementIterator it = statement_iterator(apm->program_block->statements);
+    size_t i = 0;
+    while (stmt = next_statement_iterator(&it))
+    {
+        if (i == apm->program_block->statements.count - 1)
+            LAST_ON_LINE();
+
+        PRINT_STATEMENT(apm, stmt, source_text);
+        i++;
+    }
     printf("\n");
 }
 
@@ -641,6 +643,7 @@ void PRINT_APM(Program *apm, const char *source_text)
 
 #undef PRINT_EXPRESSION
 #undef PRINT_STATEMENT
+#undef PRINT_BLOCK
 #undef PRINT_FUNCTION
 #undef PRINT_VARIABLE
 #undef PRINT_ENUM_TYPE

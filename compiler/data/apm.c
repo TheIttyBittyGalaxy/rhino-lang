@@ -10,31 +10,26 @@ DEFINE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 DEFINE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
 DEFINE_ENUM(LIST_SYMBOL_TAG, SymbolTag, symbol_tag)
 
-// LIST TYPE //
+// ALLOCATORS //
 
-DEFINE_LIST_TYPE(Expression, expression)
-DEFINE_LIST_TYPE(Statement, statement)
-DEFINE_LIST_TYPE(Argument, argument)
-DEFINE_LIST_TYPE(Parameter, parameter)
-DEFINE_LIST_TYPE(Function, function)
-DEFINE_LIST_TYPE(Variable, variable)
-DEFINE_LIST_TYPE(EnumType, enum_type)
-DEFINE_LIST_TYPE(EnumValue, enum_value)
-DEFINE_LIST_TYPE(StructType, struct_type)
-DEFINE_LIST_TYPE(Property, property)
-DEFINE_LIST_TYPE(SymbolTable, symbol_table)
+DEFINE_LIST_ALLOCATOR(EnumValue, enum_value)
+DEFINE_LIST_ALLOCATOR(EnumType, enum_type)
 
-DEFINE_SLICE_TYPE(Expression, expression)
-DEFINE_SLICE_TYPE(Statement, statement)
-DEFINE_SLICE_TYPE(Argument, argument)
-DEFINE_SLICE_TYPE(Parameter, parameter)
-DEFINE_SLICE_TYPE(Function, function)
-DEFINE_SLICE_TYPE(Variable, variable)
-DEFINE_SLICE_TYPE(EnumType, enum_type)
-DEFINE_SLICE_TYPE(EnumValue, enum_value)
-DEFINE_SLICE_TYPE(StructType, struct_type)
-DEFINE_SLICE_TYPE(Property, property)
-DEFINE_SLICE_TYPE(SymbolTable, symbol_table)
+DEFINE_LIST_ALLOCATOR(Property, property)
+DEFINE_LIST_ALLOCATOR(StructType, struct_type)
+
+DEFINE_LIST_ALLOCATOR(Variable, variable)
+
+DEFINE_LIST_ALLOCATOR(Expression, expression)
+
+DEFINE_LIST_ALLOCATOR(Statement, statement)
+
+DEFINE_LIST_ALLOCATOR(Block, block)
+DEFINE_LIST_ALLOCATOR(SymbolTable, symbol_table)
+
+DEFINE_LIST_ALLOCATOR(Function, function)
+DEFINE_LIST_ALLOCATOR(Parameter, parameter)
+DEFINE_LIST_ALLOCATOR(Argument, argument)
 
 // RHINO TYPE //
 
@@ -46,63 +41,54 @@ const char *rhino_type_string(Program *apm, RhinoType ty)
 
 // INIT APM //
 
-void init_program(Program *apm)
+void init_program(Program *apm, Allocator *allocator)
 {
-    init_function_list(&apm->function);
-    init_parameter_list(&apm->parameter);
-    init_argument_list(&apm->argument);
+    init_allocator(&apm->statement_lists, allocator, 1024);
+    init_allocator(&apm->enum_value_lists, allocator, 1024);
+    init_allocator(&apm->property_lists, allocator, 1024);
+    init_allocator(&apm->parameter_lists, allocator, 1024);
+    init_allocator(&apm->arguments_lists, allocator, 1024);
 
-    init_statement_list(&apm->statement);
-    init_expression_list(&apm->expression);
-    init_variable_list(&apm->variable);
+    init_allocator(&apm->symbol_table, allocator, 1024);
 
-    init_enum_type_list(&apm->enum_type);
-    init_enum_value_list(&apm->enum_value);
-
-    init_struct_type_list(&apm->struct_type);
-    init_property_list(&apm->property);
-
-    init_symbol_table_list(&apm->symbol_table);
-
-    // Symbol tables treat `symbol_table.next = 0` as `symbol_table.next = NULL`. and so the first symbol table has to be empty
-    add_symbol_table(&apm->symbol_table);
+    init_expression_list_allocator(&apm->expression, allocator, 1024);
+    init_function_list_allocator(&apm->function, allocator, 1024);
+    init_variable_list_allocator(&apm->variable, allocator, 1024);
+    init_enum_type_list_allocator(&apm->enum_type, allocator, 1024);
+    init_struct_type_list_allocator(&apm->struct_type, allocator, 1024);
+    init_block_list_allocator(&apm->block, allocator, 1024);
 }
 
 // SYMBOL TABLES //
 
-void init_symbol_table(SymbolTable *symbol_table)
+SymbolTable *allocate_symbol_table(Allocator *allocator, SymbolTable *parent)
 {
-    symbol_table->next = 0;
-    symbol_table->symbol_count = 0;
+    SymbolTable *table = (SymbolTable *)allocate(allocator, sizeof(SymbolTable), alignof(SymbolTable));
+    table->next = parent;
+    table->symbol_count = 0;
+    return table;
 }
 
-void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, size_t symbol_index, substr symbol_identity)
+void append_symbol(Program *apm, SymbolTable *table, SymbolTag symbol_tag, SymbolPointer to, substr symbol_identity)
 {
-    SymbolTable *table = get_symbol_table(apm->symbol_table, table_index);
     while (table->symbol_count == SYMBOL_TABLE_SIZE && table->next)
-    {
-        table_index = table->next;
-        table = get_symbol_table(apm->symbol_table, table_index);
-    }
+        table = table->next;
 
     if (table->symbol_count == SYMBOL_TABLE_SIZE)
     {
-        size_t next_index = add_symbol_table(&apm->symbol_table);
-        SymbolTable *next = get_symbol_table(apm->symbol_table, next_index);
-
-        // We cannot use the `table` pointer here as the table may been reallocated after we called add_symbol_table
-        get_symbol_table(apm->symbol_table, table_index)->next = next_index;
+        SymbolTable *next = allocate_symbol_table(&apm->symbol_table, table->next);
+        table->next = next;
 
         next->next = 0;
         next->symbol_count = 1;
-        next->symbol[0].index = symbol_index;
+        next->symbol[0].to = to;
         next->symbol[0].tag = symbol_tag;
         next->symbol[0].identity = symbol_identity;
         return;
     }
 
     size_t i = table->symbol_count++;
-    table->symbol[i].index = symbol_index;
+    table->symbol[i].to = to;
     table->symbol[i].tag = symbol_tag;
     table->symbol[i].identity = symbol_identity;
 }
@@ -112,55 +98,72 @@ void append_symbol(Program *apm, size_t table_index, SymbolTag symbol_tag, size_
 void dump_apm(Program *apm, const char *source_text)
 {
     printf("FUNCTIONS\n");
-    for (size_t i = 0; i < apm->function.count; i++)
+    Function *funct;
+    size_t funct_i = 0;
+    for (
+        FunctionIterator it = function_iterator(get_function_list(apm->function));
+        funct = next_function_iterator(&it); funct_i++)
     {
-        Function *funct = get_function(apm->function, i);
-        printf("%02d\t%03d %02d\t", i, funct->span.pos, funct->span.len);
+        printf("%02d\t%03d %02d\t", funct_i, funct->span.pos, funct->span.len);
         printf_substr(source_text, funct->identity);
         printf("\tbody %02d\n", funct->body);
     }
     printf("\n");
 
-    printf("STATEMENTS\n");
-    for (size_t i = 0; i < apm->statement.count; i++)
+    printf("BLOCKS\n");
+    funct_i = 0;
+    for (
+        FunctionIterator it = function_iterator(get_function_list(apm->function));
+        funct = next_function_iterator(&it); funct_i++)
     {
-        Statement *stmt = get_statement(apm->statement, i);
-        printf("%02d\t%03d %02d\t%-21s\t", i, stmt->span.pos, stmt->span.len, statement_kind_string(stmt->kind));
-        switch (stmt->kind)
+        printf("Block %p (function ", funct->body->statements);
+        printf_substr(source_text, funct->identity);
+        printf(")\n");
+
+        Statement *stmt;
+        size_t stmt_i = 0;
+        for (
+            StatementIterator it = statement_iterator(funct->body->statements);
+            stmt = next_statement_iterator(&it); stmt_i++)
         {
-        case DECLARATION_BLOCK:
-        case CODE_BLOCK:
-        case SINGLE_BLOCK:
-            printf("first %02d\tlast %02d\tsymbol table %02d", stmt->statements.first, stmt->statements.first + stmt->statements.count - 1, stmt->symbol_table);
-            break;
+            printf("%02d\t%03d %02d\t%-21s\t%p %p %02d\t", stmt_i, stmt->span.pos, stmt->span.len, statement_kind_string(stmt->kind), stmt, it.bucket, it.index);
+            switch (stmt->kind)
+            {
+            case CODE_BLOCK:
+                printf("block %p", stmt->block);
+                break;
 
-        case IF_SEGMENT:
-        case ELSE_IF_SEGMENT:
-            printf("body %02d\tcondition %02d", stmt->body, stmt->condition);
-            break;
+            case IF_SEGMENT:
+            case ELSE_IF_SEGMENT:
+                printf("block %p\tcondition %p", stmt->body, stmt->condition);
+                break;
 
-        case FOR_LOOP:
-            printf("body %02d\titerator %02d\titerable %02d", stmt->body, stmt->iterator, stmt->iterable);
-            break;
+            case FOR_LOOP:
+                printf("block %p\titerator %p\titerable %p", stmt->body, stmt->iterator, stmt->iterable);
+                break;
 
-        case ELSE_SEGMENT:
-            printf("body %02d", stmt->body);
-            break;
+            case ELSE_SEGMENT:
+                printf("block %p", stmt->body);
+                break;
 
-        case OUTPUT_STATEMENT:
-        case EXPRESSION_STMT:
-            printf("expression %02d", stmt->expression);
-            break;
+            case OUTPUT_STATEMENT:
+            case EXPRESSION_STMT:
+                printf("expression %02d", stmt->expression);
+                break;
+            }
+            printf("\n");
         }
-        printf("\n");
     }
     printf("\n");
 
     printf("EXPRESSIONS\n");
-    for (size_t i = 0; i < apm->expression.count; i++)
+    Expression *expr;
+    size_t expr_i = 0;
+    for (
+        ExpressionIterator it = expression_iterator(get_expression_list(apm->expression));
+        expr = next_expression_iterator(&it); expr_i++)
     {
-        Expression *expr = get_expression(apm->expression, i);
-        printf("%02d\t%03d %02d\t%s\t", i, expr->span.pos, expr->span.len, expression_kind_string(expr->kind));
+        printf("%02d\t%03d %02d\t%s\t", expr_i, expr->span.pos, expr->span.len, expression_kind_string(expr->kind));
         switch (expr->kind)
         {
         case IDENTITY_LITERAL:
@@ -218,26 +221,33 @@ void dump_apm(Program *apm, const char *source_text)
     printf("\n");
 
     printf("VARIABLES\n");
-    for (size_t i = 0; i < apm->variable.count; i++)
+    Variable *var;
+    size_t var_i = 0;
+    for (
+        VariableIterator it = variable_iterator(get_variable_list(apm->variable));
+        var = next_variable_iterator(&it); var_i++)
     {
-        Variable *var = get_variable(apm->variable, i);
-        printf("%02d\t", i);
+        printf("%02d\t", var_i);
         printf_substr(source_text, var->identity);
         printf("\t%s\n", rhino_type_string(apm, var->type));
     }
     printf("\n");
 
     printf("ENUM TYPES\n");
-    for (size_t i = 0; i < apm->enum_type.count; i++)
+    EnumType *enum_type;
+    size_t enum_type_i = 0;
+    for (
+        EnumTypeIterator it = enum_type_iterator(get_enum_type_list(apm->enum_type));
+        enum_type = next_enum_type_iterator(&it); enum_type_i++)
     {
-        EnumType *enum_type = get_enum_type(apm->enum_type, i);
-        printf("%02d\t", i);
+        printf("%02d\t", enum_type_i);
         printf_substr(source_text, enum_type->identity);
         printf("\tfirst %02d\tlast %02d", enum_type->values.first, enum_type->values.first + enum_type->values.count - 1);
         printf("\n");
     }
     printf("\n");
 
+    /*
     printf("ENUM VALUES\n");
     for (size_t i = 0; i < apm->enum_value.count; i++)
     {
@@ -247,18 +257,23 @@ void dump_apm(Program *apm, const char *source_text)
         printf("\n");
     }
     printf("\n");
+    */
 
     printf("STRUCT TYPES\n");
-    for (size_t i = 0; i < apm->struct_type.count; i++)
+    StructType *struct_type;
+    size_t struct_type_i = 0;
+    for (
+        StructTypeIterator it = struct_type_iterator(get_struct_type_list(apm->struct_type));
+        struct_type = next_struct_type_iterator(&it); struct_type_i++)
     {
-        StructType *struct_type = get_struct_type(apm->struct_type, i);
-        printf("%02d\t", i);
+        printf("%02d\t", struct_type_i);
         printf_substr(source_text, struct_type->identity);
         printf("\tfirst %02d\tlast %02d", struct_type->properties.first, struct_type->properties.first + struct_type->properties.count - 1);
         printf("\n");
     }
     printf("\n");
 
+    /*
     printf("PROPERTIES\n");
     for (size_t i = 0; i < apm->property.count; i++)
     {
@@ -269,7 +284,9 @@ void dump_apm(Program *apm, const char *source_text)
         printf("\n");
     }
     printf("\n");
+    */
 
+    /*
     printf("SYMBOL TABLES\n");
     for (size_t i = 1; i < apm->symbol_table.count; i++)
     {
@@ -279,12 +296,13 @@ void dump_apm(Program *apm, const char *source_text)
         {
             printf("\n");
             Symbol symbol = symbol_table->symbol[i];
-            printf("\t%02d\t%s\t%02d\t", i, symbol_tag_string(symbol.tag), symbol.index);
+            printf("\t%02d\t%s\t%p\t", i, symbol_tag_string(symbol.tag), symbol.to.ptr);
             printf_substr(source_text, symbol.identity);
         }
         printf("\n");
     }
     printf("\n");
+    */
 }
 
 // PRINT APM //
@@ -295,72 +313,11 @@ void dump_apm(Program *apm, const char *source_text)
 #define PRINT_RESOLVED
 #include "include/print-apm.c"
 
-// ACCESS METHODS //
-
-size_t get_next_statement_in_block(Program *apm, Statement *code_block, size_t n)
-{
-    if (code_block->statements.count == 0)
-        return 0;
-
-    Statement *child = get_statement(apm->statement, code_block->statements.first + n);
-    n++;
-
-    switch (child->kind)
-    {
-    case DECLARATION_BLOCK:
-    case CODE_BLOCK:
-    case SINGLE_BLOCK:
-        return n + child->statements.count;
-
-    case IF_SEGMENT:
-    case ELSE_IF_SEGMENT:
-    case ELSE_SEGMENT:
-    case BREAK_LOOP:
-    case FOR_LOOP:
-        return n + get_statement(apm->statement, child->body)->statements.count + 1;
-
-    case FUNCTION_DECLARATION:
-    {
-        Function *funct = get_function(apm->function, child->function);
-        return n + get_statement(apm->statement, funct->body)->statements.count + 1;
-    }
-
-    case STRUCT_TYPE_DECLARATION:
-    {
-        StructType *struct_type = get_struct_type(apm->struct_type, child->struct_type);
-        return n + get_statement(apm->statement, struct_type->declarations)->statements.count + 1;
-    }
-    }
-
-    return n;
-}
-
-size_t get_first_statement_in_block(Program *apm, Statement *code_block)
-{
-    return 0;
-}
-
-size_t get_last_statement_in_block(Program *apm, Statement *code_block)
-{
-    if (code_block->statements.count == 0)
-        return 0;
-
-    size_t n = 0;
-    while (true)
-    {
-        size_t next = get_next_statement_in_block(apm, code_block, n);
-        if (next >= code_block->statements.count)
-            return n;
-        n = next;
-    }
-}
-
 // TYPE ANALYSIS METHODS //
 
-RhinoType get_expression_type(Program *apm, const char *source_text, size_t expr_index)
+RhinoType get_expression_type(Program *apm, const char *source_text, Expression *expr)
 {
     RhinoType result;
-    Expression *expr = get_expression(apm->expression, expr_index);
 
     switch (expr->kind)
     {
@@ -391,23 +348,22 @@ RhinoType get_expression_type(Program *apm, const char *source_text, size_t expr
 
     case ENUM_VALUE_LITERAL:
     {
-        Expression *enum_value_literal = get_expression(apm->expression, expr_index);
         result.sort = SORT_ENUM;
-        result.index = get_enum_type_of_enum_value(apm, enum_value_literal->enum_value);
+        result.enum_type = expr->enum_value->type_of_enum_value;
         break;
     }
 
     // Variables and parameters
     case VARIABLE_REFERENCE:
-        return get_variable(apm->variable, expr->variable)->type;
+        return expr->variable->type;
 
     case PARAMETER_REFERENCE:
-        return get_parameter(apm->parameter, expr->parameter)->type;
+        return expr->parameter->type;
 
     // Function call
     case FUNCTION_CALL:
     {
-        Expression *callee = get_expression(apm->expression, expr->callee);
+        Expression *callee = expr->callee;
 
         if (callee->kind != FUNCTION_REFERENCE)
         {
@@ -415,7 +371,7 @@ RhinoType get_expression_type(Program *apm, const char *source_text, size_t expr
             break;
         }
 
-        Function *funct = get_function(apm->function, callee->function);
+        Function *funct = callee->function;
         return funct->return_type;
     }
 
@@ -425,10 +381,11 @@ RhinoType get_expression_type(Program *apm, const char *source_text, size_t expr
         RhinoType subject_type = get_expression_type(apm, source_text, expr->subject);
         if (subject_type.sort == SORT_STRUCT)
         {
-            StructType *struct_type = get_struct_type(apm->struct_type, subject_type.index);
-            for (size_t i = 0; i < struct_type->properties.count; i++)
+            StructType *struct_type = subject_type.struct_type;
+            Property *property;
+            PropertyIterator it = property_iterator(struct_type->properties);
+            while (property = next_property_iterator(&it))
             {
-                Property *property = get_property_from_slice(apm->property, struct_type->properties, i);
                 if (substr_match(source_text, property->identity, expr->field))
                     return property->type;
             }
@@ -483,28 +440,15 @@ RhinoType get_expression_type(Program *apm, const char *source_text, size_t expr
     return result;
 }
 
-size_t get_enum_type_of_enum_value(Program *apm, size_t enum_value_index)
-{
-    size_t last = 0;
-    for (size_t i = 0; i < apm->enum_type.count; i++)
-    {
-        EnumType *enum_type = get_enum_type(apm->enum_type, i);
-        last += enum_type->values.count;
-
-        if (enum_value_index < last)
-            return i;
-    }
-
-    fatal_error("Could not determine index of enum value %d.", enum_value_index);
-    return 0;
-}
-
 bool are_types_equal(RhinoType a, RhinoType b)
 {
     if (a.sort != b.sort)
         return false;
 
-    if (a.sort == SORT_ENUM && a.index != b.index)
+    if (a.sort == SORT_ENUM && a.enum_type != b.enum_type)
+        return false;
+
+    if (a.sort == SORT_STRUCT && a.enum_type != b.enum_type)
         return false;
 
     return true;

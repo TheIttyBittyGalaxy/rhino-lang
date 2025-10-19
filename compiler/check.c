@@ -2,30 +2,42 @@
 #include "fatal_error.h"
 #include <string.h>
 
-// CHECK EXPRESSIONS //
+void check_block(Compiler *c, Program *apm, Block *block);
+void check_function(Compiler *c, Program *apm, Function *funct);
+void check_statement_list(Compiler *c, Program *apm, StatementList statement_list);
 
-void check_expressions(Compiler *c, Program *apm)
+void check_block(Compiler *c, Program *apm, Block *block)
 {
-    for (size_t i = 0; i < apm->expression.count; i++)
-    {
-        Expression *expr = get_expression(apm->expression, i);
-
-        switch (expr->kind)
-        {
-        }
-    }
+    check_statement_list(c, apm, block->statements);
 }
 
-// CHECK STATEMENTS //
-
-void check_statements(Compiler *c, Program *apm)
+void check_function(Compiler *c, Program *apm, Function *funct)
 {
-    for (size_t i = 0; i < apm->statement.count; i++)
-    {
-        Statement *stmt = get_statement(apm->statement, i);
+    check_block(c, apm, funct->body);
+}
 
+void check_statement_list(Compiler *c, Program *apm, StatementList statement_list)
+{
+    Statement *stmt;
+    StatementIterator it = statement_iterator(statement_list);
+    while (stmt = next_statement_iterator(&it))
+    {
         switch (stmt->kind)
         {
+
+            // Recursively check nested blocks
+        case CODE_BLOCK:
+        {
+            check_block(c, apm, stmt->block);
+            break;
+        }
+
+        // Recursively check functions
+        case FUNCTION_DECLARATION:
+        {
+            check_function(c, apm, stmt->function);
+            break;
+        }
 
         // Check if statement conditions are booleans
         case IF_SEGMENT:
@@ -34,7 +46,7 @@ void check_statements(Compiler *c, Program *apm)
             RhinoSort condition_sort = get_expression_type(apm, c->source_text, stmt->condition).sort;
             if (condition_sort != SORT_BOOL && condition_sort != ERROR_SORT)
             {
-                Expression *condition = get_expression(apm->expression, stmt->condition);
+                Expression *condition = stmt->condition;
                 raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, condition->span);
             }
             break;
@@ -46,7 +58,7 @@ void check_statements(Compiler *c, Program *apm)
             if (!stmt->has_initial_value)
                 continue;
 
-            RhinoType var_type = get_variable(apm->variable, stmt->variable)->type;
+            RhinoType var_type = stmt->variable->type;
             RhinoType value_type = get_expression_type(apm, c->source_text, stmt->initial_value);
 
             if (!allow_assign_a_to_b(value_type, var_type))
@@ -74,19 +86,19 @@ void check_statements(Compiler *c, Program *apm)
 
 void check(Compiler *c, Program *apm)
 {
-    check_expressions(c, apm);
-    check_statements(c, apm);
+    // Check all statements in a recursive tree walk
+    check_block(c, apm, apm->program_block);
 
     // Produce errors for remaining identity literals
+    // TODO: Not sure if this is best done like this, or as part of the tree walk??
+    Expression *expr;
+    ExpressionIterator it = expression_iterator(get_expression_list(apm->expression));
+    while (expr = next_expression_iterator(&it))
     {
-        for (size_t i = 0; i < apm->expression.count; i++)
+        if (expr->kind == IDENTITY_LITERAL && !expr->given_error)
         {
-            Expression *identity_literal = get_expression(apm->expression, i);
-            if (identity_literal->kind == IDENTITY_LITERAL && !identity_literal->given_error)
-            {
-                raise_compilation_error(c, IDENTITY_DOES_NOT_EXIST, identity_literal->span);
-                identity_literal->given_error = true;
-            }
+            raise_compilation_error(c, IDENTITY_DOES_NOT_EXIST, expr->span);
+            expr->given_error = true;
         }
     }
 }

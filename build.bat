@@ -1,1 +1,1 @@
-build_program && g++ -o rhino compiler/*.c compiler/data/*.c -g
+build_program && g++ -o rhino compiler/*.c compiler/data/*.c -g -fcompare-debug-second
