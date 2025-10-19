@@ -109,7 +109,7 @@ void *allocate(Allocator *allocator, size_t size, size_t align);
         if (item + sizeof(T) > bucket->buffer_end)                                                           \
         {                                                                                                    \
             it->bucket = bucket->next;                                                                       \
-            it->index = 0;                                                                                   \
+            it->index = 1;                                                                                   \
             aligned_buffer = ALIGN_UP(it->bucket->buffer, alignof(T));                                       \
             return (T *)aligned_buffer;                                                                      \
         }                                                                                                    \
