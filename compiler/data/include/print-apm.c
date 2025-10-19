@@ -188,16 +188,21 @@ void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text)
             PRINT("arguments:");
             NEWLINE();
             INDENT();
-            size_t last = expr->arguments.first + expr->arguments.count - 1;
-            for (size_t n = expr->arguments.first; n <= last; n++)
-            {
-                Argument *arg = get_argument(apm->argument, n);
 
-                if (n == last)
+            Argument *arg;
+            ArgumentIterator it = argument_iterator(expr->arguments);
+            size_t i = 0;
+            while (arg = next_argument_iterator(&it))
+            {
+                if (i == expr->arguments.count - 1)
                     LAST_ON_LINE();
+
                 PRINT_EXPRESSION(apm, arg->expr, source_text);
                 NEWLINE();
+
+                i++;
             }
+
             UNINDENT();
         }
 
@@ -492,12 +497,15 @@ void PRINT_FUNCTION(Program *apm, Function *funct, const char *source_text)
         PRINT("parameters:");
         NEWLINE();
         INDENT();
-        size_t last = funct->parameters.first + funct->parameters.count - 1;
-        for (size_t n = funct->parameters.first; n <= last; n++)
+
+        Parameter *parameter;
+        ParameterIterator it = parameter_iterator(funct->parameters);
+        size_t i = 0;
+        while (parameter = next_parameter_iterator(&it))
         {
-            Parameter *parameter = get_parameter(apm->parameter, n);
-            if (n == last)
+            if (i == funct->parameters.count - 1)
                 LAST_ON_LINE();
+
 #ifdef PRINT_PARSED
             PRINT_EXPRESSION(apm, parameter->type_expression, source_text);
             PRINT(" ");

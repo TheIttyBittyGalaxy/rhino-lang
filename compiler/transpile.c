@@ -256,8 +256,7 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
 
     case PARAMETER_REFERENCE:
     {
-        Parameter *param = get_parameter(apm->parameter, expr->parameter);
-        EMIT_SUBSTR(param->identity);
+        EMIT_SUBSTR(expr->parameter->identity);
         break;
     }
 
@@ -267,14 +266,19 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
         Function *callee = reference->function;
         EMIT_SUBSTR(callee->identity);
         EMIT("(");
-        for (size_t i = 0; i < expr->arguments.count; i++)
+
+        Argument *arg;
+        ArgumentIterator it = argument_iterator(expr->arguments);
+        size_t i = 0;
+        while (arg = next_argument_iterator(&it))
         {
             if (i > 0)
                 EMIT(",");
 
-            Argument *arg = get_argument_from_slice(apm->argument, expr->arguments, i);
             transpile_expression(t, apm, arg->expr);
+            i++;
         }
+
         EMIT(")");
         break;
     }
@@ -588,15 +592,18 @@ void transpile_function_signature(Transpiler *t, Program *apm, Function *funct)
     EMIT_SUBSTR(funct->identity);
     EMIT("(");
 
-    for (size_t i = 0; i < funct->parameters.count; i++)
+    Parameter *parameter;
+    ParameterIterator it = parameter_iterator(funct->parameters);
+    size_t i = 0;
+    while (parameter = next_parameter_iterator(&it))
     {
         if (i > 0)
             EMIT(", ");
 
-        Parameter *parameter = get_parameter_from_slice(apm->parameter, funct->parameters, i);
         transpile_type(t, apm, parameter->type);
         EMIT(" ");
         EMIT_SUBSTR(parameter->identity);
+        i++;
     }
 
     EMIT(")");

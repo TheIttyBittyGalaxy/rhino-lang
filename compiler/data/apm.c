@@ -20,16 +20,14 @@ DEFINE_LIST_ALLOCATOR(Expression, expression)
 DEFINE_LIST_ALLOCATOR(Statement, statement)
 DEFINE_LIST_ALLOCATOR(Block, block)
 DEFINE_LIST_ALLOCATOR(Function, function)
+DEFINE_LIST_ALLOCATOR(Argument, argument)
+DEFINE_LIST_ALLOCATOR(Parameter, parameter)
 
 // LIST TYPE //
 
-DEFINE_LIST_TYPE(Argument, argument)
-DEFINE_LIST_TYPE(Parameter, parameter)
 DEFINE_LIST_TYPE(Property, property)
 DEFINE_LIST_TYPE(SymbolTable, symbol_table)
 
-DEFINE_SLICE_TYPE(Argument, argument)
-DEFINE_SLICE_TYPE(Parameter, parameter)
 DEFINE_SLICE_TYPE(Property, property)
 DEFINE_SLICE_TYPE(SymbolTable, symbol_table)
 
@@ -47,6 +45,8 @@ void init_program(Program *apm, Allocator *allocator)
 {
     init_allocator(&apm->statement_lists, allocator, 1024);
     init_allocator(&apm->enum_value_lists, allocator, 1024);
+    init_allocator(&apm->parameter_lists, allocator, 1024);
+    init_allocator(&apm->arguments_lists, allocator, 1024);
 
     init_expression_list_allocator(&apm->expression, allocator, 1024);
     init_function_list_allocator(&apm->function, allocator, 1024);
@@ -56,8 +56,6 @@ void init_program(Program *apm, Allocator *allocator)
     init_block_list_allocator(&apm->block, allocator, 1024);
 
     // TODO: Old allocators, yet to be replaced
-    init_parameter_list(&apm->parameter);
-    init_argument_list(&apm->argument);
     init_property_list(&apm->property);
     init_symbol_table_list(&apm->symbol_table);
 
@@ -293,7 +291,7 @@ void dump_apm(Program *apm, const char *source_text)
         {
             printf("\n");
             Symbol symbol = symbol_table->symbol[i];
-            printf("\t%02d\t%s\t%02d\t", i, symbol_tag_string(symbol.tag), symbol.to.index);
+            printf("\t%02d\t%s\t%p\t", i, symbol_tag_string(symbol.tag), symbol.to.ptr);
             printf_substr(source_text, symbol.identity);
         }
         printf("\n");
@@ -354,7 +352,7 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
         return expr->variable->type;
 
     case PARAMETER_REFERENCE:
-        return get_parameter(apm->parameter, expr->parameter)->type;
+        return expr->parameter->type;
 
     // Function call
     case FUNCTION_CALL:

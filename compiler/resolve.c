@@ -89,7 +89,7 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *exp
 
                 case PARAMETER_SYMBOL:
                     expr->kind = PARAMETER_REFERENCE;
-                    expr->parameter = s.to.index;
+                    expr->parameter = s.to.parameter;
                     break;
 
                 case FUNCTION_SYMBOL:
@@ -156,11 +156,10 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *exp
             raise_compilation_error(c, EXPRESSION_IS_NOT_A_FUNCTION, callee->span);
         }
 
-        for (size_t i = 0; i < expr->arguments.count; i++)
-        {
-            Argument *arg = get_argument_from_slice(apm->argument, expr->arguments, i);
+        Argument *arg;
+        ArgumentIterator it = argument_iterator(expr->arguments);
+        while (arg = next_argument_iterator(&it))
             resolve_identities_in_expression(c, apm, arg->expr, symbol_table);
-        }
 
         break;
     }
@@ -325,11 +324,12 @@ void resolve_identities_in_function(Compiler *c, Program *apm, Function *funct, 
 
     size_t body_symbol_table = funct->body->symbol_table;
 
-    for (size_t i = 0; i < funct->parameters.count; i++)
+    Parameter *parameter;
+    ParameterIterator it = parameter_iterator(funct->parameters);
+    while (parameter = next_parameter_iterator(&it))
     {
-        Parameter *parameter = get_parameter_from_slice(apm->parameter, funct->parameters, i);
         resolve_identities_in_expression(c, apm, parameter->type_expression, symbol_table);
-        append_symbol(apm, body_symbol_table, PARAMETER_SYMBOL, (SymbolPointer){.index = funct->parameters.first + i}, parameter->identity);
+        append_symbol(apm, body_symbol_table, PARAMETER_SYMBOL, (SymbolPointer){.parameter = parameter}, parameter->identity);
     }
 
     resolve_identities_in_code_block(c, apm, funct->body);
@@ -499,11 +499,10 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
         resolve_types_in_expression(c, apm, expr->callee, symbol_table, (RhinoType){SORT_NONE});
 
         // TODO: Use the parameter types as type hints for the arguments
-        for (size_t i = 0; i < expr->arguments.count; i++)
-        {
-            Argument *arg = get_argument_from_slice(apm->argument, expr->arguments, i);
+        Argument *arg;
+        ArgumentIterator it = argument_iterator(expr->arguments);
+        while (arg = next_argument_iterator(&it))
             resolve_types_in_expression(c, apm, arg->expr, symbol_table, (RhinoType){SORT_NONE});
-        }
 
         break;
     }
@@ -698,9 +697,10 @@ void resolve_types_in_function(Compiler *c, Program *apm, Function *funct, Symbo
     else
         funct->return_type.sort = SORT_NONE;
 
-    for (size_t i = 0; i < funct->parameters.count; i++)
+    Parameter *parameter;
+    ParameterIterator it = parameter_iterator(funct->parameters);
+    while (parameter = next_parameter_iterator(&it))
     {
-        Parameter *parameter = get_parameter_from_slice(apm->parameter, funct->parameters, i);
         parameter->type = resolve_type_expression(c, apm, parameter->type_expression, symbol_table);
     }
 

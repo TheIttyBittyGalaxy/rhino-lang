@@ -40,10 +40,7 @@ Expression *parse_expression(Compiler *c, Program *apm);
 #define EAT(token_kind) eat(c, token_kind)
 #define TOKEN_STRING() token_string(c)
 
-#define PARAMETER(index) get_parameter(apm->parameter, index)
-#define ARGUMENT(index) get_argument(apm->argument, index)
 #define PROPERTY(index) get_property(apm->property, index)
-#define STATEMENT(index) get_statement(apm->statement, index)
 #define SYMBOL_TABLE(index) get_symbol_table(apm->symbol_table, index)
 
 #define START_SPAN(node_ptr) node_ptr->span.pos = token_string(c).pos;
@@ -201,23 +198,23 @@ void parse_function(Compiler *c, Program *apm, Block *parent, StatementListAlloc
     // TODO: Handle this scenario correctly
     assert(c->parse_status == OKAY);
 
-    size_t first_parameter = apm->parameter.count;
-    funct->parameters.first = first_parameter;
+    ParameterListAllocator param_allocator;
+    init_parameter_list_allocator(&param_allocator, &apm->parameter_lists, 512); // FIXME: 512 was chosen arbitrarily
 
     EAT(PAREN_L);
     while (peek_expression(c))
     {
-        size_t parameter = add_parameter(&apm->parameter);
-        START_SPAN(PARAMETER(parameter));
+        Parameter *parameter = append_parameter(&param_allocator);
+        START_SPAN(parameter);
 
         Expression *type_expression = parse_expression(c, apm);
-        PARAMETER(parameter)->type_expression = type_expression;
+        parameter->type_expression = type_expression;
 
         substr identity = TOKEN_STRING();
-        PARAMETER(parameter)->identity = identity;
+        parameter->identity = identity;
         EAT(IDENTITY);
 
-        END_SPAN(PARAMETER(parameter));
+        END_SPAN(parameter);
 
         if (!PEEK(COMMA))
             break;
@@ -226,8 +223,7 @@ void parse_function(Compiler *c, Program *apm, Block *parent, StatementListAlloc
     }
     EAT(PAREN_R);
 
-    size_t parameter_count = apm->parameter.count - first_parameter;
-    funct->parameters.count = parameter_count;
+    funct->parameters = get_parameter_list(param_allocator);
 
     if (peek_expression(c))
     {
@@ -1009,14 +1005,14 @@ Expression *parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrec
             expr->kind = FUNCTION_CALL;
             expr->callee = lhs;
 
-            size_t first_argument = apm->argument.count;
-            expr->arguments.first = first_argument;
+            ArgumentListAllocator arg_allocator;
+            init_argument_list_allocator(&arg_allocator, &apm->arguments_lists, 512); // FIXME: 512 was chosen arbitrarily
 
             ADVANCE();
             while (peek_expression(c))
             {
-                size_t arg = add_argument(&apm->argument);
-                ARGUMENT(arg)->expr = parse_expression(c, apm);
+                Argument *arg = append_argument(&arg_allocator);
+                arg->expr = parse_expression(c, apm);
 
                 if (!PEEK(COMMA))
                     break;
@@ -1025,8 +1021,7 @@ Expression *parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrec
             }
             EAT(PAREN_R);
 
-            size_t argument_count = apm->argument.count - first_argument;
-            expr->arguments.count = argument_count;
+            expr->arguments = get_argument_list(arg_allocator);
         }
 
         // Increment

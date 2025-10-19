@@ -30,7 +30,11 @@ typedef struct Block Block;
 DECLARE_LIST_ALLOCATOR(Block, block)
 
 typedef struct Function Function;
+typedef struct Parameter Parameter;
+typedef struct Argument Argument;
 DECLARE_LIST_ALLOCATOR(Function, function)
+DECLARE_LIST_ALLOCATOR(Parameter, parameter)
+DECLARE_LIST_ALLOCATOR(Argument, argument)
 
 // Types
 #define LIST_RHINO_SORTS(MACRO) \
@@ -119,9 +123,10 @@ typedef struct
 {
     union
     {
-        size_t index;
+        void *ptr;
         Function *function;
         Variable *variable;
+        Parameter *parameter;
         EnumType *enum_type;
         StructType *struct_type;
     };
@@ -148,16 +153,6 @@ DECLARE_LIST_TYPE(SymbolTable, symbol_table)
 
 void init_symbol_table(SymbolTable *symbol_table);
 void set_symbol_table_parent(SymbolTable *symbol_table, size_t parent_index);
-
-// Argument
-DECLARE_SLICE_TYPE(Argument, argument)
-
-typedef struct
-{
-    Expression *expr;
-} Argument;
-
-DECLARE_LIST_TYPE(Argument, argument)
 
 // Expression Precedence
 // Ordered from "happens last" to "happens first"
@@ -260,7 +255,7 @@ struct Expression
         };
         struct // PARAMETER_REFERENCE
         {
-            size_t parameter;
+            Parameter *parameter;
         };
         struct // TYPE_REFERENCE
         {
@@ -269,7 +264,7 @@ struct Expression
         struct // FUNCTION_CALL
         {
             Expression *callee;
-            ArgumentSlice arguments;
+            ArgumentList arguments;
         };
         struct // INDEX_BY_FIELD
         {
@@ -387,19 +382,6 @@ struct Block
     StatementList statements;
 };
 
-// Parameter
-DECLARE_SLICE_TYPE(Parameter, parameter)
-
-typedef struct
-{
-    substr span;
-    substr identity;
-    Expression *type_expression;
-    RhinoType type;
-} Parameter;
-
-DECLARE_LIST_TYPE(Parameter, parameter)
-
 // Function
 struct Function
 {
@@ -411,7 +393,22 @@ struct Function
     bool has_return_type_expression;
     RhinoType return_type;
 
-    ParameterSlice parameters;
+    ParameterList parameters;
+};
+
+// Parameter
+struct Parameter
+{
+    substr span;
+    substr identity;
+    Expression *type_expression;
+    RhinoType type;
+};
+
+// Argument
+struct Argument
+{
+    Expression *expr;
 };
 
 // Program
@@ -419,6 +416,8 @@ typedef struct
 {
     Allocator statement_lists;
     Allocator enum_value_lists;
+    Allocator parameter_lists;
+    Allocator arguments_lists;
 
     ExpressionListAllocator expression;
     FunctionListAllocator function;
@@ -428,8 +427,6 @@ typedef struct
     BlockListAllocator block;
 
     // TODO: Old allocators, yet to be replaced
-    ParameterList parameter;
-    ArgumentList argument;
     EnumValueList enum_value;
     PropertyList property;
     SymbolTableList symbol_table;
