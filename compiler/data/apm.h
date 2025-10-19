@@ -443,11 +443,6 @@ void dump_apm(Program *apm, const char *source_text);
 void print_parsed_apm(Program *apm, const char *source_text);
 void print_resolved_apm(Program *apm, const char *source_text);
 
-// Access methods
-size_t get_next_statement_in_block(Program *apm, Statement *code_block, size_t n);
-size_t get_first_statement_in_block(Program *apm, Statement *code_block);
-size_t get_last_statement_in_block(Program *apm, Statement *code_block);
-
 // Type analysis methods
 RhinoType get_expression_type(Program *apm, const char *source_text, Expression *expr);
 bool are_types_equal(RhinoType a, RhinoType b);
