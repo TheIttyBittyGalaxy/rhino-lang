@@ -1,0 +1,15 @@
+fn main() {
+    if x: > x;
+    if x: > x;
+    if x: > x;
+
+    if y: > y;
+    if y: > y;
+}
+
+fn some_other_place(): > x;
+
+// ERRORS
+// IDENTITY_DOES_NOT_EXIST:2:8
+// IDENTITY_DOES_NOT_EXIST:6:8
+// IDENTITY_DOES_NOT_EXIST:10:26
