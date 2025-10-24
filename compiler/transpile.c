@@ -455,6 +455,15 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
         break;
     }
 
+    case WHILE_LOOP:
+    {
+        EMIT("while (");
+        transpile_expression(t, apm, stmt->condition);
+        EMIT_LINE(")");
+        transpile_block(t, apm, stmt->body);
+        break;
+    }
+
     case BREAK_STATEMENT:
     {
         EMIT_LINE("break;");
