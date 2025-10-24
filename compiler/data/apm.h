@@ -308,6 +308,7 @@ struct Expression
                                    \
     MACRO(BREAK_LOOP)              \
     MACRO(FOR_LOOP)                \
+    MACRO(WHILE_LOOP)              \
     MACRO(BREAK_STATEMENT)         \
                                    \
     MACRO(ASSIGNMENT_STATEMENT)    \
@@ -347,7 +348,7 @@ struct Statement
         {
             Block *block;
         };
-        struct // IF_SEGMENT / ELSE_IF_SEGMENT / ELSE_SEGMENT
+        struct // IF_SEGMENT / ELSE_IF_SEGMENT / ELSE_SEGMENT / WHILE_LOOP
         {
             Block *body;
             Expression *condition;

@@ -166,6 +166,7 @@ bool peek_statement(Compiler *c)
            PEEK(KEYWORD_IF) ||
            PEEK(KEYWORD_FOR) ||
            PEEK(KEYWORD_LOOP) ||
+           PEEK(KEYWORD_WHILE) ||
            PEEK(KEYWORD_DEF) ||
            PEEK(ARROW_R) ||
            peek_expression(c);
@@ -491,6 +492,17 @@ Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *al
     {
         stmt->kind = BREAK_LOOP;
         EAT(KEYWORD_LOOP);
+        stmt->body = parse_block(c, apm, block);
+
+        goto finish;
+    }
+
+    // WHILE_LOOP
+    if (PEEK(KEYWORD_WHILE))
+    {
+        stmt->kind = WHILE_LOOP;
+        EAT(KEYWORD_WHILE);
+        stmt->condition = parse_expression(c, apm);
         stmt->body = parse_block(c, apm, block);
 
         goto finish;

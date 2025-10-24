@@ -298,6 +298,11 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
             break;
         }
 
+        case WHILE_LOOP:
+            resolve_identities_in_expression(c, apm, stmt->condition, block->symbol_table);
+            resolve_identities_in_code_block(c, apm, stmt->body);
+            break;
+
         case BREAK_STATEMENT:
             break;
 
@@ -668,6 +673,11 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
             resolve_types_in_code_block(c, apm, stmt->body);
             break;
         }
+
+        case WHILE_LOOP:
+            resolve_types_in_expression(c, apm, stmt->condition, block->symbol_table, (RhinoType){SORT_BOOL});
+            resolve_types_in_code_block(c, apm, stmt->body);
+            break;
 
         case BREAK_STATEMENT:
             break;

@@ -94,6 +94,21 @@ void check_statement_list(Compiler *c, Program *apm, StatementList statement_lis
             check_block(c, apm, stmt->body);
             break;
 
+        case WHILE_LOOP:
+        {
+            check_expression(c, apm, stmt->condition);
+            check_block(c, apm, stmt->body);
+
+            // Check condition is boolean
+            RhinoSort condition_sort = get_expression_type(apm, c->source_text, stmt->condition).sort;
+            if (condition_sort != SORT_BOOL && condition_sort != ERROR_SORT)
+            {
+                Expression *condition = stmt->condition;
+                raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, condition->span);
+            }
+            break;
+        }
+
         case BREAK_STATEMENT:
             break;
 

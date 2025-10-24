@@ -381,6 +381,18 @@ void PRINT_STATEMENT(Program *apm, Statement *stmt, const char *source_text)
 
         break;
 
+    case WHILE_LOOP:
+        PRINT("condition: ");
+        PRINT_EXPRESSION(apm, stmt->condition, source_text);
+        NEWLINE();
+
+        LAST_ON_LINE();
+        PRINT("body: ");
+        PRINT_BLOCK(apm, stmt->body, source_text);
+        NEWLINE();
+
+        break;
+
     case ASSIGNMENT_STATEMENT:
         PRINT("lhs: ");
         PRINT_EXPRESSION(apm, stmt->assignment_lhs, source_text);
