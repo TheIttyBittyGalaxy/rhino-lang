@@ -150,6 +150,7 @@ bool peek_expression(Compiler *c)
     return PEEK(IDENTITY) ||
            PEEK(KEYWORD_TRUE) ||
            PEEK(KEYWORD_FALSE) ||
+           PEEK(KEYWORD_NONE) ||
            PEEK(INTEGER) ||
            PEEK(RATIONAL) ||
            PEEK(STRING) ||
@@ -854,6 +855,11 @@ Expression *parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrec
         lhs->bool_value = false;
         ADVANCE();
     }
+    else if (PEEK(KEYWORD_NONE))
+    {
+        lhs->kind = NONE_LITERAL;
+        ADVANCE();
+    }
     else if (PEEK(INTEGER))
     {
         substr str = TOKEN_STRING();
@@ -961,6 +967,14 @@ Expression *parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrec
             EAT(PAREN_R);
 
             expr->arguments = get_argument_list(arg_allocator);
+        }
+
+        // Noneable
+        else if (PEEK(QUESTION) && RIGHT_ASSOCIATIVE_OPERATOR_BINDS(precedence_of(NONEABLE_EXPRESSION), caller_precedence))
+        {
+            expr->kind = NONEABLE_EXPRESSION;
+            expr->subject = lhs;
+            ADVANCE();
         }
 
         // Increment

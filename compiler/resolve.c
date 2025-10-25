@@ -136,6 +136,7 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *exp
         break;
     }
 
+    case NONE_LITERAL:
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
     case BOOLEAN_LITERAL:
@@ -178,6 +179,10 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *exp
     case RANGE_LITERAL:
         resolve_identities_in_expression(c, apm, expr->first, symbol_table);
         resolve_identities_in_expression(c, apm, expr->last, symbol_table);
+        break;
+
+    case NONEABLE_EXPRESSION:
+        resolve_identities_in_expression(c, apm, expr->subject, symbol_table);
         break;
 
     case UNARY_POS:
@@ -410,6 +415,14 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, S
         return ERROR_TYPE;
     }
 
+    if (expr->kind == NONEABLE_EXPRESSION)
+    {
+        RhinoType ty = resolve_type_expression(c, apm, expr->subject, symbol_table);
+        // FIXME: If type is already noneable, this should be an error
+        ty.is_noneable = true;
+        return ty;
+    }
+
     if (expr->kind == INDEX_BY_FIELD)
     {
         RhinoType subject_type = resolve_type_expression(c, apm, expr->subject, symbol_table);
@@ -490,6 +503,7 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
         break;
     }
 
+    case NONE_LITERAL:
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
     case BOOLEAN_LITERAL:
@@ -811,6 +825,7 @@ size_t determine_order_of_expression(Compiler *c, Program *apm, Expression *expr
     case IDENTITY_LITERAL:
         return 0;
 
+    case NONE_LITERAL:
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
     case BOOLEAN_LITERAL:

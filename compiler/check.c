@@ -73,7 +73,7 @@ void check_statement_list(Compiler *c, Program *apm, StatementList statement_lis
 
             // Check if statement conditions are booleans
             RhinoType condition_type = get_expression_type(apm, c->source_text, stmt->condition);
-            if (IS_VALID_TYPE(condition_type) && !IS_BOOL_TYPE(condition_type))
+            if (IS_VALID_TYPE(condition_type) && !IS_BOOL_TYPE(condition_type) && !condition_type.is_noneable)
             {
                 Expression *condition = stmt->condition;
                 raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, condition->span);
@@ -101,7 +101,7 @@ void check_statement_list(Compiler *c, Program *apm, StatementList statement_lis
 
             // Check condition is boolean
             RhinoType condition_type = get_expression_type(apm, c->source_text, stmt->condition);
-            if (IS_VALID_TYPE(condition_type) && !IS_BOOL_TYPE(condition_type))
+            if (IS_VALID_TYPE(condition_type) && !IS_BOOL_TYPE(condition_type) && !condition_type.is_noneable)
             {
                 Expression *condition = stmt->condition;
                 raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, condition->span);
@@ -160,6 +160,7 @@ void check_expression(Compiler *c, Program *apm, Expression *expr)
         break;
     }
 
+    case NONE_LITERAL:
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
     case BOOLEAN_LITERAL:

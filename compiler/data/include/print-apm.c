@@ -130,16 +130,20 @@ void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text)
         PRINT_SUBSTR(expr->identity);
         break;
 
+    case NONE_LITERAL:
+        PRINT("none");
+        break;
+
+    case BOOLEAN_LITERAL:
+        PRINT(expr->bool_value ? "true" : "false");
+        break;
+
     case INTEGER_LITERAL:
         PRINT_INT(expr->integer_value);
         break;
 
     case FLOAT_LITERAL:
         PRINT_FLOAT(expr->float_value);
-        break;
-
-    case BOOLEAN_LITERAL:
-        PRINT(expr->bool_value ? "true" : "false");
         break;
 
     case STRING_LITERAL:
@@ -244,6 +248,13 @@ void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text)
 
         UNINDENT();
         NEWLINE();
+
+        break;
+
+    case NONEABLE_EXPRESSION:
+        PRINT("(")
+        PRINT_EXPRESSION(apm, expr->subject, source_text);
+        PRINT(")?")
 
         break;
 

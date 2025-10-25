@@ -1,0 +1,19 @@
+fn maybe_print(str? arg) {
+    if arg:
+        > arg;
+}
+
+fn main() {
+    maybe_print(none);
+    maybe_print("Hello");
+    
+    str? x;
+    maybe_print(x);
+
+    x = "Howdy";
+    maybe_print(x);
+}
+
+// SUCCESS
+// Hello
+// Howdy

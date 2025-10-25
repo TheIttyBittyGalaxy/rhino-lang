@@ -62,6 +62,7 @@ DECLARE_ENUM(LIST_RHINO_TYPE_TAG, RhinoTypeTag, rhino_type_tag)
 struct RhinoType
 {
     RhinoTypeTag tag;
+    bool is_noneable;
     union
     {
         void *ptr;
@@ -79,17 +80,17 @@ struct RhinoType
                             ty.tag == RHINO_ERROR_TYPE)
 
 // RHINO_NATIVE_TYPE
-#define NATIVE_NONE ((RhinoType){RHINO_NATIVE_TYPE, &apm->none_type})
-#define NATIVE_BOOL ((RhinoType){RHINO_NATIVE_TYPE, &apm->bool_type})
-#define NATIVE_INT ((RhinoType){RHINO_NATIVE_TYPE, &apm->int_type})
-#define NATIVE_NUM ((RhinoType){RHINO_NATIVE_TYPE, &apm->num_type})
-#define NATIVE_STR ((RhinoType){RHINO_NATIVE_TYPE, &apm->str_type})
+#define NATIVE_NONE ((RhinoType){RHINO_NATIVE_TYPE, true, &apm->none_type})
+#define NATIVE_BOOL ((RhinoType){RHINO_NATIVE_TYPE, false, &apm->bool_type})
+#define NATIVE_INT ((RhinoType){RHINO_NATIVE_TYPE, false, &apm->int_type})
+#define NATIVE_NUM ((RhinoType){RHINO_NATIVE_TYPE, false, &apm->num_type})
+#define NATIVE_STR ((RhinoType){RHINO_NATIVE_TYPE, false, &apm->str_type})
 
 // RHINO_ENUM_TYPE
-#define ENUM_TYPE(enum_type) ((RhinoType){RHINO_ENUM_TYPE, enum_type})
+#define ENUM_TYPE(enum_type) ((RhinoType){RHINO_ENUM_TYPE, false, enum_type})
 
 // RHINO_STRUCT_TYPE
-#define STRUCT_TYPE(struct_type) ((RhinoType){RHINO_STRUCT_TYPE, struct_type})
+#define STRUCT_TYPE(struct_type) ((RhinoType){RHINO_STRUCT_TYPE, false, struct_type})
 
 // Native Type
 
@@ -191,7 +192,7 @@ void declare_symbol(Program *apm, SymbolTable *table, SymbolTag tag, void *ptr, 
     MACRO(PRECEDENCE_RANGE)            \
     MACRO(PRECEDENCE_UNARY)            \
     MACRO(PRECEDENCE_INDEX)            \
-    MACRO(PRECEDENCE_CALL_OR_INCREMENT)
+    MACRO(PRECEDENCE_IMMEDIATE)
 
 DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
 
@@ -200,6 +201,7 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
     MACRO(INVALID_EXPRESSION)        \
                                      \
     MACRO(IDENTITY_LITERAL)          \
+    MACRO(NONE_LITERAL)              \
     MACRO(INTEGER_LITERAL)           \
     MACRO(FLOAT_LITERAL)             \
     MACRO(BOOLEAN_LITERAL)           \
@@ -216,6 +218,8 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
     MACRO(INDEX_BY_FIELD)            \
                                      \
     MACRO(RANGE_LITERAL)             \
+                                     \
+    MACRO(NONEABLE_EXPRESSION)       \
                                      \
     MACRO(UNARY_POS)                 \
     MACRO(UNARY_NEG)                 \
@@ -300,6 +304,10 @@ struct Expression
         {
             Expression *first;
             Expression *last;
+        };
+        struct // NONEABLE_EXPRESSION
+        {
+            Expression *__noneable__subject; // NOTE: KEEP SYNCED WITH INDEX_BY_FIELD subject
         };
         struct // UNARY_*
         {

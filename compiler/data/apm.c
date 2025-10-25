@@ -33,6 +33,7 @@ DEFINE_LIST_ALLOCATOR(Argument, argument)
 
 // RHINO TYPE //
 
+// FIXME: Indicate if the string is noneable
 const char *rhino_type_string(Program *apm, RhinoType ty)
 {
     switch (ty.tag)
@@ -353,6 +354,9 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
     case IDENTITY_LITERAL:
         return ERROR_TYPE;
 
+    case NONE_LITERAL:
+        return NATIVE_NONE;
+
     case BOOLEAN_LITERAL:
         return NATIVE_BOOL;
 
@@ -501,12 +505,15 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
     case VARIABLE_REFERENCE:
         return PRECEDENCE_NONE;
 
+    case NONEABLE_EXPRESSION:
+        return PRECEDENCE_IMMEDIATE;
+
     case UNARY_INCREMENT:
     case UNARY_DECREMENT:
-        return PRECEDENCE_CALL_OR_INCREMENT;
+        return PRECEDENCE_IMMEDIATE;
 
     case FUNCTION_CALL:
-        return PRECEDENCE_CALL_OR_INCREMENT;
+        return PRECEDENCE_IMMEDIATE;
 
     case INDEX_BY_FIELD:
         return PRECEDENCE_INDEX;

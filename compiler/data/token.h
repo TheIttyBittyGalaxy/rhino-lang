@@ -32,6 +32,7 @@
     MACRO(ARROW_L)         \
     MACRO(ARROW_R)         \
     MACRO(EXCLAIM)         \
+    MACRO(QUESTION)        \
     MACRO(PERCENTAGE)      \
                            \
     MACRO(TWO_EQUAL)       \
@@ -50,6 +51,7 @@
     MACRO(KEYWORD_IF)      \
     MACRO(KEYWORD_IN)      \
     MACRO(KEYWORD_LOOP)    \
+    MACRO(KEYWORD_NONE)    \
     MACRO(KEYWORD_NOT)     \
     MACRO(KEYWORD_OR)      \
     MACRO(KEYWORD_RETURN)  \

@@ -6,5 +6,8 @@
         "utility": "c",
         "xutility": "c",
         "xlocale": "c"
-    }
+    },
+    "cSpell.words": [
+        "noneable"
+    ]
 }
