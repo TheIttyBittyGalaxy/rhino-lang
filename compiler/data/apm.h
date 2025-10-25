@@ -275,7 +275,7 @@ struct Expression
             Expression *subject;
             substr field;
         };
-        struct // RANGE
+        struct // RANGE_LITERAL
         {
             Expression *first;
             Expression *last;
