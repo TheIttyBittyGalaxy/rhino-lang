@@ -116,6 +116,7 @@ struct Variable
 {
     substr identity;
     RhinoType type;
+    size_t order; // FIXME: Is there a better name for this?
 };
 
 // Symbol table

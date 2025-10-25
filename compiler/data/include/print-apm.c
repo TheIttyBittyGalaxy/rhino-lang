@@ -412,11 +412,14 @@ void PRINT_STATEMENT(Program *apm, Statement *stmt, const char *source_text)
             NEWLINE();
         }
 
+        PRINT("variable: ");
+        PRINT_VARIABLE(apm, stmt->variable, source_text);
+        NEWLINE();
+
         if (stmt->type_expression == NULL && stmt->initial_value == NULL)
             LAST_ON_LINE();
 
-        PRINT("variable: ");
-        PRINT_VARIABLE(apm, stmt->variable, source_text);
+        PRINT("order: %d", stmt->variable->order);
         NEWLINE();
 
         if (stmt->type_expression)

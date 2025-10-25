@@ -1,5 +1,6 @@
 #include "fatal_error.h"
 #include "transpile.h"
+#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -771,7 +772,12 @@ void transpile_program(Transpiler *t, Program *apm)
             EMIT(" ");
             EMIT_SUBSTR(var->identity);
 
-            if (!declaration->initial_value)
+            if (declaration->initial_value && declaration->variable->order < 2)
+            {
+                EMIT(" = ");
+                transpile_expression(t, apm, declaration->initial_value);
+            }
+            else if (!declaration->initial_value)
             {
                 EMIT(" = ");
                 transpile_default_value(t, apm, var->type);
@@ -807,17 +813,26 @@ void transpile_program(Transpiler *t, Program *apm)
     EMIT_OPEN_BRACE();
 
     // Main - Initialise global variables
-    it = statement_iterator(apm->program_block->statements);
-    while (declaration = next_statement_iterator(&it))
+    size_t order = 2;
+    bool is_last_order = false;
+    while (!is_last_order)
     {
-        if (declaration->kind == VARIABLE_DECLARATION && declaration->initial_value)
+        is_last_order = true;
+        it = statement_iterator(apm->program_block->statements);
+        while (declaration = next_statement_iterator(&it))
         {
-            Variable *var = declaration->variable;
-            EMIT_SUBSTR(var->identity);
-            EMIT(" = ");
-            transpile_expression(t, apm, declaration->initial_value);
-            EMIT_LINE(";");
+            if (declaration->kind == VARIABLE_DECLARATION && declaration->variable->order == order)
+            {
+                assert(declaration->initial_value);
+                is_last_order = false;
+
+                EMIT_SUBSTR(declaration->variable->identity);
+                EMIT(" = ");
+                transpile_expression(t, apm, declaration->initial_value);
+                EMIT_LINE(";");
+            }
         }
+        order++;
     }
 
     // Main - User main function

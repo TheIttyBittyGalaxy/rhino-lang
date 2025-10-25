@@ -799,6 +799,128 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
     }
 }
 
+// RESOLVE VARIABLE ORDERS //
+
+size_t determine_order_of_expression(Compiler *c, Program *apm, Expression *expr)
+{
+    switch (expr->kind)
+    {
+    case INVALID_EXPRESSION:
+        return 0;
+
+    case IDENTITY_LITERAL:
+        return 0;
+
+    case INTEGER_LITERAL:
+    case FLOAT_LITERAL:
+    case BOOLEAN_LITERAL:
+    case STRING_LITERAL:
+    case ENUM_VALUE_LITERAL:
+        return 0;
+
+    case VARIABLE_REFERENCE:
+        return expr->variable->order;
+
+    case FUNCTION_REFERENCE:
+    case PARAMETER_REFERENCE:
+    case TYPE_REFERENCE:
+        return 0;
+
+    case FUNCTION_CALL:
+    {
+        size_t largest_order = 0;
+        Argument *arg;
+        ArgumentIterator it = argument_iterator(expr->arguments);
+        while (arg = next_argument_iterator(&it))
+        {
+            size_t order = determine_order_of_expression(c, apm, arg->expr);
+            if (order > largest_order)
+                largest_order = order;
+        }
+        return largest_order;
+    }
+    case INDEX_BY_FIELD:
+        return determine_order_of_expression(c, apm, expr->subject);
+
+    case RANGE_LITERAL:
+    {
+        size_t first = determine_order_of_expression(c, apm, expr->first);
+        size_t last = determine_order_of_expression(c, apm, expr->last);
+        return first > last ? first : last;
+    }
+
+    case UNARY_POS:
+    case UNARY_NEG:
+    case UNARY_NOT:
+    case UNARY_INCREMENT:
+    case UNARY_DECREMENT:
+        return determine_order_of_expression(c, apm, expr->operand);
+
+    case BINARY_MULTIPLY:
+    case BINARY_DIVIDE:
+    case BINARY_REMAINDER:
+    case BINARY_ADD:
+    case BINARY_SUBTRACT:
+    case BINARY_LESS_THAN:
+    case BINARY_GREATER_THAN:
+    case BINARY_LESS_THAN_EQUAL:
+    case BINARY_GREATER_THAN_EQUAL:
+    case BINARY_EQUAL:
+    case BINARY_NOT_EQUAL:
+    case BINARY_LOGICAL_AND:
+    case BINARY_LOGICAL_OR:
+    {
+        size_t lhs = determine_order_of_expression(c, apm, expr->lhs);
+        size_t rhs = determine_order_of_expression(c, apm, expr->rhs);
+        return lhs > rhs ? lhs : rhs;
+    }
+
+    default:
+        fatal_error("Could not determine order of %s expression", expression_kind_string(expr->kind));
+        break;
+    }
+
+    unreachable();
+}
+
+// FIXME: This will loop forever if variables recursively refer to each other in their initial values
+void resolve_variable_orders(Compiler *c, Program *apm, Block *block)
+{
+    assert(block->declaration_block);
+
+    Statement *stmt;
+    StatementIterator it;
+
+    it = statement_iterator(block->statements);
+    while (stmt = next_statement_iterator(&it))
+    {
+        if (stmt->kind != VARIABLE_DECLARATION)
+            continue;
+
+        stmt->variable->order = 0;
+    }
+
+    bool changes_made = true;
+    while (changes_made)
+    {
+        changes_made = false;
+
+        it = statement_iterator(block->statements);
+        while (stmt = next_statement_iterator(&it))
+        {
+            if (stmt->kind == VARIABLE_DECLARATION && stmt->initial_value)
+            {
+                size_t order = determine_order_of_expression(c, apm, stmt->initial_value) + 1;
+                if (order > stmt->variable->order)
+                {
+                    stmt->variable->order = order;
+                    changes_made = true;
+                }
+            }
+        }
+    }
+}
+
 // RESOLVE //
 
 void resolve(Compiler *c, Program *apm)
@@ -806,4 +928,5 @@ void resolve(Compiler *c, Program *apm)
     determine_main_function(c, apm);
     resolve_identities_in_declaration_block(c, apm, apm->program_block);
     resolve_types_in_declaration_block(c, apm, apm->program_block);
+    resolve_variable_orders(c, apm, apm->program_block); // FIXME: This will not tree-walk into nested declaration blocks
 }
