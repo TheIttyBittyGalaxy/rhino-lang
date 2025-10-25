@@ -5,10 +5,10 @@ fn main() {
 }
 
 def x = y;
-Thing y = foo;
+Thing y = far;
 
 enum Thing { foo, bar, boo, far }
 
 // SUCCESS
-// foo
+// far
 // bar
