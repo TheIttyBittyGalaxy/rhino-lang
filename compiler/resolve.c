@@ -737,39 +737,65 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
     assert(block->declaration_block);
 
     Statement *stmt;
-    StatementIterator it = statement_iterator(block->statements);
+    StatementIterator it;
+
+    // Resolve types in variable declarations
+    it = statement_iterator(block->statements);
+    while (stmt = next_statement_iterator(&it))
+    {
+        if (stmt->kind != VARIABLE_DECLARATION)
+            continue;
+
+        Variable *var = stmt->variable;
+
+        if (stmt->type_expression)
+            var->type = resolve_type_expression(c, apm, stmt->type_expression, block->symbol_table);
+
+        if (stmt->initial_value)
+            resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, var->type);
+    }
+
+    bool changes_made;
+    do // For inferred type declarations, keep on resolving types until this no longer results in changes
+    {
+        changes_made = false;
+
+        it = statement_iterator(block->statements);
+        while (stmt = next_statement_iterator(&it))
+        {
+            if (stmt->kind == VARIABLE_DECLARATION && !stmt->type_expression && stmt->variable->type.sort == UNINITIALISED_SORT)
+            {
+                Variable *var = stmt->variable;
+
+                if (stmt->initial_value)
+                    var->type = get_expression_type(apm, c->source_text, stmt->initial_value);
+                else
+                    var->type.sort = ERROR_SORT;
+
+                if (var->type.sort != UNINITIALISED_SORT)
+                    changes_made = true;
+            }
+        }
+    } while (changes_made);
+
+    it = statement_iterator(block->statements);
+    while (stmt = next_statement_iterator(&it))
+    {
+        if (stmt->kind == VARIABLE_DECLARATION && stmt->variable->type.sort == UNINITIALISED_SORT)
+        {
+            stmt->variable->type.sort = INVALID_SORT;
+            // TODO: What should happen in this situation?
+        }
+    }
+
+    // Resolve structs and functions
+    it = statement_iterator(block->statements);
     while (stmt = next_statement_iterator(&it))
     {
         if (stmt->kind == FUNCTION_DECLARATION)
             resolve_types_in_function(c, apm, stmt->function, block->symbol_table);
         if (stmt->kind == STRUCT_TYPE_DECLARATION)
             resolve_types_in_struct_type(c, apm, stmt->struct_type, block->symbol_table);
-        if (stmt->kind == VARIABLE_DECLARATION)
-        {
-            // TODO: This is copy/pasted and modified from resolve_types_in_code_block.
-            //       Find an effective way to tidy.
-
-            Variable *var = stmt->variable;
-            var->type.sort = INVALID_SORT;
-
-            if (stmt->type_expression)
-            {
-                var->type = resolve_type_expression(c, apm, stmt->type_expression, block->symbol_table);
-
-                if (stmt->initial_value)
-                    resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, var->type);
-            }
-            else if (stmt->initial_value)
-            {
-                resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, (RhinoType){SORT_NONE});
-                var->type = get_expression_type(apm, c->source_text, stmt->initial_value);
-            }
-            else
-            {
-                // TODO: What should happen if we find am inferred variable
-                //       declaration that was defined without an initial value?
-            }
-        }
     }
 }
 

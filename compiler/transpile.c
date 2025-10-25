@@ -760,12 +760,25 @@ void transpile_program(Transpiler *t, Program *apm)
     }
     EMIT_NEWLINE();
 
-    // Global variables
+    // Declare global variables
     it = statement_iterator(apm->program_block->statements);
     while (declaration = next_statement_iterator(&it))
     {
         if (declaration->kind == VARIABLE_DECLARATION)
-            transpile_statement(t, apm, declaration);
+        {
+            Variable *var = declaration->variable;
+            transpile_type(t, apm, var->type);
+            EMIT(" ");
+            EMIT_SUBSTR(var->identity);
+
+            if (!declaration->initial_value)
+            {
+                EMIT(" = ");
+                transpile_default_value(t, apm, var->type);
+            }
+
+            EMIT_LINE(";");
+        }
     }
 
     // Forward declarations for global functoins
@@ -789,10 +802,27 @@ void transpile_program(Transpiler *t, Program *apm)
     }
     EMIT_NEWLINE();
 
-    // Main
+    // Main - Function
     EMIT_LINE("int main(int argc, char *argv[])");
     EMIT_OPEN_BRACE();
+
+    // Main - Initialise global variables
+    it = statement_iterator(apm->program_block->statements);
+    while (declaration = next_statement_iterator(&it))
+    {
+        if (declaration->kind == VARIABLE_DECLARATION && declaration->initial_value)
+        {
+            Variable *var = declaration->variable;
+            EMIT_SUBSTR(var->identity);
+            EMIT(" = ");
+            transpile_expression(t, apm, declaration->initial_value);
+            EMIT_LINE(";");
+        }
+    }
+
+    // Main - User main function
     transpile_block(t, apm, apm->main->body);
+
     EMIT_CLOSE_BRACE();
 }
 
