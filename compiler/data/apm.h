@@ -8,6 +8,9 @@
 
 // Forward Declarations
 
+typedef struct RhinoType RhinoType;
+typedef struct NativeType NativeType;
+
 typedef struct EnumValue EnumValue;
 typedef struct EnumType EnumType;
 DECLARE_LIST_ALLOCATOR(EnumValue, enum_value)
@@ -42,40 +45,53 @@ DECLARE_LIST_ALLOCATOR(Argument, argument)
 typedef struct Program Program;
 
 // Types
-#define LIST_RHINO_SORTS(MACRO)                                        \
-    /* The compiler has not correctly assigned a value to this sort */ \
-    MACRO(INVALID_SORT)                                                \
-                                                                       \
-    /* The compiler as marked this sort as "to be assigned" */         \
-    MACRO(UNINITIALISED_SORT)                                          \
-                                                                       \
-    /* This sort value cannot be determined due to user error */       \
-    MACRO(ERROR_SORT)                                                  \
-                                                                       \
-    /* This thing does not have a type */                              \
-    MACRO(SORT_NONE)                                                   \
-                                                                       \
-    /* Native types */                                                 \
-    MACRO(SORT_BOOL)                                                   \
-    MACRO(SORT_INT)                                                    \
-    MACRO(SORT_NUM)                                                    \
-    MACRO(SORT_STR)                                                    \
-                                                                       \
-    /* User types */                                                   \
-    MACRO(SORT_ENUM)                                                   \
-    MACRO(SORT_STRUCT)
+#define LIST_RHINO_TYPE_TAG(MACRO)      \
+    MACRO(RHINO_INVALID_TYPE_TAG)       \
+    MACRO(RHINO_UNINITIALISED_TYPE_TAG) \
+                                        \
+    /* The type cannot be determined    \
+       due to user error. */            \
+    MACRO(RHINO_ERROR_TYPE)             \
+                                        \
+    MACRO(RHINO_NATIVE_TYPE)            \
+    MACRO(RHINO_ENUM_TYPE)              \
+    MACRO(RHINO_STRUCT_TYPE)
 
-DECLARE_ENUM(LIST_RHINO_SORTS, RhinoSort, rhino_sort)
+DECLARE_ENUM(LIST_RHINO_TYPE_TAG, RhinoTypeTag, rhino_type_tag)
 
-typedef struct
+struct RhinoType
 {
-    RhinoSort sort;
+    RhinoTypeTag tag;
     union
     {
-        EnumType *enum_type;
-        StructType *struct_type;
+        void *ptr;
+        NativeType *native_type; // RHINO_NATIVE_TYPE
+        EnumType *enum_type;     // RHINO_ENUM_TYPE
+        StructType *struct_type; // RHINO_STRUCT_TYPE
     };
-} RhinoType;
+};
+
+#define ERROR_TYPE ((RhinoType){RHINO_ERROR_TYPE, 0})
+
+// RHINO_NATIVE_TYPE
+#define NATIVE_NONE ((RhinoType){RHINO_NATIVE_TYPE, &apm->none_type})
+#define NATIVE_BOOL ((RhinoType){RHINO_NATIVE_TYPE, &apm->bool_type})
+#define NATIVE_INT ((RhinoType){RHINO_NATIVE_TYPE, &apm->int_type})
+#define NATIVE_NUM ((RhinoType){RHINO_NATIVE_TYPE, &apm->num_type})
+#define NATIVE_STR ((RhinoType){RHINO_NATIVE_TYPE, &apm->str_type})
+
+// RHINO_ENUM_TYPE
+#define ENUM_TYPE(enum_type) ((RhinoType){RHINO_ENUM_TYPE, enum_type})
+
+// RHINO_STRUCT_TYPE
+#define STRUCT_TYPE(struct_type) ((RhinoType){RHINO_STRUCT_TYPE, struct_type})
+
+// Native Type
+
+struct NativeType
+{
+    const char *name;
+};
 
 // Enum value
 struct EnumValue
@@ -434,6 +450,12 @@ struct Program
     StructTypeListAllocator struct_type;
     BlockListAllocator block;
 
+    NativeType none_type;
+    NativeType bool_type;
+    NativeType int_type;
+    NativeType num_type;
+    NativeType str_type;
+
     Function *main;
 
     Block *program_block;
@@ -451,7 +473,15 @@ void print_resolved_apm(Program *apm, const char *source_text);
 // Type analysis methods
 RhinoType get_expression_type(Program *apm, const char *source_text, Expression *expr);
 bool are_types_equal(RhinoType a, RhinoType b);
-bool allow_assign_a_to_b(RhinoType a, RhinoType b);
+bool is_native_type(RhinoType ty, NativeType *native_type);
+bool allow_assign_a_to_b(Program *apm, RhinoType a, RhinoType b);
+
+#define IS_ERROR_TYPE(ty) (ty.tag == RHINO_ERROR_TYPE)
+#define IS_NONE_TYPE(ty) is_native_type(ty, &apm->none_type)
+#define IS_BOOL_TYPE(ty) is_native_type(ty, &apm->bool_type)
+#define IS_INT_TYPE(ty) is_native_type(ty, &apm->int_type)
+#define IS_NUM_TYPE(ty) is_native_type(ty, &apm->num_type)
+#define IS_STR_TYPE(ty) is_native_type(ty, &apm->str_type)
 
 // Expression precedence methods
 ExprPrecedence precedence_of(ExpressionKind expr_kind);

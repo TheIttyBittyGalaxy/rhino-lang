@@ -4,7 +4,7 @@
 
 // ENUMS //
 
-DEFINE_ENUM(LIST_RHINO_SORTS, RhinoSort, rhino_sort)
+DEFINE_ENUM(LIST_RHINO_TYPE_TAG, RhinoTypeTag, rhino_type_tag)
 DEFINE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
 DEFINE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 DEFINE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)
@@ -35,8 +35,35 @@ DEFINE_LIST_ALLOCATOR(Argument, argument)
 
 const char *rhino_type_string(Program *apm, RhinoType ty)
 {
-    // TODO: Return name of enum type instead of sort
-    return rhino_sort_string(ty.sort);
+    switch (ty.tag)
+    {
+
+    case RHINO_INVALID_TYPE_TAG:
+        return "INVALID_TYPE";
+
+    case RHINO_UNINITIALISED_TYPE_TAG:
+        return "UNINITIALISED_TYPE";
+
+    case RHINO_ERROR_TYPE:
+        return "ERROR_TYPE";
+
+    case RHINO_NATIVE_TYPE:
+        return ty.native_type->name;
+
+    case RHINO_ENUM_TYPE:
+        // FIXME: Return the name of the struct, rather than the tag name
+        return "ENUM_TYPE";
+
+    case RHINO_STRUCT_TYPE:
+        // FIXME: Return the name of the struct, rather than the tag name
+        return "STRUCT_TYPE";
+
+    default:
+        fatal_error("Could not stringify %s Rhino type.", rhino_type_tag_string(ty.tag));
+        break;
+    }
+
+    __builtin_unreachable();
 }
 
 // INIT APM //
@@ -317,41 +344,29 @@ void dump_apm(Program *apm, const char *source_text)
 
 RhinoType get_expression_type(Program *apm, const char *source_text, Expression *expr)
 {
-    RhinoType result;
-
     switch (expr->kind)
     {
     case INVALID_EXPRESSION:
-        result.sort = ERROR_SORT;
-        break;
+        return ERROR_TYPE;
 
     // Literals
     case IDENTITY_LITERAL:
-        result.sort = ERROR_SORT;
-        break;
+        return ERROR_TYPE;
 
     case BOOLEAN_LITERAL:
-        result.sort = SORT_BOOL;
-        break;
-
-    case STRING_LITERAL:
-        result.sort = SORT_STR;
-        break;
+        return NATIVE_BOOL;
 
     case INTEGER_LITERAL:
-        result.sort = SORT_INT;
-        break;
+        return NATIVE_INT;
 
     case FLOAT_LITERAL:
-        result.sort = SORT_NUM;
-        break;
+        return NATIVE_NUM;
+
+    case STRING_LITERAL:
+        return NATIVE_STR;
 
     case ENUM_VALUE_LITERAL:
-    {
-        result.sort = SORT_ENUM;
-        result.enum_type = expr->enum_value->type_of_enum_value;
-        break;
-    }
+        return ENUM_TYPE(expr->enum_value->type_of_enum_value);
 
     // Variables and parameters
     case VARIABLE_REFERENCE:
@@ -362,28 +377,20 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
 
     // Function call
     case FUNCTION_CALL:
-    {
-        Expression *callee = expr->callee;
+        if (expr->callee->kind == FUNCTION_REFERENCE)
+            return expr->callee->function->return_type;
 
-        if (callee->kind != FUNCTION_REFERENCE)
-        {
-            result.sort = ERROR_SORT;
-            break;
-        }
-
-        Function *funct = callee->function;
-        return funct->return_type;
-    }
+        return ERROR_TYPE;
 
     // Index by field
     case INDEX_BY_FIELD:
     {
         RhinoType subject_type = get_expression_type(apm, source_text, expr->subject);
-        if (subject_type.sort == SORT_STRUCT)
+
+        if (subject_type.tag == RHINO_STRUCT_TYPE)
         {
-            StructType *struct_type = subject_type.struct_type;
             Property *property;
-            PropertyIterator it = property_iterator(struct_type->properties);
+            PropertyIterator it = property_iterator(subject_type.struct_type->properties);
             while (property = next_property_iterator(&it))
             {
                 if (substr_match(source_text, property->identity, expr->field))
@@ -391,8 +398,7 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
             }
         }
 
-        result.sort = ERROR_SORT;
-        break;
+        return ERROR_TYPE;
     }
 
     // Numerical operations
@@ -403,12 +409,10 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
         return get_expression_type(apm, source_text, expr->operand);
 
     case UNARY_NOT:
-        result.sort = SORT_BOOL;
-        break;
+        return NATIVE_BOOL;
 
     case BINARY_DIVIDE:
-        result.sort = SORT_NUM;
-        break;
+        return NATIVE_NUM;
 
     case BINARY_MULTIPLY:
     case BINARY_REMAINDER:
@@ -417,11 +421,10 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
     {
         RhinoType lhs_type = get_expression_type(apm, source_text, expr->lhs);
         RhinoType rhs_type = get_expression_type(apm, source_text, expr->rhs);
-        if (lhs_type.sort == SORT_INT && rhs_type.sort == SORT_INT)
-            result.sort = SORT_INT;
-        else
-            result.sort = SORT_NUM;
-        break;
+        if (IS_INT_TYPE(lhs_type) && IS_INT_TYPE(rhs_type))
+            return NATIVE_INT;
+
+        return NATIVE_NUM;
     }
 
     // Logical operations
@@ -433,40 +436,49 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
     case BINARY_NOT_EQUAL:
     case BINARY_LOGICAL_AND:
     case BINARY_LOGICAL_OR:
-        result.sort = SORT_BOOL;
-        break;
+        return NATIVE_BOOL;
 
     default:
         fatal_error("Could not determine type of %s expression.", expression_kind_string(expr->kind));
         break;
     }
 
-    return result;
+    __builtin_unreachable();
 }
 
+// NOTE: The behaviour of this function has not been consider for RhinoTypes
+//       RHINO_INVALID_TYPE_TAG / RHINO_UNINITIALISED_TYPE_TAG / RHINO_ERROR_TYPE
 bool are_types_equal(RhinoType a, RhinoType b)
 {
-    if (a.sort != b.sort)
+    if (a.tag != b.tag)
         return false;
 
-    if (a.sort == SORT_ENUM && a.enum_type != b.enum_type)
+    if (a.tag == RHINO_NATIVE_TYPE && a.native_type != b.native_type)
         return false;
 
-    if (a.sort == SORT_STRUCT && a.enum_type != b.enum_type)
+    if (a.tag == RHINO_ENUM_TYPE && a.enum_type != b.enum_type)
+        return false;
+
+    if (a.tag == RHINO_STRUCT_TYPE && a.enum_type != b.enum_type)
         return false;
 
     return true;
 }
 
-bool allow_assign_a_to_b(RhinoType a, RhinoType b)
+bool is_native_type(RhinoType ty, NativeType *native_type)
 {
-    if (a.sort == ERROR_SORT || b.sort == ERROR_SORT)
+    return ty.tag == RHINO_NATIVE_TYPE && ty.native_type == native_type;
+}
+
+bool allow_assign_a_to_b(Program *apm, RhinoType a, RhinoType b)
+{
+    if (IS_ERROR_TYPE(a) || IS_ERROR_TYPE(b))
         return true;
 
     if (are_types_equal(a, b))
         return true;
 
-    if (a.sort == SORT_INT && b.sort == SORT_NUM)
+    if (IS_INT_TYPE(a) && IS_NUM_TYPE(b))
         return true;
 
     return false;

@@ -47,26 +47,33 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *exp
 
     case IDENTITY_LITERAL:
     {
-        // Primitive types
+        // Native types
         // TODO: Implement these as types declared in the global scope which are not allowed to be shadowed
+        if (substr_is(c->source_text, expr->identity, "bool"))
+        {
+            expr->kind = TYPE_REFERENCE;
+            expr->type = NATIVE_BOOL;
+            break;
+        }
+
         if (substr_is(c->source_text, expr->identity, "int"))
         {
             expr->kind = TYPE_REFERENCE;
-            expr->type.sort = SORT_INT;
+            expr->type = NATIVE_INT;
             break;
         }
 
         if (substr_is(c->source_text, expr->identity, "num"))
         {
             expr->kind = TYPE_REFERENCE;
-            expr->type.sort = SORT_NUM;
+            expr->type = NATIVE_NUM;
             break;
         }
 
         if (substr_is(c->source_text, expr->identity, "str"))
         {
             expr->kind = TYPE_REFERENCE;
-            expr->type.sort = SORT_STR;
+            expr->type = NATIVE_STR;
             break;
         }
 
@@ -101,14 +108,12 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *exp
 
                 case ENUM_TYPE_SYMBOL:
                     expr->kind = TYPE_REFERENCE;
-                    expr->type.sort = SORT_ENUM;
-                    expr->type.enum_type = s.enum_type;
+                    expr->type = ENUM_TYPE(s.enum_type);
                     break;
 
                 case STRUCT_TYPE_SYMBOL:
                     expr->kind = TYPE_REFERENCE;
-                    expr->type.sort = SORT_STRUCT;
-                    expr->type.struct_type = s.struct_type;
+                    expr->type = STRUCT_TYPE(s.struct_type);
                     break;
 
                 default:
@@ -393,7 +398,7 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, S
     // FIXME: At the moment `parse_expression` will give a "expected expression" error whenever a type
     //        expression is invalid. Find a way of handling this that gives more helpful/specific errors.
     if (expr->kind == INVALID_EXPRESSION)
-        return (RhinoType){ERROR_SORT, 0};
+        return ERROR_TYPE;
 
     if (expr->kind == TYPE_REFERENCE)
         return expr->type;
@@ -402,17 +407,17 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, S
     {
         raise_compilation_error(c, TYPE_DOES_NOT_EXIST, expr->span);
         expr->given_error = true;
-        return (RhinoType){ERROR_SORT, 0};
+        return ERROR_TYPE;
     }
 
     if (expr->kind == INDEX_BY_FIELD)
     {
         RhinoType subject_type = resolve_type_expression(c, apm, expr->subject, symbol_table);
 
-        if (subject_type.sort == ERROR_SORT)
-            return (RhinoType){ERROR_SORT, 0}; // Return immediately, no need to produce an additional error
+        if (IS_ERROR_TYPE(subject_type))
+            return ERROR_TYPE; // Return immediately, no need to produce an additional error
 
-        if (subject_type.sort == SORT_STRUCT)
+        if (subject_type.tag == RHINO_STRUCT_TYPE)
         {
             StructType *struct_type = subject_type.struct_type;
             SymbolTable *current_table = struct_type->body->symbol_table;
@@ -430,17 +435,13 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, S
                     {
                     case ENUM_TYPE_SYMBOL:
                         expr->kind = TYPE_REFERENCE;
-                        expr->type.sort = SORT_ENUM;
-                        expr->type.enum_type = s.enum_type;
+                        expr->type = ENUM_TYPE(s.enum_type);
                         return expr->type;
-                        break;
 
                     case STRUCT_TYPE_SYMBOL:
                         expr->kind = TYPE_REFERENCE;
-                        expr->type.sort = SORT_STRUCT;
-                        expr->type.struct_type = s.struct_type;
+                        expr->type = STRUCT_TYPE(s.struct_type);
                         return expr->type;
-                        break;
 
                     default:
                         fatal_error("Could not resolve IDENTITY_LITERAL that mapped to %s symbol inside of struct type.", symbol_tag_string(s.tag));
@@ -454,12 +455,12 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, S
             }
 
             raise_compilation_error(c, TYPE_DOES_NOT_EXIST, expr->span);
-            return (RhinoType){ERROR_SORT, 0};
+            return ERROR_TYPE;
         }
     }
 
     raise_compilation_error(c, TYPE_IS_INVALID, expr->span);
-    return (RhinoType){ERROR_SORT, 0};
+    return ERROR_TYPE;
 }
 
 void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, SymbolTable *symbol_table, RhinoType type_hint)
@@ -471,7 +472,7 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
 
     case IDENTITY_LITERAL:
     {
-        if (type_hint.sort == SORT_ENUM)
+        if (type_hint.tag == RHINO_ENUM_TYPE)
         {
             EnumType *enum_type = type_hint.enum_type;
             EnumValue *enum_value;
@@ -504,27 +505,27 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
 
     case FUNCTION_CALL:
     {
-        resolve_types_in_expression(c, apm, expr->callee, symbol_table, (RhinoType){SORT_NONE});
+        resolve_types_in_expression(c, apm, expr->callee, symbol_table, NATIVE_NONE);
 
         // TODO: Use the parameter types as type hints for the arguments
         Argument *arg;
         ArgumentIterator it = argument_iterator(expr->arguments);
         while (arg = next_argument_iterator(&it))
-            resolve_types_in_expression(c, apm, arg->expr, symbol_table, (RhinoType){SORT_NONE});
+            resolve_types_in_expression(c, apm, arg->expr, symbol_table, NATIVE_NONE);
 
         break;
     }
 
     case INDEX_BY_FIELD:
     {
-        resolve_types_in_expression(c, apm, expr->subject, symbol_table, (RhinoType){SORT_NONE});
+        resolve_types_in_expression(c, apm, expr->subject, symbol_table, NATIVE_NONE);
 
         // Resolve enum values
         Expression *subject = expr->subject;
         if (subject->kind != TYPE_REFERENCE)
             return;
 
-        if (subject->type.sort != SORT_ENUM)
+        if (subject->type.tag != RHINO_ENUM_TYPE)
             return;
 
         EnumType *enum_type = subject->type.enum_type;
@@ -545,8 +546,8 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
     }
 
     case RANGE_LITERAL:
-        resolve_types_in_expression(c, apm, expr->first, symbol_table, (RhinoType){SORT_NONE});
-        resolve_types_in_expression(c, apm, expr->last, symbol_table, (RhinoType){SORT_NONE});
+        resolve_types_in_expression(c, apm, expr->first, symbol_table, NATIVE_NONE);
+        resolve_types_in_expression(c, apm, expr->last, symbol_table, NATIVE_NONE);
         break;
 
     case UNARY_POS:
@@ -554,7 +555,7 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
     case UNARY_NOT:
     case UNARY_INCREMENT:
     case UNARY_DECREMENT:
-        resolve_types_in_expression(c, apm, expr->operand, symbol_table, (RhinoType){SORT_NONE});
+        resolve_types_in_expression(c, apm, expr->operand, symbol_table, NATIVE_NONE);
         break;
 
     case BINARY_MULTIPLY:
@@ -570,8 +571,8 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
     case BINARY_NOT_EQUAL:
     case BINARY_LOGICAL_AND:
     case BINARY_LOGICAL_OR:
-        resolve_types_in_expression(c, apm, expr->lhs, symbol_table, (RhinoType){SORT_NONE});
-        resolve_types_in_expression(c, apm, expr->rhs, symbol_table, (RhinoType){SORT_NONE});
+        resolve_types_in_expression(c, apm, expr->lhs, symbol_table, NATIVE_NONE);
+        resolve_types_in_expression(c, apm, expr->rhs, symbol_table, NATIVE_NONE);
         break;
 
     default:
@@ -597,7 +598,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
         case VARIABLE_DECLARATION:
         {
             Variable *var = stmt->variable;
-            var->type.sort = INVALID_SORT;
+            var->type.tag = RHINO_INVALID_TYPE_TAG;
 
             if (stmt->type_expression)
             {
@@ -608,7 +609,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
             }
             else if (stmt->initial_value)
             {
-                resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, (RhinoType){SORT_NONE});
+                resolve_types_in_expression(c, apm, stmt->initial_value, block->symbol_table, NATIVE_NONE);
                 var->type = get_expression_type(apm, c->source_text, stmt->initial_value);
             }
             else
@@ -637,7 +638,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
 
         case IF_SEGMENT:
         case ELSE_IF_SEGMENT:
-            resolve_types_in_expression(c, apm, stmt->condition, block->symbol_table, (RhinoType){SORT_BOOL});
+            resolve_types_in_expression(c, apm, stmt->condition, block->symbol_table, NATIVE_BOOL);
             resolve_types_in_code_block(c, apm, stmt->body);
             break;
 
@@ -652,18 +653,17 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
         // For loops, including type inference of the iterator
         case FOR_LOOP:
         {
-            resolve_types_in_expression(c, apm, stmt->iterable, block->symbol_table, (RhinoType){SORT_NONE});
+            resolve_types_in_expression(c, apm, stmt->iterable, block->symbol_table, NATIVE_NONE);
 
             Variable *iterator = stmt->iterator;
             Expression *iterable = stmt->iterable;
             if (iterable->kind == RANGE_LITERAL)
             {
-                iterator->type.sort = SORT_INT;
+                iterator->type = NATIVE_INT;
             }
-            else if (iterable->kind == TYPE_REFERENCE && iterable->type.sort == SORT_ENUM)
+            else if (iterable->kind == TYPE_REFERENCE && iterable->type.tag == RHINO_ENUM_TYPE)
             {
-                iterator->type.sort = SORT_ENUM;
-                iterator->type.enum_type = iterable->type.enum_type;
+                iterator->type = ENUM_TYPE(iterable->type.enum_type);
             }
             else
             {
@@ -675,7 +675,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
         }
 
         case WHILE_LOOP:
-            resolve_types_in_expression(c, apm, stmt->condition, block->symbol_table, (RhinoType){SORT_BOOL});
+            resolve_types_in_expression(c, apm, stmt->condition, block->symbol_table, NATIVE_BOOL);
             resolve_types_in_code_block(c, apm, stmt->body);
             break;
 
@@ -684,7 +684,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
 
         case ASSIGNMENT_STATEMENT:
         {
-            resolve_types_in_expression(c, apm, stmt->assignment_lhs, block->symbol_table, (RhinoType){SORT_NONE});
+            resolve_types_in_expression(c, apm, stmt->assignment_lhs, block->symbol_table, NATIVE_NONE);
             RhinoType lhs_type = get_expression_type(apm, c->source_text, stmt->assignment_lhs);
             resolve_types_in_expression(c, apm, stmt->assignment_rhs, block->symbol_table, lhs_type);
             break;
@@ -696,7 +696,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
         {
             // TODO: Use the return type of the function as a type hint for return statements
             if (stmt->expression)
-                resolve_types_in_expression(c, apm, stmt->expression, block->symbol_table, (RhinoType){SORT_NONE});
+                resolve_types_in_expression(c, apm, stmt->expression, block->symbol_table, NATIVE_NONE);
             break;
         }
 
@@ -712,7 +712,7 @@ void resolve_types_in_function(Compiler *c, Program *apm, Function *funct, Symbo
     if (funct->has_return_type_expression)
         funct->return_type = resolve_type_expression(c, apm, funct->return_type_expression, symbol_table);
     else
-        funct->return_type.sort = SORT_NONE;
+        funct->return_type = NATIVE_NONE; // FIXME: None is used to mean "null". There there be another type for "no return value"
 
     Parameter *parameter;
     ParameterIterator it = parameter_iterator(funct->parameters);
@@ -763,16 +763,16 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
         it = statement_iterator(block->statements);
         while (stmt = next_statement_iterator(&it))
         {
-            if (stmt->kind == VARIABLE_DECLARATION && !stmt->type_expression && stmt->variable->type.sort == UNINITIALISED_SORT)
+            if (stmt->kind == VARIABLE_DECLARATION && !stmt->type_expression && stmt->variable->type.tag == RHINO_UNINITIALISED_TYPE_TAG)
             {
                 Variable *var = stmt->variable;
 
                 if (stmt->initial_value)
                     var->type = get_expression_type(apm, c->source_text, stmt->initial_value);
                 else
-                    var->type.sort = ERROR_SORT;
+                    var->type.tag = RHINO_ERROR_TYPE;
 
-                if (var->type.sort != UNINITIALISED_SORT)
+                if (var->type.tag != RHINO_UNINITIALISED_TYPE_TAG)
                     changes_made = true;
             }
         }
@@ -781,9 +781,9 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
     it = statement_iterator(block->statements);
     while (stmt = next_statement_iterator(&it))
     {
-        if (stmt->kind == VARIABLE_DECLARATION && stmt->variable->type.sort == UNINITIALISED_SORT)
+        if (stmt->kind == VARIABLE_DECLARATION && stmt->variable->type.tag == RHINO_UNINITIALISED_TYPE_TAG)
         {
-            stmt->variable->type.sort = INVALID_SORT;
+            stmt->variable->type.tag = RHINO_INVALID_TYPE_TAG;
             // TODO: What should happen in this situation?
         }
     }
@@ -880,7 +880,7 @@ size_t determine_order_of_expression(Compiler *c, Program *apm, Expression *expr
         break;
     }
 
-    unreachable();
+    __builtin_unreachable();
 }
 
 // FIXME: This will loop forever if variables recursively refer to each other in their initial values

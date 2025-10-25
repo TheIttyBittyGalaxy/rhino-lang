@@ -40,7 +40,7 @@ void check_statement_list(Compiler *c, Program *apm, StatementList statement_lis
             RhinoType var_type = stmt->variable->type;
             RhinoType value_type = get_expression_type(apm, c->source_text, stmt->initial_value);
 
-            if (!allow_assign_a_to_b(value_type, var_type))
+            if (!allow_assign_a_to_b(apm, value_type, var_type))
                 raise_compilation_error(c, RHS_TYPE_DOES_NOT_MATCH_LHS, stmt->span);
 
             break;
@@ -72,8 +72,8 @@ void check_statement_list(Compiler *c, Program *apm, StatementList statement_lis
             check_block(c, apm, stmt->body);
 
             // Check if statement conditions are booleans
-            RhinoSort condition_sort = get_expression_type(apm, c->source_text, stmt->condition).sort;
-            if (condition_sort != SORT_BOOL && condition_sort != ERROR_SORT)
+            RhinoType condition_type = get_expression_type(apm, c->source_text, stmt->condition);
+            if (!IS_BOOL_TYPE(condition_type) && IS_ERROR_TYPE(condition_type))
             {
                 Expression *condition = stmt->condition;
                 raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, condition->span);
@@ -100,8 +100,8 @@ void check_statement_list(Compiler *c, Program *apm, StatementList statement_lis
             check_block(c, apm, stmt->body);
 
             // Check condition is boolean
-            RhinoSort condition_sort = get_expression_type(apm, c->source_text, stmt->condition).sort;
-            if (condition_sort != SORT_BOOL && condition_sort != ERROR_SORT)
+            RhinoType condition_type = get_expression_type(apm, c->source_text, stmt->condition);
+            if (!IS_BOOL_TYPE(condition_type) && IS_ERROR_TYPE(condition_type))
             {
                 Expression *condition = stmt->condition;
                 raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, condition->span);
@@ -121,7 +121,7 @@ void check_statement_list(Compiler *c, Program *apm, StatementList statement_lis
             RhinoType lhs_type = get_expression_type(apm, c->source_text, stmt->assignment_lhs);
             RhinoType rhs_type = get_expression_type(apm, c->source_text, stmt->assignment_rhs);
 
-            if (!allow_assign_a_to_b(rhs_type, lhs_type))
+            if (!allow_assign_a_to_b(apm, rhs_type, lhs_type))
                 raise_compilation_error(c, RHS_TYPE_DOES_NOT_MATCH_LHS, stmt->span);
 
             break;

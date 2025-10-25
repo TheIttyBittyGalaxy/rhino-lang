@@ -183,6 +183,12 @@ void parse(Compiler *compiler, Program *apm)
 
 void parse_program(Compiler *c, Program *apm)
 {
+    apm->none_type.name = "none";
+    apm->bool_type.name = "bool";
+    apm->int_type.name = "int";
+    apm->num_type.name = "num";
+    apm->str_type.name = "str";
+
     apm->global_symbol_table = allocate_symbol_table(&apm->symbol_table, NULL);
     parse_program_block(c, apm);
 }
@@ -192,7 +198,7 @@ void parse_function(Compiler *c, Program *apm, Block *parent, StatementListAlloc
 {
     Function *funct = append_function(&apm->function);
     funct->has_return_type_expression = false;
-    funct->return_type.sort = UNINITIALISED_SORT;
+    funct->return_type.tag = RHINO_UNINITIALISED_TYPE_TAG;
     START_SPAN(funct);
 
     Statement *declaration = append_statement(parent_statements);
@@ -362,7 +368,7 @@ void parse_struct_type(Compiler *c, Program *apm, Block *parent, StatementListAl
 void parse_variable_declaration(Compiler *c, Program *apm, Block *parent, StatementListAllocator *parent_statements, Statement *declaration, bool declare_symbol_in_parent)
 {
     Variable *var = append_variable(&apm->variable);
-    var->type.sort = UNINITIALISED_SORT;
+    var->type.tag = RHINO_UNINITIALISED_TYPE_TAG;
 
     if (declaration == NULL)
     {
@@ -520,7 +526,7 @@ Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *al
         stmt->iterator = iterator;
 
         iterator->identity = TOKEN_STRING();
-        iterator->type.sort = UNINITIALISED_SORT;
+        iterator->type.tag = RHINO_UNINITIALISED_TYPE_TAG;
         EAT(IDENTITY);
 
         EAT(KEYWORD_IN);

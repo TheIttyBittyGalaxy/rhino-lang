@@ -17,7 +17,7 @@ typedef struct
 
 // FORWARD DECLARATIONS //
 
-void transpile_type(Transpiler *t, Program *apm, RhinoType rhino_type);
+void transpile_type(Transpiler *t, Program *apm, RhinoType ty);
 void transpile_expression(Transpiler *t, Program *apm, Expression *expr);
 void transpile_statement(Transpiler *t, Program *apm, Statement *stmt);
 void transpile_block(Transpiler *t, Program *apm, Block *block);
@@ -112,70 +112,67 @@ void emit_close_brace(Transpiler *t)
 
 // TRANSPILE //
 
-void transpile_type(Transpiler *t, Program *apm, RhinoType rhino_type)
+void transpile_type(Transpiler *t, Program *apm, RhinoType ty)
 {
-    switch (rhino_type.sort)
+    switch (ty.tag)
     {
-    case SORT_NONE:
-        EMIT("void");
+    case RHINO_NATIVE_TYPE:
+        if (IS_NONE_TYPE(ty))
+            EMIT("void");
+        else if (IS_BOOL_TYPE(ty))
+            EMIT("bool");
+        else if (IS_INT_TYPE(ty))
+            EMIT("int");
+        else if (IS_NUM_TYPE(ty))
+            EMIT("double");
+        else if (IS_STR_TYPE(ty))
+            EMIT("char*");
+        else
+            fatal_error("Unable to generate native Rhino type %s.", ty.native_type->name);
+
         break;
 
-    case SORT_BOOL:
-        EMIT("bool");
+    case RHINO_ENUM_TYPE:
+        EMIT_SUBSTR(ty.enum_type->identity);
         break;
 
-    case SORT_STR:
-        EMIT("char*");
+    case RHINO_STRUCT_TYPE:
+        EMIT_SUBSTR(ty.struct_type->identity);
         break;
-
-    case SORT_INT:
-        EMIT("int");
-        break;
-
-    case SORT_NUM:
-        EMIT("double");
-        break;
-
-    case SORT_ENUM:
-    {
-        EnumType *enum_type = rhino_type.enum_type;
-        EMIT_SUBSTR(enum_type->identity);
-        break;
-    }
-
-    case SORT_STRUCT:
-    {
-        StructType *struct_type = rhino_type.struct_type;
-        EMIT_SUBSTR(struct_type->identity);
-        break;
-    }
 
     default:
-        fatal_error("Unable to generate Rhino type %s.", rhino_type_string(apm, rhino_type));
+        fatal_error("Unable to generate Rhino type %s.", rhino_type_string(apm, ty));
     }
 }
 
-void transpile_default_value(Transpiler *t, Program *apm, RhinoType rhino_type)
+void transpile_default_value(Transpiler *t, Program *apm, RhinoType ty)
 {
-    switch (rhino_type.sort)
+    switch (ty.tag)
     {
+    case RHINO_NATIVE_TYPE:
+        if (IS_BOOL_TYPE(ty))
+            EMIT("false");
+        else if (IS_INT_TYPE(ty))
+            EMIT("0");
+        else if (IS_NUM_TYPE(ty))
+            EMIT("0");
+        else if (IS_STR_TYPE(ty))
+            EMIT("\"\"");
 
-    case SORT_BOOL:
-        EMIT("false");
         break;
 
-    case SORT_STR:
-        EMIT("\"\"");
+    // FIXME: This is a bodge job just to get things working for now.
+    //        The language semantics prohibit a default value for enums.
+    //        (Though, none is the default of noneable enums).
+    case RHINO_ENUM_TYPE:
+        EMIT("(");
+        EMIT_SUBSTR(ty.enum_type->identity);
+        EMIT(")0");
         break;
 
-    case SORT_INT:
-    case SORT_NUM:
-        EMIT("0");
-        break;
-
-    case SORT_STRUCT:
+    case RHINO_STRUCT_TYPE:
     {
-        StructType *struct_type = rhino_type.struct_type;
+        StructType *struct_type = ty.struct_type;
 
         EMIT("(");
         EMIT_SUBSTR(struct_type->identity);
@@ -197,20 +194,8 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType rhino_type)
         break;
     }
 
-    // FIXME: This is a bodge job just to get things working for now.
-    //        The language semantics prohibit a default value for enums.
-    //        (Though, none is the default of noneable enums).
-    case SORT_ENUM:
-    {
-        EnumType *enum_type = rhino_type.enum_type;
-        EMIT("(");
-        EMIT_SUBSTR(enum_type->identity);
-        EMIT(")0");
-        break;
-    }
-
     default:
-        fatal_error("Could not transpile default value for value of type %s.", rhino_type_string(apm, rhino_type));
+        fatal_error("Could not transpile default value for value of type %s.", rhino_type_string(apm, ty));
     }
 }
 
@@ -426,7 +411,7 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
             break;
         }
 
-        if (iterable->kind == TYPE_REFERENCE && iterable->type.sort == SORT_ENUM)
+        if (iterable->kind == TYPE_REFERENCE && iterable->type.tag == RHINO_ENUM_TYPE)
         {
             EnumType *enum_type = iterable->type.enum_type;
 
@@ -503,67 +488,66 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
         Expression *expr = stmt->expression;
         RhinoType expr_type = get_expression_type(apm, t->source_text, expr);
 
-        switch (expr_type.sort)
+        switch (expr_type.tag)
         {
-
-        case SORT_BOOL:
-        {
-            EMIT_ESCAPED("printf(\"%s\\n\", (");
-            transpile_expression(t, apm, expr);
-            EMIT_LINE(") ? \"true\" : \"false\");");
-            break;
-        }
-
-        case SORT_STR:
-        {
-            if (expr->kind == STRING_LITERAL)
+        case RHINO_NATIVE_TYPE:
+            if (IS_BOOL_TYPE(expr_type))
             {
-                EMIT("printf(\"");
-                EMIT_SUBSTR(expr->string_value);
-                EMIT_LINE("\\n\");");
+                EMIT_ESCAPED("printf(\"%s\\n\", (");
+                transpile_expression(t, apm, expr);
+                EMIT_LINE(") ? \"true\" : \"false\");");
+                break;
             }
-            else
+
+            if (IS_STR_TYPE(expr_type))
             {
-                EMIT_ESCAPED("printf(\"%s\\n\", ");
+                if (expr->kind == STRING_LITERAL)
+                {
+                    EMIT("printf(\"");
+                    EMIT_SUBSTR(expr->string_value);
+                    EMIT_LINE("\\n\");");
+                }
+                else
+                {
+                    EMIT_ESCAPED("printf(\"%s\\n\", ");
+                    transpile_expression(t, apm, expr);
+                    EMIT_LINE(");");
+                }
+                break;
+            }
+
+            if (IS_INT_TYPE(expr_type))
+            {
+                EMIT_ESCAPED("printf(\"%d\\n\", ");
                 transpile_expression(t, apm, expr);
                 EMIT_LINE(");");
+                break;
             }
+
+            if (IS_NUM_TYPE(expr_type))
+            {
+                EMIT_OPEN_BRACE();
+
+                EMIT("float_to_str(");
+                transpile_expression(t, apm, expr);
+                EMIT_LINE(");");
+
+                EMIT_ESCAPED("printf(\"%s\\n\", __to_str_buffer);");
+
+                EMIT_CLOSE_BRACE();
+                break;
+            }
+
+            fatal_error("Unable to generate output statement for expression with native type %s.", expr_type.native_type->name);
             break;
-        }
 
-        case SORT_INT:
-        {
-            EMIT_ESCAPED("printf(\"%d\\n\", ");
-            transpile_expression(t, apm, expr);
-            EMIT_LINE(");");
-            break;
-        }
-
-        case SORT_NUM:
-        {
-            EMIT_OPEN_BRACE();
-
-            EMIT("float_to_str(");
-            transpile_expression(t, apm, expr);
-            EMIT_LINE(");");
-
-            EMIT_ESCAPED("printf(\"%s\\n\", __to_str_buffer);");
-
-            EMIT_CLOSE_BRACE();
-            break;
-        }
-
-        case SORT_ENUM:
-        {
-            EnumType *enum_type = expr_type.enum_type;
-
+        case RHINO_ENUM_TYPE:
             EMIT_ESCAPED("printf(\"%s\\n\", string_of_");
-            EMIT_SUBSTR(enum_type->identity);
+            EMIT_SUBSTR(expr_type.enum_type->identity);
             EMIT("(");
             transpile_expression(t, apm, expr);
             EMIT_LINE("));");
             break;
-        }
 
         default:
             fatal_error("Unable to generate output statement for expression with type %s.", rhino_type_string(apm, expr_type));
