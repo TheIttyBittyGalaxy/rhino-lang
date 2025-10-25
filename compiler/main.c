@@ -4,7 +4,7 @@
 #include "parse.h"
 #include "resolve.h"
 #include "check.h"
-#include "transpile.h"
+#include "generate.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
 
-        transpile(&compiler, &apm);
+        generate(&compiler, &apm);
 
         printf("SUCCESS\n");
 
@@ -197,9 +197,9 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    // Transpile
-    HEADING("Transpile");
-    transpile(&compiler, &apm);
+    // Generate
+    HEADING("Generate");
+    generate(&compiler, &apm);
 
     HEADING("Complete");
     return EXIT_SUCCESS;

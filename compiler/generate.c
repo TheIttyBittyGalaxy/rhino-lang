@@ -1,5 +1,5 @@
 #include "fatal_error.h"
-#include "transpile.h"
+#include "generate.h"
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -13,22 +13,22 @@ typedef struct
 
     bool newline_pending;
     size_t indent;
-} Transpiler;
+} Generator;
 
 // FORWARD DECLARATIONS //
 
-void transpile_type(Transpiler *t, Program *apm, RhinoType ty);
-void transpile_expression(Transpiler *t, Program *apm, Expression *expr);
-void transpile_statement(Transpiler *t, Program *apm, Statement *stmt);
-void transpile_block(Transpiler *t, Program *apm, Block *block);
-void transpile_function(Transpiler *t, Program *apm, Function *funct);
-void transpile_program(Transpiler *t, Program *apm);
+void generate_type(Generator *t, Program *apm, RhinoType ty);
+void generate_expression(Generator *t, Program *apm, Expression *expr);
+void generate_statement(Generator *t, Program *apm, Statement *stmt);
+void generate_block(Generator *t, Program *apm, Block *block);
+void generate_function(Generator *t, Program *apm, Function *funct);
+void generate_program(Generator *t, Program *apm);
 
 // EMIT //
 
 // TODO: Improve these implementations so that the output is formatted nicely
 
-void emit(Transpiler *t, const char *str, ...)
+void emit(Generator *t, const char *str, ...)
 {
     if (t->newline_pending)
     {
@@ -45,7 +45,7 @@ void emit(Transpiler *t, const char *str, ...)
 }
 
 // NOTE: Will escape any "%" with "%%" - allows us to emit printf format strings
-void emit_escaped(Transpiler *t, const char *str)
+void emit_escaped(Generator *t, const char *str)
 {
     // TODO: Check if C already implements this?
     // TODO: Check that this is escaping all the characters that it should
@@ -72,13 +72,13 @@ void emit_escaped(Transpiler *t, const char *str)
     emit(t, buffer);
 }
 
-void emit_substr(Transpiler *t, substr sub)
+void emit_substr(Generator *t, substr sub)
 {
     emit(t, "%.*s", sub.len, t->source_text + sub.pos);
 }
 
 // TODO: Prevent multiple consecutive blank lines
-void emit_line(Transpiler *t, const char *str, ...)
+void emit_line(Generator *t, const char *str, ...)
 {
     va_list args;
     va_start(args, str);
@@ -88,14 +88,14 @@ void emit_line(Transpiler *t, const char *str, ...)
     t->newline_pending = true;
 }
 
-void emit_open_brace(Transpiler *t)
+void emit_open_brace(Generator *t)
 {
     t->newline_pending = true;
     emit_line(t, "{");
     t->indent++;
 }
 
-void emit_close_brace(Transpiler *t)
+void emit_close_brace(Generator *t)
 {
     t->newline_pending = true;
     t->indent--;
@@ -112,7 +112,7 @@ void emit_close_brace(Transpiler *t)
 
 // TRANSPILE //
 
-void transpile_type(Transpiler *t, Program *apm, RhinoType ty)
+void generate_type(Generator *t, Program *apm, RhinoType ty)
 {
     switch (ty.tag)
     {
@@ -145,7 +145,7 @@ void transpile_type(Transpiler *t, Program *apm, RhinoType ty)
     }
 }
 
-void transpile_default_value(Transpiler *t, Program *apm, RhinoType ty)
+void generate_default_value(Generator *t, Program *apm, RhinoType ty)
 {
     switch (ty.tag)
     {
@@ -186,7 +186,7 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType ty)
             if (i > 0)
                 EMIT(", ");
 
-            transpile_default_value(t, apm, property->type);
+            generate_default_value(t, apm, property->type);
             i++;
         }
 
@@ -195,16 +195,16 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType ty)
     }
 
     default:
-        fatal_error("Could not transpile default value for value of type %s.", rhino_type_string(apm, ty));
+        fatal_error("Could not generate default value for value of type %s.", rhino_type_string(apm, ty));
     }
 }
 
-void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
+void generate_expression(Generator *t, Program *apm, Expression *expr)
 {
     switch (expr->kind)
     {
     case IDENTITY_LITERAL:
-        fatal_error("Attempt to transpile an IDENTITY_LITERAL expression. By this pass we would have expected this to become a VARIABLE_REFERENCE.");
+        fatal_error("Attempt to generate an IDENTITY_LITERAL expression. By this pass we would have expected this to become a VARIABLE_REFERENCE.");
         break;
 
     case BOOLEAN_LITERAL:
@@ -264,7 +264,7 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
             if (i > 0)
                 EMIT(",");
 
-            transpile_expression(t, apm, arg->expr);
+            generate_expression(t, apm, arg->expr);
             i++;
         }
 
@@ -274,7 +274,7 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
 
     case INDEX_BY_FIELD:
     {
-        transpile_expression(t, apm, expr->subject);
+        generate_expression(t, apm, expr->subject);
         EMIT(".");
         EMIT_SUBSTR(expr->field);
         break;
@@ -282,47 +282,47 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
 
     case UNARY_POS:
     {
-        transpile_expression(t, apm, expr->operand);
+        generate_expression(t, apm, expr->operand);
         break;
     }
 
     case UNARY_NEG:
     {
         EMIT("-");
-        transpile_expression(t, apm, expr->operand);
+        generate_expression(t, apm, expr->operand);
         break;
     }
 
     case UNARY_NOT:
     {
         EMIT("!");
-        transpile_expression(t, apm, expr->operand);
+        generate_expression(t, apm, expr->operand);
         break;
     }
 
     case UNARY_INCREMENT:
     {
-        transpile_expression(t, apm, expr->operand);
+        generate_expression(t, apm, expr->operand);
         EMIT("++");
         break;
     }
 
     case UNARY_DECREMENT:
     {
-        transpile_expression(t, apm, expr->operand);
+        generate_expression(t, apm, expr->operand);
         EMIT("--");
         break;
     }
 
     // FIXME: Rhino and C may treat precedence differently. Ensure we insert extra ()s where required
     //        so that the C code produces the correct Rhino semantics.
-#define CASE_BINARY(expr_kind, symbol)           \
-    case expr_kind:                              \
-    {                                            \
-        transpile_expression(t, apm, expr->lhs); \
-        EMIT(" " symbol " ");                    \
-        transpile_expression(t, apm, expr->rhs); \
-        break;                                   \
+#define CASE_BINARY(expr_kind, symbol)          \
+    case expr_kind:                             \
+    {                                           \
+        generate_expression(t, apm, expr->lhs); \
+        EMIT(" " symbol " ");                   \
+        generate_expression(t, apm, expr->rhs); \
+        break;                                  \
     }
 
         CASE_BINARY(BINARY_MULTIPLY, "*")
@@ -342,12 +342,12 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
 #undef CASE_BINARY
 
     default:
-        fatal_error("Could not transpile %s expression.", expression_kind_string(expr->kind));
+        fatal_error("Could not generate %s expression.", expression_kind_string(expr->kind));
         break;
     }
 }
 
-void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
+void generate_statement(Generator *t, Program *apm, Statement *stmt)
 {
     switch (stmt->kind)
     {
@@ -359,7 +359,7 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
 
     case CODE_BLOCK:
     {
-        transpile_block(t, apm, stmt->block);
+        generate_block(t, apm, stmt->block);
         break;
     }
 
@@ -367,22 +367,22 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
         EMIT("else ");
     case IF_SEGMENT:
         EMIT("if (");
-        transpile_expression(t, apm, stmt->condition);
+        generate_expression(t, apm, stmt->condition);
         EMIT(")");
-        transpile_block(t, apm, stmt->body);
+        generate_block(t, apm, stmt->body);
         break;
 
     case ELSE_SEGMENT:
     {
         EMIT("else ");
-        transpile_block(t, apm, stmt->body);
+        generate_block(t, apm, stmt->body);
         break;
     }
 
     case BREAK_LOOP:
     {
         EMIT_LINE("while (true)");
-        transpile_block(t, apm, stmt->body);
+        generate_block(t, apm, stmt->body);
         break;
     }
 
@@ -396,18 +396,18 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
             EMIT("for (int ");
             EMIT_SUBSTR(iterator->identity);
             EMIT(" = ");
-            transpile_expression(t, apm, iterable->first);
+            generate_expression(t, apm, iterable->first);
             EMIT("; ");
 
             EMIT_SUBSTR(iterator->identity);
             EMIT(" <= ");
-            transpile_expression(t, apm, iterable->last);
+            generate_expression(t, apm, iterable->last);
             EMIT("; ++", iterable->last);
 
             EMIT_SUBSTR(iterator->identity);
             EMIT(")");
 
-            transpile_block(t, apm, stmt->body);
+            generate_block(t, apm, stmt->body);
             break;
         }
 
@@ -433,20 +433,20 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
             EMIT_SUBSTR(iterator->identity);
             EMIT(" + 1))");
 
-            transpile_block(t, apm, stmt->body);
+            generate_block(t, apm, stmt->body);
             break;
         }
 
-        fatal_error("Could not transpile for loop with %s iterable.", expression_kind_string(iterable->kind));
+        fatal_error("Could not generate for loop with %s iterable.", expression_kind_string(iterable->kind));
         break;
     }
 
     case WHILE_LOOP:
     {
         EMIT("while (");
-        transpile_expression(t, apm, stmt->condition);
+        generate_expression(t, apm, stmt->condition);
         EMIT_LINE(")");
-        transpile_block(t, apm, stmt->body);
+        generate_block(t, apm, stmt->body);
         break;
     }
 
@@ -458,9 +458,9 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
 
     case ASSIGNMENT_STATEMENT:
     {
-        transpile_expression(t, apm, stmt->assignment_lhs);
+        generate_expression(t, apm, stmt->assignment_lhs);
         EMIT(" = ");
-        transpile_expression(t, apm, stmt->assignment_rhs);
+        generate_expression(t, apm, stmt->assignment_rhs);
 
         EMIT_LINE(";");
         break;
@@ -469,15 +469,15 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
     case VARIABLE_DECLARATION:
     {
         Variable *var = stmt->variable;
-        transpile_type(t, apm, var->type);
+        generate_type(t, apm, var->type);
         EMIT(" ");
         EMIT_SUBSTR(var->identity);
         EMIT(" = ");
 
         if (stmt->initial_value)
-            transpile_expression(t, apm, stmt->initial_value);
+            generate_expression(t, apm, stmt->initial_value);
         else
-            transpile_default_value(t, apm, var->type);
+            generate_default_value(t, apm, var->type);
 
         EMIT_LINE(";");
         break;
@@ -494,7 +494,7 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
             if (IS_BOOL_TYPE(expr_type))
             {
                 EMIT_ESCAPED("printf(\"%s\\n\", (");
-                transpile_expression(t, apm, expr);
+                generate_expression(t, apm, expr);
                 EMIT_LINE(") ? \"true\" : \"false\");");
                 break;
             }
@@ -510,7 +510,7 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
                 else
                 {
                     EMIT_ESCAPED("printf(\"%s\\n\", ");
-                    transpile_expression(t, apm, expr);
+                    generate_expression(t, apm, expr);
                     EMIT_LINE(");");
                 }
                 break;
@@ -519,7 +519,7 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
             if (IS_INT_TYPE(expr_type))
             {
                 EMIT_ESCAPED("printf(\"%d\\n\", ");
-                transpile_expression(t, apm, expr);
+                generate_expression(t, apm, expr);
                 EMIT_LINE(");");
                 break;
             }
@@ -529,7 +529,7 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
                 EMIT_OPEN_BRACE();
 
                 EMIT("float_to_str(");
-                transpile_expression(t, apm, expr);
+                generate_expression(t, apm, expr);
                 EMIT_LINE(");");
 
                 EMIT_ESCAPED("printf(\"%s\\n\", __to_str_buffer);");
@@ -545,7 +545,7 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
             EMIT_ESCAPED("printf(\"%s\\n\", string_of_");
             EMIT_SUBSTR(expr_type.enum_type->identity);
             EMIT("(");
-            transpile_expression(t, apm, expr);
+            generate_expression(t, apm, expr);
             EMIT_LINE("));");
             break;
 
@@ -558,7 +558,7 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
 
     case EXPRESSION_STMT:
     {
-        transpile_expression(t, apm, stmt->expression);
+        generate_expression(t, apm, stmt->expression);
         EMIT_LINE(";");
         break;
     }
@@ -566,32 +566,32 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
     case RETURN_STATEMENT:
     {
         EMIT("return ");
-        transpile_expression(t, apm, stmt->expression);
+        generate_expression(t, apm, stmt->expression);
         EMIT_LINE(";");
         break;
     }
 
     default:
-        fatal_error("Could not transpile %s statement.", statement_kind_string(stmt->kind));
+        fatal_error("Could not generate %s statement.", statement_kind_string(stmt->kind));
         break;
     }
 }
 
-void transpile_block(Transpiler *t, Program *apm, Block *block)
+void generate_block(Generator *t, Program *apm, Block *block)
 {
     EMIT_OPEN_BRACE();
 
     Statement *child;
     StatementIterator it = statement_iterator(block->statements);
     while (child = next_statement_iterator(&it))
-        transpile_statement(t, apm, child);
+        generate_statement(t, apm, child);
 
     EMIT_CLOSE_BRACE();
 }
 
-void transpile_function_signature(Transpiler *t, Program *apm, Function *funct)
+void generate_function_signature(Generator *t, Program *apm, Function *funct)
 {
-    transpile_type(t, apm, funct->return_type);
+    generate_type(t, apm, funct->return_type);
     EMIT(" ");
     EMIT_SUBSTR(funct->identity);
     EMIT("(");
@@ -604,7 +604,7 @@ void transpile_function_signature(Transpiler *t, Program *apm, Function *funct)
         if (i > 0)
             EMIT(", ");
 
-        transpile_type(t, apm, parameter->type);
+        generate_type(t, apm, parameter->type);
         EMIT(" ");
         EMIT_SUBSTR(parameter->identity);
         i++;
@@ -613,13 +613,13 @@ void transpile_function_signature(Transpiler *t, Program *apm, Function *funct)
     EMIT(")");
 }
 
-void transpile_function(Transpiler *t, Program *apm, Function *funct)
+void generate_function(Generator *t, Program *apm, Function *funct)
 {
-    transpile_function_signature(t, apm, funct);
-    transpile_block(t, apm, funct->body);
+    generate_function_signature(t, apm, funct);
+    generate_block(t, apm, funct->body);
 }
 
-void transpile_program(Transpiler *t, Program *apm)
+void generate_program(Generator *t, Program *apm)
 {
     // Rhino Runtime
     // NOTE: rhino/runtime_as_str.c should be a C string containing rhino/runtime.c.
@@ -714,7 +714,7 @@ void transpile_program(Transpiler *t, Program *apm)
             size_t i = 0;
             while (property = next_property_iterator(&it))
             {
-                transpile_type(t, apm, property->type);
+                generate_type(t, apm, property->type);
                 EMIT(" ");
                 EMIT_SUBSTR(property->identity);
                 EMIT_LINE(";");
@@ -752,19 +752,19 @@ void transpile_program(Transpiler *t, Program *apm)
         if (declaration->kind == VARIABLE_DECLARATION)
         {
             Variable *var = declaration->variable;
-            transpile_type(t, apm, var->type);
+            generate_type(t, apm, var->type);
             EMIT(" ");
             EMIT_SUBSTR(var->identity);
 
             if (declaration->initial_value && declaration->variable->order < 2)
             {
                 EMIT(" = ");
-                transpile_expression(t, apm, declaration->initial_value);
+                generate_expression(t, apm, declaration->initial_value);
             }
             else if (!declaration->initial_value)
             {
                 EMIT(" = ");
-                transpile_default_value(t, apm, var->type);
+                generate_default_value(t, apm, var->type);
             }
 
             EMIT_LINE(";");
@@ -777,7 +777,7 @@ void transpile_program(Transpiler *t, Program *apm)
     {
         if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
         {
-            transpile_function_signature(t, apm, declaration->function);
+            generate_function_signature(t, apm, declaration->function);
             EMIT_LINE(";");
         }
     }
@@ -788,7 +788,7 @@ void transpile_program(Transpiler *t, Program *apm)
     while (declaration = next_statement_iterator(&it))
     {
         if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
-            transpile_function(t, apm, declaration->function);
+            generate_function(t, apm, declaration->function);
     }
     EMIT_NEWLINE();
 
@@ -812,7 +812,7 @@ void transpile_program(Transpiler *t, Program *apm)
 
                 EMIT_SUBSTR(declaration->variable->identity);
                 EMIT(" = ");
-                transpile_expression(t, apm, declaration->initial_value);
+                generate_expression(t, apm, declaration->initial_value);
                 EMIT_LINE(";");
             }
         }
@@ -820,12 +820,12 @@ void transpile_program(Transpiler *t, Program *apm)
     }
 
     // Main - User main function
-    transpile_block(t, apm, apm->main->body);
+    generate_block(t, apm, apm->main->body);
 
     EMIT_CLOSE_BRACE();
 }
 
-void transpile(Compiler *compiler, Program *apm)
+void generate(Compiler *compiler, Program *apm)
 {
     FILE *handle = fopen("_out.c", "w");
     if (handle == NULL)
@@ -834,14 +834,14 @@ void transpile(Compiler *compiler, Program *apm)
         return;
     }
 
-    Transpiler transpiler;
-    transpiler.output = handle;
-    transpiler.source_text = compiler->source_text;
+    Generator generator;
+    generator.output = handle;
+    generator.source_text = compiler->source_text;
 
-    transpiler.newline_pending = false;
-    transpiler.indent = 0;
+    generator.newline_pending = false;
+    generator.indent = 0;
 
-    transpile_program(&transpiler, apm);
+    generate_program(&generator, apm);
 
     fclose(handle);
 }

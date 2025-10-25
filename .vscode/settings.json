@@ -5,7 +5,8 @@
         "chrono": "c",
         "utility": "c",
         "xutility": "c",
-        "xlocale": "c"
+        "xlocale": "c",
+        "generate.h": "c"
     },
     "cSpell.words": [
         "noneable"
