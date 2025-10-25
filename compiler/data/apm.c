@@ -472,7 +472,7 @@ bool is_native_type(RhinoType ty, NativeType *native_type)
 
 bool allow_assign_a_to_b(Program *apm, RhinoType a, RhinoType b)
 {
-    if (IS_ERROR_TYPE(a) || IS_ERROR_TYPE(b))
+    if (!IS_VALID_TYPE(a) || !IS_VALID_TYPE(b))
         return true;
 
     if (are_types_equal(a, b))

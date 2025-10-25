@@ -414,7 +414,7 @@ RhinoType resolve_type_expression(Compiler *c, Program *apm, Expression *expr, S
     {
         RhinoType subject_type = resolve_type_expression(c, apm, expr->subject, symbol_table);
 
-        if (IS_ERROR_TYPE(subject_type))
+        if (!IS_VALID_TYPE(subject_type))
             return ERROR_TYPE; // Return immediately, no need to produce an additional error
 
         if (subject_type.tag == RHINO_STRUCT_TYPE)

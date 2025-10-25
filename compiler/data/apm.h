@@ -71,7 +71,12 @@ struct RhinoType
     };
 };
 
+// RHINO_INVALID_TYPE_TAG / RHINO_UNINITIALISED_TYPE_TAG / RHINO_ERROR_TYPE
 #define ERROR_TYPE ((RhinoType){RHINO_ERROR_TYPE, 0})
+
+#define IS_VALID_TYPE(ty) !(ty.tag == RHINO_INVALID_TYPE_TAG ||       \
+                            ty.tag == RHINO_UNINITIALISED_TYPE_TAG || \
+                            ty.tag == RHINO_ERROR_TYPE)
 
 // RHINO_NATIVE_TYPE
 #define NATIVE_NONE ((RhinoType){RHINO_NATIVE_TYPE, &apm->none_type})
@@ -476,7 +481,6 @@ bool are_types_equal(RhinoType a, RhinoType b);
 bool is_native_type(RhinoType ty, NativeType *native_type);
 bool allow_assign_a_to_b(Program *apm, RhinoType a, RhinoType b);
 
-#define IS_ERROR_TYPE(ty) (ty.tag == RHINO_ERROR_TYPE)
 #define IS_NONE_TYPE(ty) is_native_type(ty, &apm->none_type)
 #define IS_BOOL_TYPE(ty) is_native_type(ty, &apm->bool_type)
 #define IS_INT_TYPE(ty) is_native_type(ty, &apm->int_type)
