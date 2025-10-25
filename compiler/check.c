@@ -31,7 +31,7 @@ void check_statement_list(Compiler *c, Program *apm, StatementList statement_lis
 
         case VARIABLE_DECLARATION:
         {
-            if (stmt->initial_value == NULL)
+            if (!stmt->initial_value)
                 continue;
 
             check_expression(c, apm, stmt->initial_value);
@@ -74,10 +74,8 @@ void check_statement_list(Compiler *c, Program *apm, StatementList statement_lis
             // Check if statement conditions are booleans
             RhinoType condition_type = get_expression_type(apm, c->source_text, stmt->condition);
             if (IS_VALID_TYPE(condition_type) && !IS_BOOL_TYPE(condition_type) && !condition_type.is_noneable)
-            {
-                Expression *condition = stmt->condition;
-                raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, condition->span);
-            }
+                raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, stmt->condition->span);
+
             break;
         }
 
@@ -102,10 +100,8 @@ void check_statement_list(Compiler *c, Program *apm, StatementList statement_lis
             // Check condition is boolean
             RhinoType condition_type = get_expression_type(apm, c->source_text, stmt->condition);
             if (IS_VALID_TYPE(condition_type) && !IS_BOOL_TYPE(condition_type) && !condition_type.is_noneable)
-            {
-                Expression *condition = stmt->condition;
-                raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, condition->span);
-            }
+                raise_compilation_error(c, CONDITION_IS_NOT_BOOLEAN, stmt->condition->span);
+
             break;
         }
 
