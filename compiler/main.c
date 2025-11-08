@@ -5,6 +5,7 @@
 #include "resolve.h"
 #include "check.h"
 #include "generate.h"
+#include "transpile.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -131,7 +132,10 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
 
-        generate(&compiler, &apm);
+        CProgram cpm;
+        init_c_program(&cpm, &global_allocator);
+        transpile(&compiler, &apm, &cpm);
+        generate(&compiler, &cpm);
 
         printf("SUCCESS\n");
 
@@ -162,9 +166,10 @@ int main(int argc, char *argv[])
         }
     }
 
-    HEADING("Parse");
     Program apm;
     init_program(&apm, &global_allocator);
+
+    HEADING("Parse");
     parse(&compiler, &apm);
     if (flag_parse_dump)
     {
@@ -197,9 +202,16 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    CProgram cpm;
+    init_c_program(&cpm, &global_allocator);
+
+    // Transpile
+    HEADING("Transpile");
+    transpile(&compiler, &apm, &cpm);
+
     // Generate
     HEADING("Generate");
-    generate(&compiler, &apm);
+    generate(&compiler, &cpm);
 
     HEADING("Complete");
     return EXIT_SUCCESS;

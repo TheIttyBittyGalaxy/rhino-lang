@@ -202,9 +202,9 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
                                      \
     MACRO(IDENTITY_LITERAL)          \
     MACRO(NONE_LITERAL)              \
+    MACRO(BOOLEAN_LITERAL)           \
     MACRO(INTEGER_LITERAL)           \
     MACRO(FLOAT_LITERAL)             \
-    MACRO(BOOLEAN_LITERAL)           \
     MACRO(STRING_LITERAL)            \
     MACRO(ENUM_VALUE_LITERAL)        \
                                      \
@@ -458,7 +458,6 @@ struct Program
     ExpressionListAllocator expression;
     FunctionListAllocator function;
     VariableListAllocator variable;
-    EnumValueList enum_value;
     EnumTypeListAllocator enum_type;
     StructTypeListAllocator struct_type;
     BlockListAllocator block;
