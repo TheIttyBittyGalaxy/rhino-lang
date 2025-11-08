@@ -11,16 +11,20 @@ typedef struct
 
     bool newline_pending;
     size_t indent;
+
+    // FIXME: Make this dynamically allocated/resizable to avoid buffer overflow?
+    char identity_buffer[512];
 } Transpiler;
 
-// FORWARD DECLARATIONS //
+// GET IDENTITY //
 
-void transpile_type(Transpiler *t, Program *apm, RhinoType ty);
-void transpile_expression(Transpiler *t, Program *apm, Expression *expr);
-void transpile_statement(Transpiler *t, Program *apm, Statement *stmt);
-void transpile_block(Transpiler *t, Program *apm, Block *block);
-void transpile_function(Transpiler *t, Program *apm, Function *funct);
-void transpile_program(Transpiler *t, Program *apm);
+const char *get_c_identity(Transpiler *t, void *apm_node, substr identity)
+{
+    sprintf(t->identity_buffer, "%.*s__%p", identity.len, t->source_text + identity.pos, apm_node);
+    return &t->identity_buffer[0];
+}
+
+#define GET_C_IDENTITY(ptr) get_c_identity(t, (void *)ptr, ptr->identity)
 
 // EMIT //
 
@@ -110,6 +114,13 @@ void emit_close_brace(Transpiler *t)
 
 // TRANSPILE //
 
+void transpile_type(Transpiler *t, Program *apm, RhinoType ty);
+void transpile_expression(Transpiler *t, Program *apm, Expression *expr);
+void transpile_statement(Transpiler *t, Program *apm, Statement *stmt);
+void transpile_block(Transpiler *t, Program *apm, Block *block);
+void transpile_function(Transpiler *t, Program *apm, Function *funct);
+void transpile_program(Transpiler *t, Program *apm);
+
 void transpile_type(Transpiler *t, Program *apm, RhinoType ty)
 {
     switch (ty.tag)
@@ -131,11 +142,11 @@ void transpile_type(Transpiler *t, Program *apm, RhinoType ty)
         break;
 
     case RHINO_ENUM_TYPE:
-        EMIT_SUBSTR(ty.enum_type->identity);
+        EMIT(GET_C_IDENTITY(ty.enum_type));
         break;
 
     case RHINO_STRUCT_TYPE:
-        EMIT_SUBSTR(ty.struct_type->identity);
+        EMIT(GET_C_IDENTITY(ty.struct_type));
         break;
 
     default:
@@ -164,7 +175,7 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType ty)
     //        (Though, none is the default of noneable enums).
     case RHINO_ENUM_TYPE:
         EMIT("(");
-        EMIT_SUBSTR(ty.enum_type->identity);
+        EMIT(GET_C_IDENTITY(ty.enum_type));
         EMIT(")0");
         break;
 
@@ -173,7 +184,7 @@ void transpile_default_value(Transpiler *t, Program *apm, RhinoType ty)
         StructType *struct_type = ty.struct_type;
 
         EMIT("(");
-        EMIT_SUBSTR(struct_type->identity);
+        EMIT(GET_C_IDENTITY(struct_type));
         EMIT("){ ");
 
         Property *property;
@@ -227,23 +238,20 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
     {
         EnumValue *enum_value = expr->enum_value;
         EnumType *enum_type = enum_value->type_of_enum_value;
-
-        EMIT_SUBSTR(enum_type->identity);
-        EMIT("__");
-        EMIT_SUBSTR(enum_value->identity);
+        EMIT(GET_C_IDENTITY(enum_value));
         break;
     }
 
     case VARIABLE_REFERENCE:
     {
         Variable *var = expr->variable;
-        EMIT_SUBSTR(var->identity);
+        EMIT(GET_C_IDENTITY(var));
         break;
     }
 
     case PARAMETER_REFERENCE:
     {
-        EMIT_SUBSTR(expr->parameter->identity);
+        EMIT(GET_C_IDENTITY(expr->parameter));
         break;
     }
 
@@ -251,7 +259,7 @@ void transpile_expression(Transpiler *t, Program *apm, Expression *expr)
     {
         Expression *reference = expr->callee;
         Function *callee = reference->function;
-        EMIT_SUBSTR(callee->identity);
+        EMIT(GET_C_IDENTITY(callee));
         EMIT("(");
 
         Argument *arg;
@@ -392,17 +400,17 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
         if (iterable->kind == RANGE_LITERAL)
         {
             EMIT("for (int ");
-            EMIT_SUBSTR(iterator->identity);
+            EMIT(GET_C_IDENTITY(iterator));
             EMIT(" = ");
             transpile_expression(t, apm, iterable->first);
             EMIT("; ");
 
-            EMIT_SUBSTR(iterator->identity);
+            EMIT(GET_C_IDENTITY(iterator));
             EMIT(" <= ");
             transpile_expression(t, apm, iterable->last);
             EMIT("; ++", iterable->last);
 
-            EMIT_SUBSTR(iterator->identity);
+            EMIT(GET_C_IDENTITY(iterator));
             EMIT(")");
 
             transpile_block(t, apm, stmt->body);
@@ -414,21 +422,21 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
             EnumType *enum_type = iterable->type.enum_type;
 
             EMIT("for (");
-            EMIT_SUBSTR(enum_type->identity);
+            EMIT(GET_C_IDENTITY(enum_type));
             EMIT(" ");
-            EMIT_SUBSTR(iterator->identity);
+            EMIT(GET_C_IDENTITY(iterator));
             EMIT(" = (");
-            EMIT_SUBSTR(enum_type->identity);
+            EMIT(GET_C_IDENTITY(enum_type));
             EMIT(")0; ");
 
-            EMIT_SUBSTR(iterator->identity);
+            EMIT(GET_C_IDENTITY(iterator));
             EMIT(" < %d; ", enum_type->values.count);
 
-            EMIT_SUBSTR(iterator->identity);
+            EMIT(GET_C_IDENTITY(iterator));
             EMIT(" = (");
-            EMIT_SUBSTR(enum_type->identity);
+            EMIT(GET_C_IDENTITY(enum_type));
             EMIT(")(");
-            EMIT_SUBSTR(iterator->identity);
+            EMIT(GET_C_IDENTITY(iterator));
             EMIT(" + 1))");
 
             transpile_block(t, apm, stmt->body);
@@ -469,7 +477,7 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
         Variable *var = stmt->variable;
         transpile_type(t, apm, var->type);
         EMIT(" ");
-        EMIT_SUBSTR(var->identity);
+        EMIT(GET_C_IDENTITY(var));
         EMIT(" = ");
 
         if (stmt->initial_value)
@@ -541,7 +549,7 @@ void transpile_statement(Transpiler *t, Program *apm, Statement *stmt)
 
         case RHINO_ENUM_TYPE:
             EMIT_ESCAPED("printf(\"%s\\n\", string_of_");
-            EMIT_SUBSTR(expr_type.enum_type->identity);
+            EMIT(GET_C_IDENTITY(expr_type.enum_type));
             EMIT("(");
             transpile_expression(t, apm, expr);
             EMIT_LINE("));");
@@ -591,7 +599,7 @@ void transpile_function_signature(Transpiler *t, Program *apm, Function *funct)
 {
     transpile_type(t, apm, funct->return_type);
     EMIT(" ");
-    EMIT_SUBSTR(funct->identity);
+    EMIT(GET_C_IDENTITY(funct));
     EMIT("(");
 
     Parameter *parameter;
@@ -604,7 +612,7 @@ void transpile_function_signature(Transpiler *t, Program *apm, Function *funct)
 
         transpile_type(t, apm, parameter->type);
         EMIT(" ");
-        EMIT_SUBSTR(parameter->identity);
+        EMIT(GET_C_IDENTITY(parameter));
         i++;
     }
 
@@ -650,23 +658,20 @@ void transpile_program(Transpiler *t, Program *apm)
                 if (i > 0)
                     EMIT(", ");
 
-                EMIT_SUBSTR(enum_type->identity);
-                EMIT("__");
-                EMIT_SUBSTR(enum_value->identity);
-
+                EMIT(GET_C_IDENTITY(enum_value));
                 i++;
             }
 
             EMIT(" } ");
-            EMIT_SUBSTR(enum_type->identity);
+            EMIT(GET_C_IDENTITY(enum_type));
             EMIT_LINE(";");
             EMIT_NEWLINE();
 
             // To string function
             EMIT("const char* string_of_");
-            EMIT_SUBSTR(enum_type->identity);
+            EMIT(GET_C_IDENTITY(enum_type));
             EMIT("(");
-            EMIT_SUBSTR(enum_type->identity);
+            EMIT(GET_C_IDENTITY(enum_type));
             EMIT(" value)");
             EMIT_NEWLINE();
 
@@ -679,9 +684,7 @@ void transpile_program(Transpiler *t, Program *apm)
             while (enum_value = next_enum_value_iterator(&it))
             {
                 EMIT("case ");
-                EMIT_SUBSTR(enum_type->identity);
-                EMIT("__");
-                EMIT_SUBSTR(enum_value->identity);
+                EMIT(GET_C_IDENTITY(enum_value));
 
                 EMIT(": return \"");
                 EMIT_SUBSTR(enum_value->identity);
@@ -719,22 +722,22 @@ void transpile_program(Transpiler *t, Program *apm)
             }
 
             EMIT_CLOSE_BRACE();
-            EMIT_SUBSTR(struct_type->identity);
+            EMIT(GET_C_IDENTITY(struct_type));
             EMIT_LINE(";");
             EMIT_NEWLINE();
 
             // To string function
             EMIT("const char* string_of_");
-            EMIT_SUBSTR(struct_type->identity);
+            EMIT(GET_C_IDENTITY(struct_type));
             EMIT("(");
-            EMIT_SUBSTR(struct_type->identity);
+            EMIT(GET_C_IDENTITY(struct_type));
             EMIT(" value)");
             EMIT_NEWLINE();
 
             // TODO: Serialise the struct in some helpful way
             EMIT_OPEN_BRACE();
             EMIT("return \"");
-            EMIT_SUBSTR(struct_type->identity);
+            EMIT(GET_C_IDENTITY(struct_type));
             EMIT("\";");
             EMIT_NEWLINE();
             EMIT_CLOSE_BRACE();
@@ -752,7 +755,7 @@ void transpile_program(Transpiler *t, Program *apm)
             Variable *var = declaration->variable;
             transpile_type(t, apm, var->type);
             EMIT(" ");
-            EMIT_SUBSTR(var->identity);
+            EMIT(GET_C_IDENTITY(var));
 
             if (declaration->initial_value && declaration->variable->order < 2)
             {
@@ -808,7 +811,7 @@ void transpile_program(Transpiler *t, Program *apm)
                 assert(declaration->initial_value);
                 is_last_order = false;
 
-                EMIT_SUBSTR(declaration->variable->identity);
+                EMIT(GET_C_IDENTITY(declaration->variable));
                 EMIT(" = ");
                 transpile_expression(t, apm, declaration->initial_value);
                 EMIT_LINE(";");
