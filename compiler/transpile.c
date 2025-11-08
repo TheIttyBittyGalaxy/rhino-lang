@@ -94,6 +94,9 @@ void write_book_to_file(Book *book, FILE *file)
         fputs(page->content, file);
         page = page->next;
     }
+
+    if (book->newline_pending)
+        fputs("\n", file);
 }
 
 // TRANSPILER //
@@ -102,6 +105,10 @@ typedef struct
 {
     const char *source_text;
 
+    Book enum_definitions;
+    Book struct_declarations;
+    Book struct_definitions;
+    Book function_declarations;
     Book body;
 
     // FIXME: Make this dynamically allocated/resizable to avoid buffer overflow?
@@ -185,12 +192,17 @@ void emit_close_brace(Book *book)
 
 void transpile_type(Transpiler *t, Book *b, Program *apm, RhinoType ty);
 void transpile_default_value(Transpiler *t, Book *b, Program *apm, RhinoType ty);
+
+void transpile_code_block(Transpiler *t, Book *b, Program *apm, Block *block);
 void transpile_expression(Transpiler *t, Book *b, Program *apm, Expression *expr);
-void transpile_statement(Transpiler *t, Book *b, Program *apm, Statement *stmt);
-void transpile_block(Transpiler *t, Book *b, Program *apm, Block *block);
 void transpile_function_signature(Transpiler *t, Book *b, Program *apm, Function *funct);
-void transpile_function(Transpiler *t, Book *b, Program *apm, Function *funct);
-void transpile_program(Transpiler *t, Book *b, Program *apm);
+
+void transpile_declarations_in_block(Transpiler *t, Program *apm, Block *block);
+void transpile_main_function(Transpiler *t, Program *apm);
+
+void transpile_program(Transpiler *t, Program *apm);
+
+// TRANSPILE TYPES //
 
 void transpile_type(Transpiler *t, Book *b, Program *apm, RhinoType ty)
 {
@@ -277,6 +289,249 @@ void transpile_default_value(Transpiler *t, Book *b, Program *apm, RhinoType ty)
     default:
         fatal_error("Could not transpile default value for value of type %s.", rhino_type_string(apm, ty));
     }
+}
+
+// TRANSPILE CODE //
+
+void transpile_code_block(Transpiler *t, Book *b, Program *apm, Block *block)
+{
+    assert(!block->declaration_block);
+
+    EMIT_OPEN_BRACE();
+
+    Statement *stmt;
+    StatementIterator it = statement_iterator(block->statements);
+    while (stmt = next_statement_iterator(&it))
+    {
+        switch (stmt->kind)
+        {
+
+        case FUNCTION_DECLARATION:
+        case ENUM_TYPE_DECLARATION:
+        case STRUCT_TYPE_DECLARATION:
+            break;
+
+        case CODE_BLOCK:
+        {
+            transpile_code_block(t, b, apm, stmt->block);
+            break;
+        }
+
+        case ELSE_IF_SEGMENT:
+            EMIT("else ");
+        case IF_SEGMENT:
+            EMIT("if (");
+            transpile_expression(t, b, apm, stmt->condition);
+            EMIT(")");
+            transpile_code_block(t, b, apm, stmt->body);
+            break;
+
+        case ELSE_SEGMENT:
+        {
+            EMIT("else ");
+            transpile_code_block(t, b, apm, stmt->body);
+            break;
+        }
+
+        case BREAK_LOOP:
+        {
+            EMIT_LINE("while (true)");
+            transpile_code_block(t, b, apm, stmt->body);
+            break;
+        }
+
+        case FOR_LOOP:
+        {
+            Variable *iterator = stmt->iterator;
+            Expression *iterable = stmt->iterable;
+
+            if (iterable->kind == RANGE_LITERAL)
+            {
+                EMIT("for (int ");
+                EMIT(GET_C_IDENTITY(iterator));
+                EMIT(" = ");
+                transpile_expression(t, b, apm, iterable->first);
+                EMIT("; ");
+
+                EMIT(GET_C_IDENTITY(iterator));
+                EMIT(" <= ");
+                transpile_expression(t, b, apm, iterable->last);
+                EMIT("; ++", iterable->last);
+
+                EMIT(GET_C_IDENTITY(iterator));
+                EMIT(")");
+
+                transpile_code_block(t, b, apm, stmt->body);
+                break;
+            }
+
+            if (iterable->kind == TYPE_REFERENCE && iterable->type.tag == RHINO_ENUM_TYPE)
+            {
+                EnumType *enum_type = iterable->type.enum_type;
+
+                EMIT("for (");
+                EMIT(GET_C_IDENTITY(enum_type));
+                EMIT(" ");
+                EMIT(GET_C_IDENTITY(iterator));
+                EMIT(" = (");
+                EMIT(GET_C_IDENTITY(enum_type));
+                EMIT(")0; ");
+
+                EMIT(GET_C_IDENTITY(iterator));
+                EMIT(" < %d; ", enum_type->values.count);
+
+                EMIT(GET_C_IDENTITY(iterator));
+                EMIT(" = (");
+                EMIT(GET_C_IDENTITY(enum_type));
+                EMIT(")(");
+                EMIT(GET_C_IDENTITY(iterator));
+                EMIT(" + 1))");
+
+                transpile_code_block(t, b, apm, stmt->body);
+                break;
+            }
+
+            fatal_error("Could not transpile for loop with %s iterable.", expression_kind_string(iterable->kind));
+            break;
+        }
+
+        case WHILE_LOOP:
+        {
+            EMIT("while (");
+            transpile_expression(t, b, apm, stmt->condition);
+            EMIT_LINE(")");
+            transpile_code_block(t, b, apm, stmt->body);
+            break;
+        }
+
+        case BREAK_STATEMENT:
+        {
+            EMIT_LINE("break;");
+            break;
+        }
+
+        case ASSIGNMENT_STATEMENT:
+        {
+            transpile_expression(t, b, apm, stmt->assignment_lhs);
+            EMIT(" = ");
+            transpile_expression(t, b, apm, stmt->assignment_rhs);
+
+            EMIT_LINE(";");
+            break;
+        }
+
+        case VARIABLE_DECLARATION:
+        {
+            Variable *var = stmt->variable;
+            transpile_type(t, b, apm, var->type);
+            EMIT(" ");
+            EMIT(GET_C_IDENTITY(var));
+            EMIT(" = ");
+
+            if (stmt->initial_value)
+                transpile_expression(t, b, apm, stmt->initial_value);
+            else
+                transpile_default_value(t, b, apm, var->type);
+
+            EMIT_LINE(";");
+            break;
+        }
+
+        case OUTPUT_STATEMENT:
+        {
+            Expression *expr = stmt->expression;
+            RhinoType expr_type = get_expression_type(apm, t->source_text, expr);
+
+            switch (expr_type.tag)
+            {
+            case RHINO_NATIVE_TYPE:
+                if (IS_BOOL_TYPE(expr_type))
+                {
+                    EMIT_ESCAPED("printf(\"%s\\n\", (");
+                    transpile_expression(t, b, apm, expr);
+                    EMIT_LINE(") ? \"true\" : \"false\");");
+                    break;
+                }
+
+                if (IS_STR_TYPE(expr_type))
+                {
+                    if (expr->kind == STRING_LITERAL)
+                    {
+                        EMIT("printf(\"");
+                        EMIT_SUBSTR(expr->string_value);
+                        EMIT_LINE("\\n\");");
+                    }
+                    else
+                    {
+                        EMIT_ESCAPED("printf(\"%s\\n\", ");
+                        transpile_expression(t, b, apm, expr);
+                        EMIT_LINE(");");
+                    }
+                    break;
+                }
+
+                if (IS_INT_TYPE(expr_type))
+                {
+                    EMIT_ESCAPED("printf(\"%d\\n\", ");
+                    transpile_expression(t, b, apm, expr);
+                    EMIT_LINE(");");
+                    break;
+                }
+
+                if (IS_NUM_TYPE(expr_type))
+                {
+                    EMIT_OPEN_BRACE();
+
+                    EMIT("float_to_str(");
+                    transpile_expression(t, b, apm, expr);
+                    EMIT_LINE(");");
+
+                    EMIT_ESCAPED("printf(\"%s\\n\", __to_str_buffer);");
+
+                    EMIT_CLOSE_BRACE();
+                    break;
+                }
+
+                fatal_error("Unable to generate output statement for expression with native type %s.", expr_type.native_type->name);
+                break;
+
+            case RHINO_ENUM_TYPE:
+                EMIT_ESCAPED("printf(\"%s\\n\", string_of_");
+                EMIT(GET_C_IDENTITY(expr_type.enum_type));
+                EMIT("(");
+                transpile_expression(t, b, apm, expr);
+                EMIT_LINE("));");
+                break;
+
+            default:
+                fatal_error("Unable to generate output statement for expression with type %s.", rhino_type_string(apm, expr_type));
+            }
+
+            break;
+        }
+
+        case EXPRESSION_STMT:
+        {
+            transpile_expression(t, b, apm, stmt->expression);
+            EMIT_LINE(";");
+            break;
+        }
+
+        case RETURN_STATEMENT:
+        {
+            EMIT("return ");
+            transpile_expression(t, b, apm, stmt->expression);
+            EMIT_LINE(";");
+            break;
+        }
+
+        default:
+            fatal_error("Could not transpile %s statement in code block.", statement_kind_string(stmt->kind));
+            break;
+        }
+    }
+
+    EMIT_CLOSE_BRACE();
 }
 
 void transpile_expression(Transpiler *t, Book *b, Program *apm, Expression *expr)
@@ -424,248 +679,6 @@ void transpile_expression(Transpiler *t, Book *b, Program *apm, Expression *expr
     }
 }
 
-void transpile_statement(Transpiler *t, Book *b, Program *apm, Statement *stmt)
-{
-    switch (stmt->kind)
-    {
-
-    case FUNCTION_DECLARATION:
-    case ENUM_TYPE_DECLARATION:
-    case STRUCT_TYPE_DECLARATION:
-        break;
-
-    case CODE_BLOCK:
-    {
-        transpile_block(t, b, apm, stmt->block);
-        break;
-    }
-
-    case ELSE_IF_SEGMENT:
-        EMIT("else ");
-    case IF_SEGMENT:
-        EMIT("if (");
-        transpile_expression(t, b, apm, stmt->condition);
-        EMIT(")");
-        transpile_block(t, b, apm, stmt->body);
-        break;
-
-    case ELSE_SEGMENT:
-    {
-        EMIT("else ");
-        transpile_block(t, b, apm, stmt->body);
-        break;
-    }
-
-    case BREAK_LOOP:
-    {
-        EMIT_LINE("while (true)");
-        transpile_block(t, b, apm, stmt->body);
-        break;
-    }
-
-    case FOR_LOOP:
-    {
-        Variable *iterator = stmt->iterator;
-        Expression *iterable = stmt->iterable;
-
-        if (iterable->kind == RANGE_LITERAL)
-        {
-            EMIT("for (int ");
-            EMIT(GET_C_IDENTITY(iterator));
-            EMIT(" = ");
-            transpile_expression(t, b, apm, iterable->first);
-            EMIT("; ");
-
-            EMIT(GET_C_IDENTITY(iterator));
-            EMIT(" <= ");
-            transpile_expression(t, b, apm, iterable->last);
-            EMIT("; ++", iterable->last);
-
-            EMIT(GET_C_IDENTITY(iterator));
-            EMIT(")");
-
-            transpile_block(t, b, apm, stmt->body);
-            break;
-        }
-
-        if (iterable->kind == TYPE_REFERENCE && iterable->type.tag == RHINO_ENUM_TYPE)
-        {
-            EnumType *enum_type = iterable->type.enum_type;
-
-            EMIT("for (");
-            EMIT(GET_C_IDENTITY(enum_type));
-            EMIT(" ");
-            EMIT(GET_C_IDENTITY(iterator));
-            EMIT(" = (");
-            EMIT(GET_C_IDENTITY(enum_type));
-            EMIT(")0; ");
-
-            EMIT(GET_C_IDENTITY(iterator));
-            EMIT(" < %d; ", enum_type->values.count);
-
-            EMIT(GET_C_IDENTITY(iterator));
-            EMIT(" = (");
-            EMIT(GET_C_IDENTITY(enum_type));
-            EMIT(")(");
-            EMIT(GET_C_IDENTITY(iterator));
-            EMIT(" + 1))");
-
-            transpile_block(t, b, apm, stmt->body);
-            break;
-        }
-
-        fatal_error("Could not transpile for loop with %s iterable.", expression_kind_string(iterable->kind));
-        break;
-    }
-
-    case WHILE_LOOP:
-    {
-        EMIT("while (");
-        transpile_expression(t, b, apm, stmt->condition);
-        EMIT_LINE(")");
-        transpile_block(t, b, apm, stmt->body);
-        break;
-    }
-
-    case BREAK_STATEMENT:
-    {
-        EMIT_LINE("break;");
-        break;
-    }
-
-    case ASSIGNMENT_STATEMENT:
-    {
-        transpile_expression(t, b, apm, stmt->assignment_lhs);
-        EMIT(" = ");
-        transpile_expression(t, b, apm, stmt->assignment_rhs);
-
-        EMIT_LINE(";");
-        break;
-    }
-
-    case VARIABLE_DECLARATION:
-    {
-        Variable *var = stmt->variable;
-        transpile_type(t, b, apm, var->type);
-        EMIT(" ");
-        EMIT(GET_C_IDENTITY(var));
-        EMIT(" = ");
-
-        if (stmt->initial_value)
-            transpile_expression(t, b, apm, stmt->initial_value);
-        else
-            transpile_default_value(t, b, apm, var->type);
-
-        EMIT_LINE(";");
-        break;
-    }
-
-    case OUTPUT_STATEMENT:
-    {
-        Expression *expr = stmt->expression;
-        RhinoType expr_type = get_expression_type(apm, t->source_text, expr);
-
-        switch (expr_type.tag)
-        {
-        case RHINO_NATIVE_TYPE:
-            if (IS_BOOL_TYPE(expr_type))
-            {
-                EMIT_ESCAPED("printf(\"%s\\n\", (");
-                transpile_expression(t, b, apm, expr);
-                EMIT_LINE(") ? \"true\" : \"false\");");
-                break;
-            }
-
-            if (IS_STR_TYPE(expr_type))
-            {
-                if (expr->kind == STRING_LITERAL)
-                {
-                    EMIT("printf(\"");
-                    EMIT_SUBSTR(expr->string_value);
-                    EMIT_LINE("\\n\");");
-                }
-                else
-                {
-                    EMIT_ESCAPED("printf(\"%s\\n\", ");
-                    transpile_expression(t, b, apm, expr);
-                    EMIT_LINE(");");
-                }
-                break;
-            }
-
-            if (IS_INT_TYPE(expr_type))
-            {
-                EMIT_ESCAPED("printf(\"%d\\n\", ");
-                transpile_expression(t, b, apm, expr);
-                EMIT_LINE(");");
-                break;
-            }
-
-            if (IS_NUM_TYPE(expr_type))
-            {
-                EMIT_OPEN_BRACE();
-
-                EMIT("float_to_str(");
-                transpile_expression(t, b, apm, expr);
-                EMIT_LINE(");");
-
-                EMIT_ESCAPED("printf(\"%s\\n\", __to_str_buffer);");
-
-                EMIT_CLOSE_BRACE();
-                break;
-            }
-
-            fatal_error("Unable to generate output statement for expression with native type %s.", expr_type.native_type->name);
-            break;
-
-        case RHINO_ENUM_TYPE:
-            EMIT_ESCAPED("printf(\"%s\\n\", string_of_");
-            EMIT(GET_C_IDENTITY(expr_type.enum_type));
-            EMIT("(");
-            transpile_expression(t, b, apm, expr);
-            EMIT_LINE("));");
-            break;
-
-        default:
-            fatal_error("Unable to generate output statement for expression with type %s.", rhino_type_string(apm, expr_type));
-        }
-
-        break;
-    }
-
-    case EXPRESSION_STMT:
-    {
-        transpile_expression(t, b, apm, stmt->expression);
-        EMIT_LINE(";");
-        break;
-    }
-
-    case RETURN_STATEMENT:
-    {
-        EMIT("return ");
-        transpile_expression(t, b, apm, stmt->expression);
-        EMIT_LINE(";");
-        break;
-    }
-
-    default:
-        fatal_error("Could not transpile %s statement.", statement_kind_string(stmt->kind));
-        break;
-    }
-}
-
-void transpile_block(Transpiler *t, Book *b, Program *apm, Block *block)
-{
-    EMIT_OPEN_BRACE();
-
-    Statement *child;
-    StatementIterator it = statement_iterator(block->statements);
-    while (child = next_statement_iterator(&it))
-        transpile_statement(t, b, apm, child);
-
-    EMIT_CLOSE_BRACE();
-}
-
 void transpile_function_signature(Transpiler *t, Book *b, Program *apm, Function *funct)
 {
     transpile_type(t, b, apm, funct->return_type);
@@ -690,24 +703,47 @@ void transpile_function_signature(Transpiler *t, Book *b, Program *apm, Function
     EMIT(")");
 }
 
-void transpile_function(Transpiler *t, Book *b, Program *apm, Function *funct)
-{
-    transpile_function_signature(t, b, apm, funct);
-    transpile_block(t, b, apm, funct->body);
-}
+// TRANSPILE PROGRAM //
 
-void transpile_program(Transpiler *t, Book *b, Program *apm)
+void transpile_declarations_in_block(Transpiler *t, Program *apm, Block *block)
 {
-    Statement *declaration;
-    StatementIterator it;
-
-    // Global enum types
-    it = statement_iterator(apm->program_block->statements);
-    while (declaration = next_statement_iterator(&it))
+    Statement *stmt;
+    StatementIterator it = statement_iterator(block->statements);
+    while (stmt = next_statement_iterator(&it))
     {
-        if (declaration->kind == ENUM_TYPE_DECLARATION)
+        switch (stmt->kind)
         {
-            EnumType *enum_type = declaration->enum_type;
+
+        case CODE_BLOCK:
+            transpile_declarations_in_block(t, apm, stmt->block);
+            break;
+
+        case FUNCTION_DECLARATION:
+        {
+            Function *funct = stmt->function;
+
+            if (funct != apm->main)
+            {
+                // Forward declaration
+                transpile_function_signature(t, &t->function_declarations, apm, funct);
+                emit_line(&t->function_declarations, ";");
+
+                // Function definition
+                transpile_function_signature(t, &t->body, apm, funct);
+                transpile_code_block(t, &t->body, apm, funct->body);
+                emit_line(&t->body, "");
+            }
+
+            // Transpile nested declarations
+            transpile_declarations_in_block(t, apm, funct->body);
+        }
+        break;
+
+        case ENUM_TYPE_DECLARATION:
+        {
+            Book *b = &t->enum_definitions;
+
+            EnumType *enum_type = stmt->enum_type;
             EnumValue *enum_value;
             EnumValueIterator it;
             size_t i = 0;
@@ -759,18 +795,16 @@ void transpile_program(Transpiler *t, Book *b, Program *apm)
             EMIT_CLOSE_BRACE();
             EMIT_NEWLINE();
         }
-    }
-    EMIT_NEWLINE();
+        break;
 
-    // Global struct types
-    it = statement_iterator(apm->program_block->statements);
-    while (declaration = next_statement_iterator(&it))
-    {
-        if (declaration->kind == STRUCT_TYPE_DECLARATION)
+        case STRUCT_TYPE_DECLARATION:
         {
-            StructType *struct_type = declaration->struct_type;
+            // TODO: Create struct forward declarations
 
-            // Sstruct declaration
+            Book *b = &t->struct_definitions;
+
+            StructType *struct_type = stmt->struct_type;
+
             EMIT_LINE("typedef struct");
             EMIT_OPEN_BRACE();
 
@@ -807,26 +841,32 @@ void transpile_program(Transpiler *t, Book *b, Program *apm)
             EMIT_CLOSE_BRACE();
             EMIT_NEWLINE();
         }
-    }
-    EMIT_NEWLINE();
+        break;
 
-    // Declare global variables
-    it = statement_iterator(apm->program_block->statements);
-    while (declaration = next_statement_iterator(&it))
-    {
-        if (declaration->kind == VARIABLE_DECLARATION)
+        case VARIABLE_DECLARATION:
         {
-            Variable *var = declaration->variable;
+            // NOTE: Right now, I _think_ the only declaration block that exists is the global program scope.
+            //       The global variables with an order greater than 1 currently have their initial values set
+            //       in the main function.
+
+            // FIXME: Check if the above is still true and/or if there are any issues with this.
+
+            if (!block->declaration_block)
+                break;
+
+            Book *b = &t->body;
+            Variable *var = stmt->variable;
+
             transpile_type(t, b, apm, var->type);
             EMIT(" ");
             EMIT(GET_C_IDENTITY(var));
 
-            if (declaration->initial_value && declaration->variable->order < 2)
+            if (stmt->initial_value && var->order < 2)
             {
                 EMIT(" = ");
-                transpile_expression(t, b, apm, declaration->initial_value);
+                transpile_expression(t, b, apm, stmt->initial_value);
             }
-            else if (!declaration->initial_value)
+            else if (!stmt->initial_value)
             {
                 EMIT(" = ");
                 transpile_default_value(t, b, apm, var->type);
@@ -834,34 +874,49 @@ void transpile_program(Transpiler *t, Book *b, Program *apm)
 
             EMIT_LINE(";");
         }
-    }
+        break;
 
-    // Forward declarations for global functoins
-    it = statement_iterator(apm->program_block->statements);
-    while (declaration = next_statement_iterator(&it))
-    {
-        if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
-        {
-            transpile_function_signature(t, b, apm, declaration->function);
-            EMIT_LINE(";");
+        case IF_SEGMENT:
+        case ELSE_IF_SEGMENT:
+        case ELSE_SEGMENT:
+            transpile_declarations_in_block(t, apm, stmt->body);
+            break;
+
+        case BREAK_LOOP:
+        case FOR_LOOP:
+        case WHILE_LOOP:
+            transpile_declarations_in_block(t, apm, stmt->body);
+            break;
+
+        case BREAK_STATEMENT:
+            break;
+
+        case ASSIGNMENT_STATEMENT:
+            break;
+
+        case OUTPUT_STATEMENT:
+        case EXPRESSION_STMT:
+        case RETURN_STATEMENT:
+            break;
+
+        default:
+            fatal_error("Could not handle %s statement while transpiling declarations in block.", statement_kind_string(stmt->kind));
+            break;
         }
     }
-    EMIT_NEWLINE();
+}
 
-    // Function definitions for global functoins
-    it = statement_iterator(apm->program_block->statements);
-    while (declaration = next_statement_iterator(&it))
-    {
-        if (declaration->kind == FUNCTION_DECLARATION && declaration->function != apm->main)
-            transpile_function(t, b, apm, declaration->function);
-    }
-    EMIT_NEWLINE();
+void transpile_main_function(Transpiler *t, Program *apm)
+{
+    Book *b = &t->body;
 
-    // Main - Function
     EMIT_LINE("int main(int argc, char *argv[])");
     EMIT_OPEN_BRACE();
 
-    // Main - Initialise global variables
+    // Initialise global variables
+    Statement *declaration;
+    StatementIterator it;
+
     size_t order = 2;
     bool is_last_order = false;
     while (!is_last_order)
@@ -884,10 +939,16 @@ void transpile_program(Transpiler *t, Book *b, Program *apm)
         order++;
     }
 
-    // Main - User main function
-    transpile_block(t, b, apm, apm->main->body);
+    // User main function
+    transpile_code_block(t, b, apm, apm->main->body);
 
     EMIT_CLOSE_BRACE();
+}
+
+void transpile_program(Transpiler *t, Program *apm)
+{
+    transpile_declarations_in_block(t, apm, apm->program_block);
+    transpile_main_function(t, apm);
 }
 
 void transpile(Compiler *compiler, Program *apm)
@@ -895,9 +956,13 @@ void transpile(Compiler *compiler, Program *apm)
     Transpiler transpiler;
     transpiler.source_text = compiler->source_text;
 
+    init_book(&transpiler.enum_definitions);
+    init_book(&transpiler.struct_declarations);
+    init_book(&transpiler.struct_definitions);
+    init_book(&transpiler.function_declarations);
     init_book(&transpiler.body);
 
-    transpile_program(&transpiler, &transpiler.body, apm);
+    transpile_program(&transpiler, apm);
 
     FILE *output_file = fopen("_out.c", "w");
     if (output_file == NULL)
@@ -912,7 +977,12 @@ void transpile(Compiler *compiler, Program *apm)
     fprintf(output_file,
 #include "rhino/runtime_as_str.c"
     );
+    fputs("\n", output_file);
 
+    write_book_to_file(&transpiler.enum_definitions, output_file);
+    write_book_to_file(&transpiler.struct_declarations, output_file);
+    write_book_to_file(&transpiler.struct_definitions, output_file);
+    write_book_to_file(&transpiler.function_declarations, output_file);
     write_book_to_file(&transpiler.body, output_file);
 
     fclose(output_file);
