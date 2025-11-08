@@ -844,6 +844,9 @@ void transpile_declarations_in_block(Transpiler *t, Block *block)
             EMIT_NEWLINE();
             EMIT_CLOSE_BRACE();
             EMIT_NEWLINE();
+
+            // Transpile nested declarations
+            transpile_declarations_in_block(t, struct_type->body);
         }
         break;
 
