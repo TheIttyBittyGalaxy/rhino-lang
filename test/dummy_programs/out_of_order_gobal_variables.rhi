@@ -3,5 +3,9 @@ fn main() {
     > y;
 }
 
-def x = y;
+def x = y + 1;
 def y = 1;
+
+// SUCCESS
+// 2
+// 1
