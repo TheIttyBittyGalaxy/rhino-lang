@@ -1,8 +1,4 @@
 #include "fatal_error.h"
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 extern bool flag_test_mode;
 

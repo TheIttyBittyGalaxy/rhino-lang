@@ -1,8 +1,7 @@
 #ifndef SUBSTR_H
 #define SUBSTR_H
 
-#include <stdlib.h>
-#include <stdbool.h>
+#include "../core.h"
 
 typedef struct
 {

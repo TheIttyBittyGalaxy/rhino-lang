@@ -1,9 +1,8 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
-#include "macro.h"
+#include "../core.h"
 #include "substr.h"
-#include <stdlib.h>
 
 // Token kind
 // NOTE: Update compiler.h whenever these are changed.

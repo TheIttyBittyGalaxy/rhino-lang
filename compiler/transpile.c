@@ -1,8 +1,6 @@
-#include "fatal_error.h"
 #include "transpile.h"
-#include <assert.h>
-#include <stdarg.h>
-#include <stdio.h>
+
+#include "fatal_error.h"
 
 // TRANSPILER //
 

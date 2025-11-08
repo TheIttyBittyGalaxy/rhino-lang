@@ -1,5 +1,4 @@
 #include "../apm.h"
-#include <stdio.h>
 
 // STATE //
 

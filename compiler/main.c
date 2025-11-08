@@ -1,3 +1,5 @@
+#include "core.h"
+
 #include "data/compiler.h"
 
 #include "tokenise.h"
@@ -5,11 +7,6 @@
 #include "resolve.h"
 #include "check.h"
 #include "transpile.h"
-
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // OUTPUT MARCOS //
 

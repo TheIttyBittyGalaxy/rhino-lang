@@ -1,5 +1,5 @@
 #include "apm.h"
-#include <stdio.h>
+
 #include "../fatal_error.h"
 
 // ENUMS //
@@ -64,7 +64,7 @@ const char *rhino_type_string(Program *apm, RhinoType ty)
         break;
     }
 
-    __builtin_unreachable();
+    unreachable;
 }
 
 // INIT APM //
@@ -447,7 +447,7 @@ RhinoType get_expression_type(Program *apm, const char *source_text, Expression 
         break;
     }
 
-    __builtin_unreachable();
+    unreachable;
 }
 
 // NOTE: The behaviour of this function has not been consider for RhinoTypes

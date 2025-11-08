@@ -1,8 +1,7 @@
-#include "data/substr.h"
-#include "fatal_error.h"
 #include "parse.h"
 
-#include <assert.h>
+#include "data/substr.h"
+#include "fatal_error.h"
 
 // FORWARD DECLARATIONS //
 
@@ -644,7 +643,7 @@ Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *al
             goto finish;
         }
 
-        __builtin_unreachable();
+        unreachable;
     }
 
     // INVALID_STATEMENT

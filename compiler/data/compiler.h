@@ -1,10 +1,9 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
-#include "macro.h"
+#include "../core.h"
 #include "substr.h"
 #include "token.h"
-#include <stdlib.h>
 
 // Compilation error code
 #define LIST_COMPILATION_ERRORS(MACRO)                              \

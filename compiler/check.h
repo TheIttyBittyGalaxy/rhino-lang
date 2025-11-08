@@ -1,6 +1,7 @@
 #ifndef CHECK_H
 #define CHECK_H
 
+#include "core.h"
 #include "data/apm.h"
 #include "data/compiler.h"
 

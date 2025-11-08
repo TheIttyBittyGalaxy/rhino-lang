@@ -1,10 +1,9 @@
 #ifndef APM_H
 #define APM_H
 
-#include "macro.h"
+#include "../core.h"
 #include "../memory.h"
 #include "substr.h"
-#include <stdbool.h>
 
 // Forward Declarations
 

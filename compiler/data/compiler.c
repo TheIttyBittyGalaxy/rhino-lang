@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include "compiler.h"
 
 // Compilation errors

@@ -1,7 +1,6 @@
 #include "resolve.h"
-#include "fatal_error.h"
 
-#include <assert.h>
+#include "fatal_error.h"
 
 // DETERMINE MAIN FUNCTION //
 
@@ -895,7 +894,7 @@ size_t determine_order_of_expression(Compiler *c, Program *apm, Expression *expr
         break;
     }
 
-    __builtin_unreachable();
+    unreachable;
 }
 
 // FIXME: This will loop forever if variables recursively refer to each other in their initial values

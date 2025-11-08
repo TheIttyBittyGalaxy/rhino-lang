@@ -1,5 +1,4 @@
 #include "memory.h"
-#include <assert.h>
 
 Bucket *allocate_new_bucket(Allocator *allocator)
 {
