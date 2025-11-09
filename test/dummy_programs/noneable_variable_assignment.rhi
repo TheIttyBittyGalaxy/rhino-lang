@@ -1,0 +1,12 @@
+str? maybe_string;
+
+fn main() {
+    maybe_string = none;
+    > maybe_string;
+    maybe_string = "hi :)";
+    > maybe_string;
+}
+
+// SUCCESS
+// none
+// hi :)
