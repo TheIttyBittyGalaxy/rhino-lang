@@ -506,7 +506,7 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
     case BOOLEAN_LITERAL:
     case STRING_LITERAL:
     case VARIABLE_REFERENCE:
-        return PRECEDENCE_NONE;
+        return PRECEDENCE_LITERAL;
 
     case NONEABLE_EXPRESSION:
         return PRECEDENCE_IMMEDIATE;
@@ -559,5 +559,5 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
         break;
     }
 
-    return PRECEDENCE_NONE;
+    unreachable;
 }

@@ -518,8 +518,17 @@ void transpile_code_block(Transpiler *t, Book *b, Block *block)
     EMIT_CLOSE_BRACE();
 }
 
-void transpile_expression(Transpiler *t, Book *b, Expression *expr)
+// FIXME: Rhino precedence semantics may not match C precedence semantics
+int c_precedence(ExpressionKind kind)
 {
+    return (int)precedence_of(kind);
+}
+
+void transpile_expression_with_caller_precedence(Transpiler *t, Book *b, Expression *expr, int caller_precedence)
+{
+    if (c_precedence(expr->kind) < caller_precedence)
+        EMIT("(");
+
     switch (expr->kind)
     {
     case IDENTITY_LITERAL:
@@ -571,7 +580,7 @@ void transpile_expression(Transpiler *t, Book *b, Expression *expr)
             if (i > 0)
                 EMIT(",");
 
-            transpile_expression(t, b, arg->expr);
+            transpile_expression_with_caller_precedence(t, b, arg->expr, c_precedence(expr->kind));
             i++;
         }
 
@@ -580,42 +589,41 @@ void transpile_expression(Transpiler *t, Book *b, Expression *expr)
     }
 
     case INDEX_BY_FIELD:
-        transpile_expression(t, b, expr->subject);
+        transpile_expression_with_caller_precedence(t, b, expr->subject, c_precedence(expr->kind));
         EMIT(".");
         EMIT_SUBSTR(expr->field);
         break;
 
     case UNARY_POS:
-        transpile_expression(t, b, expr->operand);
+        transpile_expression_with_caller_precedence(t, b, expr->operand, c_precedence(expr->kind));
         break;
 
     case UNARY_NEG:
         EMIT("-");
-        transpile_expression(t, b, expr->operand);
+        transpile_expression_with_caller_precedence(t, b, expr->operand, c_precedence(expr->kind));
         break;
 
     case UNARY_NOT:
         EMIT("!");
-        transpile_expression(t, b, expr->operand);
+        transpile_expression_with_caller_precedence(t, b, expr->operand, c_precedence(expr->kind));
         break;
 
     case UNARY_INCREMENT:
-        transpile_expression(t, b, expr->operand);
+        transpile_expression_with_caller_precedence(t, b, expr->operand, c_precedence(expr->kind));
         EMIT("++");
         break;
 
     case UNARY_DECREMENT:
-        transpile_expression(t, b, expr->operand);
+        transpile_expression_with_caller_precedence(t, b, expr->operand, c_precedence(expr->kind));
         EMIT("--");
         break;
 
-// FIXME: Rhino and C may treat precedence differently. Ensure we insert extra brackets
-//         where required so that the C code produces the correct Rhino semantics.
-#define CASE_BINARY(expr_kind, symbol)         \
-    case expr_kind:                            \
-        transpile_expression(t, b, expr->lhs); \
-        EMIT(" " symbol " ");                  \
-        transpile_expression(t, b, expr->rhs); \
+#define CASE_BINARY(expr_kind, symbol)                                                          \
+    case expr_kind:                                                                             \
+        transpile_expression_with_caller_precedence(t, b, expr->lhs, c_precedence(expr->kind)); \
+        EMIT(" " symbol " ");                                                                   \
+        transpile_expression_with_caller_precedence(t, b, expr->rhs, c_precedence(expr->kind)); \
+                                                                                                \
         break;
 
         CASE_BINARY(BINARY_MULTIPLY, "*")
@@ -638,6 +646,14 @@ void transpile_expression(Transpiler *t, Book *b, Expression *expr)
         fatal_error("Could not transpile %s expression.", expression_kind_string(expr->kind));
         break;
     }
+
+    if (c_precedence(expr->kind) < caller_precedence)
+        EMIT(")");
+}
+
+void transpile_expression(Transpiler *t, Book *b, Expression *expr)
+{
+    transpile_expression_with_caller_precedence(t, b, expr, (int)PRECEDENCE_NONE);
 }
 
 void transpile_function_signature(Transpiler *t, Book *b, Function *funct)
