@@ -191,8 +191,8 @@ void declare_symbol(Program *apm, SymbolTable *table, SymbolTag tag, void *ptr, 
     MACRO(PRECEDENCE_RANGE)            \
     MACRO(PRECEDENCE_UNARY)            \
     MACRO(PRECEDENCE_INDEX)            \
-    MACRO(PRECEDENCE_IMMEDIATE)        \
-    MACRO(PRECEDENCE_LITERAL)
+    MACRO(PRECEDENCE_MODIFIER)         \
+    MACRO(PRECEDENCE_IMMEDIATE_VALUE)
 
 DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
 

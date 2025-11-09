@@ -506,21 +506,21 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
     case BOOLEAN_LITERAL:
     case STRING_LITERAL:
     case ENUM_VALUE_LITERAL:
-        return PRECEDENCE_LITERAL;
+        return PRECEDENCE_IMMEDIATE_VALUE;
 
     case VARIABLE_REFERENCE:
     case PARAMETER_REFERENCE:
-        return PRECEDENCE_LITERAL;
+        return PRECEDENCE_IMMEDIATE_VALUE;
 
     case NONEABLE_EXPRESSION:
-        return PRECEDENCE_IMMEDIATE;
+        return PRECEDENCE_MODIFIER;
 
     case UNARY_INCREMENT:
     case UNARY_DECREMENT:
-        return PRECEDENCE_IMMEDIATE;
+        return PRECEDENCE_MODIFIER;
 
     case FUNCTION_CALL:
-        return PRECEDENCE_IMMEDIATE;
+        return PRECEDENCE_MODIFIER;
 
     case INDEX_BY_FIELD:
         return PRECEDENCE_INDEX;
