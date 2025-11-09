@@ -146,7 +146,8 @@ void attempt_to_advance_to_next_code_block(Compiler *c)
 
 bool peek_expression(Compiler *c)
 {
-    return PEEK(IDENTITY) ||
+    return PEEK(PAREN_L) ||
+           PEEK(IDENTITY) ||
            PEEK(KEYWORD_TRUE) ||
            PEEK(KEYWORD_FALSE) ||
            PEEK(KEYWORD_NONE) ||
@@ -835,7 +836,13 @@ Expression *parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrec
     START_SPAN(lhs);
 
     // Left-hand side of expression
-    if (PEEK(IDENTITY))
+    if (PEEK(PAREN_L))
+    {
+        ADVANCE();
+        lhs = parse_expression(c, apm);
+        EAT(PAREN_R);
+    }
+    else if (PEEK(IDENTITY))
     {
         lhs->kind = IDENTITY_LITERAL;
         lhs->identity = TOKEN_STRING();
