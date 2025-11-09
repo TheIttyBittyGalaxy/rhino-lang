@@ -500,6 +500,7 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
     case INVALID_EXPRESSION:
         return PRECEDENCE_NONE;
 
+    case NONE_LITERAL:
     case IDENTITY_LITERAL:
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
