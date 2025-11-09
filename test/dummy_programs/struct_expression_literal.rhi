@@ -1,0 +1,15 @@
+struct Card {
+    enum Suit { DIAMONDS , HEARTS , SPADES , CLUBS }
+    Suit suit;
+    int value;
+}
+
+fn main() {
+    Card card = [ suit: DIAMONDS, value: 8 ];
+    > card.suit;
+    > card.value;
+}
+
+// SUCCESS
+// DIAMONDS
+// 8

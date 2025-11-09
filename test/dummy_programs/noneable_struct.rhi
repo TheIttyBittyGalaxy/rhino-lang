@@ -1,0 +1,24 @@
+struct Number {
+    num value;
+}
+
+fn display(Number? x) {
+    if (x):
+        > x.value;
+    else:
+        > "No number!";
+}
+
+fn main() {
+    Number? x;
+    display(x);
+    x = [value: 5];
+    display(x);
+    x.value = 6;
+    display(x);
+}
+
+// SUCCESS
+// No number!
+// 5
+// 6
