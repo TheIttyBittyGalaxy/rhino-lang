@@ -485,6 +485,9 @@ bool allow_assign_a_to_b(Program *apm, RhinoType a, RhinoType b)
     if (IS_INT_TYPE(a) && IS_NUM_TYPE(b))
         return true;
 
+    if (a.is_noneable && b.is_noneable)
+        return true;
+
     return false;
 }
 
