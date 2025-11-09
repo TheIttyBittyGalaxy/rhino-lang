@@ -315,10 +315,8 @@ void transpile_code_block(Transpiler *t, Book *b, Block *block)
             break;
 
         case CODE_BLOCK:
-        {
             transpile_code_block(t, b, stmt->block);
             break;
-        }
 
         case ELSE_IF_SEGMENT:
             EMIT("else ");
@@ -330,18 +328,14 @@ void transpile_code_block(Transpiler *t, Book *b, Block *block)
             break;
 
         case ELSE_SEGMENT:
-        {
             EMIT("else ");
             transpile_code_block(t, b, stmt->body);
             break;
-        }
 
         case BREAK_LOOP:
-        {
             EMIT_LINE("while (true)");
             transpile_code_block(t, b, stmt->body);
             break;
-        }
 
         case FOR_LOOP:
         {
@@ -399,46 +393,36 @@ void transpile_code_block(Transpiler *t, Book *b, Block *block)
         }
 
         case WHILE_LOOP:
-        {
             EMIT("while (");
             transpile_expression(t, b, stmt->condition);
             EMIT_LINE(")");
             transpile_code_block(t, b, stmt->body);
             break;
-        }
 
         case BREAK_STATEMENT:
-        {
             EMIT_LINE("break;");
             break;
-        }
 
         case ASSIGNMENT_STATEMENT:
-        {
             transpile_expression(t, b, stmt->assignment_lhs);
             EMIT(" = ");
             transpile_expression(t, b, stmt->assignment_rhs);
-
             EMIT_LINE(";");
             break;
-        }
 
         case VARIABLE_DECLARATION:
-        {
-            Variable *var = stmt->variable;
-            transpile_type(t, b, var->type);
+            transpile_type(t, b, stmt->variable->type);
             EMIT(" ");
-            EMIT(GET_C_IDENTITY(var));
+            EMIT(GET_C_IDENTITY(stmt->variable));
             EMIT(" = ");
 
             if (stmt->initial_value)
                 transpile_expression(t, b, stmt->initial_value);
             else
-                transpile_default_value(t, b, var->type);
+                transpile_default_value(t, b, stmt->variable->type);
 
             EMIT_LINE(";");
             break;
-        }
 
         case OUTPUT_STATEMENT:
         {
@@ -515,19 +499,15 @@ void transpile_code_block(Transpiler *t, Book *b, Block *block)
         }
 
         case EXPRESSION_STMT:
-        {
             transpile_expression(t, b, stmt->expression);
             EMIT_LINE(";");
             break;
-        }
 
         case RETURN_STATEMENT:
-        {
             EMIT("return ");
             transpile_expression(t, b, stmt->expression);
             EMIT_LINE(";");
             break;
-        }
 
         default:
             fatal_error("Could not transpile %s statement in code block.", statement_kind_string(stmt->kind));
@@ -565,25 +545,16 @@ void transpile_expression(Transpiler *t, Book *b, Expression *expr)
         break;
 
     case ENUM_VALUE_LITERAL:
-    {
-        EnumValue *enum_value = expr->enum_value;
-        EnumType *enum_type = enum_value->type_of_enum_value;
-        EMIT(GET_C_IDENTITY(enum_value));
+        EMIT(GET_C_IDENTITY(expr->enum_value));
         break;
-    }
 
     case VARIABLE_REFERENCE:
-    {
-        Variable *var = expr->variable;
-        EMIT(GET_C_IDENTITY(var));
+        EMIT(GET_C_IDENTITY(expr->variable));
         break;
-    }
 
     case PARAMETER_REFERENCE:
-    {
         EMIT(GET_C_IDENTITY(expr->parameter));
         break;
-    }
 
     case FUNCTION_CALL:
     {
@@ -609,57 +580,43 @@ void transpile_expression(Transpiler *t, Book *b, Expression *expr)
     }
 
     case INDEX_BY_FIELD:
-    {
         transpile_expression(t, b, expr->subject);
         EMIT(".");
         EMIT_SUBSTR(expr->field);
         break;
-    }
 
     case UNARY_POS:
-    {
         transpile_expression(t, b, expr->operand);
         break;
-    }
 
     case UNARY_NEG:
-    {
         EMIT("-");
         transpile_expression(t, b, expr->operand);
         break;
-    }
 
     case UNARY_NOT:
-    {
         EMIT("!");
         transpile_expression(t, b, expr->operand);
         break;
-    }
 
     case UNARY_INCREMENT:
-    {
         transpile_expression(t, b, expr->operand);
         EMIT("++");
         break;
-    }
 
     case UNARY_DECREMENT:
-    {
         transpile_expression(t, b, expr->operand);
         EMIT("--");
         break;
-    }
 
-    // FIXME: Rhino and C may treat precedence differently. Ensure we insert extra ()s where required
-    //        so that the C code produces the correct Rhino semantics.
+// FIXME: Rhino and C may treat precedence differently. Ensure we insert extra brackets
+//         where required so that the C code produces the correct Rhino semantics.
 #define CASE_BINARY(expr_kind, symbol)         \
     case expr_kind:                            \
-    {                                          \
         transpile_expression(t, b, expr->lhs); \
         EMIT(" " symbol " ");                  \
         transpile_expression(t, b, expr->rhs); \
-        break;                                 \
-    }
+        break;
 
         CASE_BINARY(BINARY_MULTIPLY, "*")
         CASE_BINARY(BINARY_DIVIDE, "/")
