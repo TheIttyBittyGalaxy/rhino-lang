@@ -505,7 +505,11 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
     case FLOAT_LITERAL:
     case BOOLEAN_LITERAL:
     case STRING_LITERAL:
+    case ENUM_VALUE_LITERAL:
+        return PRECEDENCE_LITERAL;
+
     case VARIABLE_REFERENCE:
+    case PARAMETER_REFERENCE:
         return PRECEDENCE_LITERAL;
 
     case NONEABLE_EXPRESSION:
@@ -555,7 +559,7 @@ ExprPrecedence precedence_of(ExpressionKind expr_kind)
         return PRECEDENCE_LOGICAL_OR;
 
     default:
-        fatal_error("Could not determine precedence of %s expression.", expr_kind);
+        fatal_error("Could not determine precedence of %s expression.", expression_kind_string(expr_kind));
         break;
     }
 
