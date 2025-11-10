@@ -1,0 +1,31 @@
+fn main() {
+    int? x = none;
+    > x;
+    x = 2;
+    > x;
+
+    num? y = none;
+    > y;
+    y = 3;
+    > y;
+
+    str? s = none;
+    > s;
+    s = "Hiiiiii";
+    > s;
+
+    bool? b = none;
+    > b;
+    b = false;
+    > b;
+}
+
+// SUCCESS
+// none
+// 2
+// none
+// 3
+// none
+// Hiiiiii
+// none
+// false
