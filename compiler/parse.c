@@ -31,7 +31,7 @@ void parse_variable_declaration(Compiler *c, Program *apm, Block *parent, Statem
 
 void parse_program_block(Compiler *c, Program *apm);
 Block *parse_block(Compiler *c, Program *apm, Block *parent);
-Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *allocator, Block *block);
+void parse_statement(Compiler *c, Program *apm, StatementListAllocator *allocator, Block *block);
 Expression *parse_expression(Compiler *c, Program *apm);
 
 // MACROS //
@@ -164,6 +164,9 @@ bool peek_statement(Compiler *c)
 {
     return PEEK(CURLY_L) ||
            PEEK(COLON) ||
+           PEEK(KEYWORD_FN) ||
+           PEEK(KEYWORD_ENUM) ||
+           PEEK(KEYWORD_STRUCT) ||
            PEEK(KEYWORD_IF) ||
            PEEK(KEYWORD_FOR) ||
            PEEK(KEYWORD_LOOP) ||
@@ -430,8 +433,33 @@ finish:
 }
 
 // NOTE: Can return with status OKAY or RECOVERED
-Statement *parse_statement(Compiler *c, Program *apm, StatementListAllocator *allocator, Block *block)
+void parse_statement(Compiler *c, Program *apm, StatementListAllocator *allocator, Block *block)
 {
+    // FUNCTION DECLARATION
+    if (PEEK(KEYWORD_FN))
+    {
+        parse_function(c, apm, block, allocator); // Can return with status OKAY or RECOVERED
+        return;
+    }
+
+    // ENUM DECLARATION
+    if (PEEK(KEYWORD_ENUM))
+    {
+        parse_enum_type(c, apm, block, allocator);
+
+        // TODO: Do we need to handle a PANIC status, and/or how should we do this?
+        return;
+    }
+
+    // STRUCT DECLARATION
+    if (PEEK(KEYWORD_STRUCT))
+    {
+        parse_struct_type(c, apm, block, allocator);
+
+        // TODO: Do we need to handle a PANIC status, and/or how should we do this?
+        return;
+    }
+
     Statement *stmt = append_statement(allocator);
     START_SPAN(stmt);
 
@@ -692,8 +720,6 @@ recover:
             ADVANCE();
         }
     }
-
-    return stmt;
 }
 
 void parse_program_block(Compiler *c, Program *apm)
@@ -787,19 +813,8 @@ Block *parse_block(Compiler *c, Program *apm, Block *parent)
         //       every block, meaning we create numerous completely empty tables.
         block->symbol_table = allocate_symbol_table(&apm->symbol_table, parent->symbol_table);
 
-        while (true)
-        {
-            if (PEEK(KEYWORD_FN))
-                parse_function(c, apm, block, &statement_allocator); // Can return with status OKAY or RECOVERED
-            else if (PEEK(KEYWORD_ENUM))
-                parse_enum_type(c, apm, block, &statement_allocator); // TODO: Do we need to handle a PANIC status?
-            else if (PEEK(KEYWORD_STRUCT))
-                parse_struct_type(c, apm, block, &statement_allocator); // TODO: Do we need to handle a PANIC status?
-            else if (peek_statement(c))
-                parse_statement(c, apm, &statement_allocator, block); // Can return with status OKAY or RECOVERED
-            else
-                break;
-        }
+        while (peek_statement(c))
+            parse_statement(c, apm, &statement_allocator, block); // Can return with status OKAY or RECOVERED
 
         EAT(CURLY_R);
         recover_from_panic(c);
