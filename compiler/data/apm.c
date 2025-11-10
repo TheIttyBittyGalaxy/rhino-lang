@@ -5,6 +5,7 @@
 // ENUMS //
 
 DEFINE_ENUM(LIST_RHINO_TYPE_TAG, RhinoTypeTag, rhino_type_tag)
+DEFINE_ENUM(LIST_NONE_VARIANT, NoneVariant, none_variant);
 DEFINE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
 DEFINE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 DEFINE_ENUM(LIST_STATEMENTS, StatementKind, statement_kind)

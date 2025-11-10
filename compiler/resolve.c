@@ -503,6 +503,18 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
     }
 
     case NONE_LITERAL:
+    {
+        if (IS_STR_TYPE(type_hint))
+        {
+            expr->none_variant = NONE_NULL;
+        }
+        else
+        {
+            fatal_error("Unable to resolve variant of none literal");
+        }
+        break;
+    }
+
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
     case BOOLEAN_LITERAL:

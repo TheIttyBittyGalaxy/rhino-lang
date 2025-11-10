@@ -178,6 +178,13 @@ struct SymbolTable
 SymbolTable *allocate_symbol_table(Allocator *allocator, SymbolTable *parent);
 void declare_symbol(Program *apm, SymbolTable *table, SymbolTag tag, void *ptr, substr identity);
 
+// None variants
+#define LIST_NONE_VARIANT(MACRO) \
+    MACRO(NONE_UNDETERMINED)     \
+    MACRO(NONE_NULL)
+
+DECLARE_ENUM(LIST_NONE_VARIANT, NoneVariant, none_variant);
+
 // Expression Precedence
 // Ordered from "happens last" to "happens first"
 #define LIST_EXPR_PRECEDENCE(MACRO)    \
@@ -253,6 +260,10 @@ struct Expression
         {
             substr identity;
             bool given_error;
+        };
+        struct // NONE_LITERAL
+        {
+            NoneVariant none_variant;
         };
         struct // BOOLEAN_LITERAL
         {

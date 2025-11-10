@@ -535,6 +535,13 @@ void transpile_expression_with_caller_precedence(Transpiler *t, Book *b, Express
         fatal_error("Attempt to transpile an IDENTITY_LITERAL expression. By this pass we would have expected this to become a VARIABLE_REFERENCE.");
         break;
 
+    case NONE_LITERAL:
+        if (expr->none_variant == NONE_NULL)
+            EMIT("NULL");
+        else
+            fatal_error("Could not transpile %s NONE_LITERAL variant.", none_variant_string(expr->none_variant));
+        break;
+
     case BOOLEAN_LITERAL:
         EMIT(expr->bool_value ? "true" : "false");
         break;
