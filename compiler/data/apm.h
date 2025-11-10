@@ -482,6 +482,9 @@ void dump_apm(Program *apm, const char *source_text);
 void print_parsed_apm(Program *apm, const char *source_text);
 void print_resolved_apm(Program *apm, const char *source_text);
 
+// Statement methods
+bool is_declaration(Statement *stmt);
+
 // Type analysis methods
 RhinoType get_expression_type(Program *apm, const char *source_text, Expression *expr);
 bool are_types_equal(RhinoType a, RhinoType b);

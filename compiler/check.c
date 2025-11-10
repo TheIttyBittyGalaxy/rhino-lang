@@ -9,6 +9,12 @@ void check_expression(Compiler *c, Program *apm, Expression *expr);
 
 void check_block(Compiler *c, Program *apm, Block *block)
 {
+    if (block->singleton_block)
+    {
+        Statement *stmt = get_statement(block->statements, 0);
+        if (is_declaration(stmt))
+            raise_compilation_error(c, SINGLETON_BLOCK_CANNOT_CONTAIN_DECLARATION, stmt->span);
+    }
     check_statement_list(c, apm, block->statements);
 }
 

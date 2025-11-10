@@ -341,6 +341,16 @@ void dump_apm(Program *apm, const char *source_text)
 #define PRINT_RESOLVED
 #include "include/print-apm.c"
 
+// STATEMENT METHODS //
+
+bool is_declaration(Statement *stmt)
+{
+    return stmt->kind == FUNCTION_DECLARATION ||
+           stmt->kind == STRUCT_TYPE_DECLARATION ||
+           stmt->kind == ENUM_TYPE_DECLARATION ||
+           stmt->kind == VARIABLE_DECLARATION;
+}
+
 // TYPE ANALYSIS METHODS //
 
 RhinoType get_expression_type(Program *apm, const char *source_text, Expression *expr)

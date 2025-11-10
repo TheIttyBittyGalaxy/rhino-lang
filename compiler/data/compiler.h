@@ -72,6 +72,7 @@
     MACRO(EXPRESSION_IS_NOT_A_FUNCTION)                             \
     MACRO(NO_MAIN_FUNCTION)                                         \
     MACRO(RHS_TYPE_DOES_NOT_MATCH_LHS)                              \
+    MACRO(SINGLETON_BLOCK_CANNOT_CONTAIN_DECLARATION)               \
                                                                     \
     MACRO(TYPE_DOES_NOT_EXIST)                                      \
     MACRO(TYPE_IS_INVALID)                                          \
