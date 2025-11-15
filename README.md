@@ -5,27 +5,20 @@ Rhino is a work in progress programming language. Contributions welcome! :)
 ## Setup
 
 ```
-> bbuild
 > build
+> rhino <file-path>
 ```
 
 ## Scripts
 
 ### Compiler
 
-| Script  | Description                                  |
-| ------- | -------------------------------------------- |
-| `build` | Run the build program and build the compiler |
-| `comp`  | Run the compiler                             |
-| `run`   | Run the compiled rhino program               |
-| `debug` | Run the compiler in gdb                      |
-
-### Build program
-
-| Script   | Description             |
-| -------- | ----------------------- |
-| `bbuild` | Build the build program |
-| `rbuild` | Run the build program   |
+| Script  | Description                |
+| ------- | -------------------------- |
+| `build` | Build the interpreter      |
+| `comp`  | Run the interpreter        |
+| `debug` | Run the interpreter in gdb |
+| `run`   | Run the rhino interpreter  |
 
 ### Test program
 

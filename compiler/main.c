@@ -6,7 +6,6 @@
 #include "parse.h"
 #include "resolve.h"
 #include "check.h"
-#include "transpile.h"
 
 // OUTPUT MARCOS //
 
@@ -128,7 +127,7 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
 
-        transpile(&compiler, &apm);
+        // TODO: Interpret
 
         printf("SUCCESS\n");
 
@@ -194,9 +193,8 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    // Transpile
-    HEADING("Transpile");
-    transpile(&compiler, &apm);
+    // TODO: Interpret
+    // HEADING("Interpret");
 
     HEADING("Complete");
     return EXIT_SUCCESS;

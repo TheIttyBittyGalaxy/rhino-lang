@@ -1,1 +1,1 @@
-_out
+rhino local.rhi %*

@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+// TODO: Update the test program to work with the new interpreter (once it exists...)
+
 // STRING BUFFERS //
 
 char active_path[512];
