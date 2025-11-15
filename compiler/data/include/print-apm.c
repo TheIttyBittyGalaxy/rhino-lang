@@ -130,12 +130,7 @@ void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text)
         break;
 
     case NONE_LITERAL:
-#ifdef PRINT_PARSED
         PRINT("none");
-#endif
-#ifdef PRINT_RESOLVED
-        PRINT(none_variant_string(expr->none_variant));
-#endif
         break;
 
     case BOOLEAN_LITERAL:

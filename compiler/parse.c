@@ -879,7 +879,6 @@ Expression *parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrec
     else if (PEEK(KEYWORD_NONE))
     {
         lhs->kind = NONE_LITERAL;
-        lhs->none_variant = NONE_UNDETERMINED;
         ADVANCE();
     }
     else if (PEEK(INTEGER))
