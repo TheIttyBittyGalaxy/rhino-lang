@@ -493,8 +493,31 @@ void assemble(Compiler *compiler, Program *apm, ByteCode *bc)
     assembler.apm = apm;
 
     assembler.register_count = 0;
-
     assembler.loop_depth = 0;
 
+    // Global variables
+    Statement *stmt;
+    StatementIterator it = statement_iterator(apm->program_block->statements);
+    while (stmt = next_statement_iterator(&it))
+    {
+        if (stmt->kind != VARIABLE_DECLARATION)
+            continue;
+
+        // TODO: This code was copy/pasted from assemble_code_block - is there a better way to factor this?
+        uint8_t reg = assembler.register_count++;
+        assembler.node_to_register[reg] = (NodeRegister){
+            .node = (void *)stmt->variable,
+            .reg = reg};
+
+        if (stmt->initial_value)
+            assemble_expression(&assembler, bc, stmt->initial_value);
+        else
+            assemble_default_value(&assembler, bc, stmt->variable->type);
+
+        EMIT(SET_REGISTER_VALUE);
+        EMIT(reg);
+    }
+
+    // Assemble main
     assemble_function(&assembler, bc, apm->main);
 }
