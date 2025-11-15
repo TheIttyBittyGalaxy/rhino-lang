@@ -201,11 +201,27 @@ int main(int argc, char *argv[])
     assemble(&compiler, &apm, &byte_code);
     if (flag_byte_code_dump)
     {
+        size_t data_remaining = 0;
         for (size_t i = 0; i < byte_code.byte_count; i++)
         {
             uint8_t byte = byte_code.byte[i];
+            printf("%02d\t", i);
             printf("%02X\t", byte);
-            printf("%-*s\t", 13, instruction_string((Instruction)byte));
+            if (data_remaining > 0)
+            {
+                data_remaining--;
+            }
+            else
+            {
+                printf("%-*s", 13, instruction_string((Instruction)byte));
+                if (byte == PUSH_INT)
+                    data_remaining = sizeof(int);
+                else if (byte == PUSH_NUM)
+                    data_remaining = sizeof(double);
+                else if (byte == PUSH_STR)
+                    data_remaining = sizeof(void *);
+            }
+            printf("\n");
         }
     }
 

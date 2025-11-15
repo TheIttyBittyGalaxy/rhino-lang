@@ -4,6 +4,15 @@
 
 #define EMIT(ins) bc->byte[bc->byte_count++] = (uint8_t)ins
 
+#define EMIT_DATA(data, T)                 \
+    union                                  \
+    {                                      \
+        T value;                           \
+        uint8_t bytes[sizeof(T)];          \
+    } __data = {.value = data};            \
+    for (size_t i = 0; i < sizeof(T); i++) \
+        EMIT(__data.bytes[i]);
+
 // ASSEMBLE EXPRESSION //
 
 void assemble_expression(Compiler *c, Program *apm, ByteCode *bc, Expression *expr)
@@ -23,12 +32,31 @@ void assemble_expression(Compiler *c, Program *apm, ByteCode *bc, Expression *ex
         break;
 
     case INTEGER_LITERAL:
+    {
         EMIT(PUSH_INT);
-        EMIT(expr->integer_value);
+        EMIT_DATA(expr->integer_value, int);
         break;
+    }
 
-        // case FLOAT_LITERAL:
-        // case STRING_LITERAL:
+    case FLOAT_LITERAL:
+    {
+        EMIT(PUSH_NUM);
+        EMIT_DATA(expr->float_value, double);
+        break;
+    }
+
+    case STRING_LITERAL:
+    {
+        // TODO: Do something more efficient than this!!
+        substr sub = expr->string_value;
+        char *buffer = (char *)malloc(sizeof(char) * (sub.len + 1));
+        memcpy(buffer, c->source_text + sub.pos, sub.len);
+        buffer[sub.len] = '\0';
+
+        EMIT(PUSH_STR);
+        EMIT_DATA(buffer, char *);
+        break;
+    }
 
         // case ENUM_VALUE_LITERAL:
         // case VARIABLE_REFERENCE:

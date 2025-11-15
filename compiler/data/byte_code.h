@@ -11,7 +11,8 @@
     MACRO(PUSH_TRUE)             \
     MACRO(PUSH_FALSE)            \
     MACRO(PUSH_INT)              \
-    MACRO(PUSH_FLOAT)            \
+    MACRO(PUSH_NUM)              \
+    MACRO(PUSH_STR)              \
                                  \
     MACRO(OP_NEG)                \
     MACRO(OP_NOT)                \
