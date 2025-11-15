@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// TODO: Update the test program to work with the new interpreter (once it exists...)
-
 // STRING BUFFERS //
 
 char active_path[512];
@@ -120,23 +118,9 @@ void write(Page *page, const char *str, ...)
     page->content[page->length] = '\0';
 }
 
-// RUN COMMANDS //
+// RUN RHINO COMPILER //
 
-typedef enum
-{
-    COMMAND_SUCCESS,
-    COMMAND_FAIL,
-    COULD_NOT_RUN_COMMAND
-} CommandResult;
-
-#define CHECK_CMD_RESULT(result)                      \
-    if (result == COULD_NOT_RUN_COMMAND)              \
-    {                                                 \
-        printf("ERROR: Could not execute command\n"); \
-        return;                                       \
-    }
-
-CommandResult run_rhino_compiler_cmd(Results *result, size_t active_path_len)
+bool run_rhino_compiler_cmd(Results *result, size_t active_path_len)
 {
     // Update string
     {
@@ -156,7 +140,7 @@ CommandResult run_rhino_compiler_cmd(Results *result, size_t active_path_len)
     printf("> %s\n", rhino_cmd);
     FILE *stream = popen(rhino_cmd, "r");
     if (!stream)
-        return COULD_NOT_RUN_COMMAND;
+        return false; // Could not run command
 
     // Determine the outcome
     char buffer[2048];
@@ -171,12 +155,6 @@ CommandResult run_rhino_compiler_cmd(Results *result, size_t active_path_len)
     }
 
     // Determine outputs
-    if (result->outcome == SUCCESS)
-    {
-        pclose(stream);
-        return COMMAND_SUCCESS;
-    }
-
     size_t i = 0;
     while (fgets(result->output[i], sizeof(result->output[i]), stream))
     {
@@ -186,49 +164,7 @@ CommandResult run_rhino_compiler_cmd(Results *result, size_t active_path_len)
     result->output_count = i;
 
     pclose(stream);
-    return COMMAND_FAIL;
-}
-
-CommandResult run_c_compiler_cmd()
-{
-    // Run the command
-    const char *cmd = "g++ -o _out.exe _out.c -w";
-    printf("> %s\n", cmd);
-    FILE *stream = popen(cmd, "r");
-
-    if (!stream)
-        return COULD_NOT_RUN_COMMAND;
-
-    // Return success or fail depending on if G++ signaled there was a compilation error
-    int build_status = pclose(stream);
-
-    if (build_status == 0)
-        return COMMAND_SUCCESS;
-
-    return COMMAND_FAIL;
-}
-
-CommandResult run_compiled_test_cmd(Results *result)
-{
-    // Run the command
-    const char *cmd = "_out.exe";
-    printf("> %s\n", cmd);
-    FILE *stream = popen(cmd, "r");
-
-    if (!stream)
-        return COULD_NOT_RUN_COMMAND;
-
-    // Determine outputs
-    size_t i = 0;
-    while (fgets(result->output[i], sizeof(result->output[i]), stream))
-    {
-        strip_newline(result->output[i]);
-        i++;
-    }
-    result->output_count = i;
-
-    pclose(stream);
-    return COMMAND_SUCCESS;
+    return true; // Command ran successfully
 }
 
 // DETERMINE EXPECTATION //
@@ -272,7 +208,7 @@ Results determine_expectation()
     return result;
 }
 
-// TEST PROGRAM //
+// TEST RHINO PROGRAM //
 
 void test_program_at_active_path(size_t active_path_len)
 {
@@ -284,28 +220,12 @@ void test_program_at_active_path(size_t active_path_len)
     actual_result.outcome = INVALID;
     actual_result.output_count = 0;
 
-    CommandResult rhino_build = run_rhino_compiler_cmd(&actual_result, active_path_len);
-    CHECK_CMD_RESULT(rhino_build);
-
-    if (rhino_build == COMMAND_SUCCESS)
+    bool rhino_build = run_rhino_compiler_cmd(&actual_result, active_path_len);
+    if (!rhino_build)
     {
-        CommandResult c_build = run_c_compiler_cmd();
-        CHECK_CMD_RESULT(c_build);
-
-        if (c_build == COMMAND_SUCCESS)
-        {
-            CommandResult compiled_test = run_compiled_test_cmd(&actual_result);
-            CHECK_CMD_RESULT(compiled_test);
-        }
-        else
-        {
-            actual_result.outcome = FATAL_ERROR;
-            actual_result.output_count = 1;
-            strcpy(actual_result.output[0], "Error during compilation of the C program.");
-        }
+        printf("ERROR: Could not execute command\n");
+        return;
     }
-
-    printf("\n");
 
     // Compare results
     bool test_passed = results_match(expected_result, actual_result);
