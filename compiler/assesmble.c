@@ -2,6 +2,16 @@
 
 #include "fatal_error.h"
 
+// ASSEMBLER //
+
+typedef struct
+{
+    const char *source_text;
+    Program *apm;
+} Assembler;
+
+// EMIT BYTES //
+
 #define EMIT(ins) bc->byte[bc->byte_count++] = (uint8_t)ins
 
 #define EMIT_DATA(data, T)                 \
@@ -15,7 +25,7 @@
 
 // ASSEMBLE EXPRESSION //
 
-void assemble_expression(Compiler *c, Program *apm, ByteCode *bc, Expression *expr)
+void assemble_expression(Assembler *a, ByteCode *bc, Expression *expr)
 {
     switch (expr->kind)
     {
@@ -50,7 +60,7 @@ void assemble_expression(Compiler *c, Program *apm, ByteCode *bc, Expression *ex
         // TODO: Do something more efficient than this!!
         substr sub = expr->string_value;
         char *buffer = (char *)malloc(sizeof(char) * (sub.len + 1));
-        memcpy(buffer, c->source_text + sub.pos, sub.len);
+        memcpy(buffer, a->source_text + sub.pos, sub.len);
         buffer[sub.len] = '\0';
 
         EMIT(PUSH_STR);
@@ -67,27 +77,27 @@ void assemble_expression(Compiler *c, Program *apm, ByteCode *bc, Expression *ex
         // case INDEX_BY_FIELD:
 
     case UNARY_POS:
-        assemble_expression(c, apm, bc, expr->operand);
+        assemble_expression(a, bc, expr->operand);
         break;
 
     case UNARY_NEG:
-        assemble_expression(c, apm, bc, expr->operand);
+        assemble_expression(a, bc, expr->operand);
         EMIT(OP_NEG);
         break;
 
     case UNARY_NOT:
-        assemble_expression(c, apm, bc, expr->operand);
+        assemble_expression(a, bc, expr->operand);
         EMIT(OP_NOT);
         break;
 
         // case UNARY_INCREMENT:
         // case UNARY_DECREMENT:
 
-#define CASE_BINARY(expr_kind, ins)                 \
-    case expr_kind:                                 \
-        assemble_expression(c, apm, bc, expr->lhs); \
-        assemble_expression(c, apm, bc, expr->rhs); \
-        EMIT(ins);                                  \
+#define CASE_BINARY(expr_kind, ins)            \
+    case expr_kind:                            \
+        assemble_expression(a, bc, expr->lhs); \
+        assemble_expression(a, bc, expr->rhs); \
+        EMIT(ins);                             \
         break;
 
         CASE_BINARY(BINARY_MULTIPLY, OP_MULTIPLY)
@@ -114,7 +124,7 @@ void assemble_expression(Compiler *c, Program *apm, ByteCode *bc, Expression *ex
 
 // ASSEMBLE CODE BLOCK //
 
-void assemble_code_block(Compiler *c, Program *apm, ByteCode *bc, Block *block)
+void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
 {
     assert(!block->declaration_block);
 
@@ -125,7 +135,7 @@ void assemble_code_block(Compiler *c, Program *apm, ByteCode *bc, Block *block)
         switch (stmt->kind)
         {
         case OUTPUT_STATEMENT:
-            assemble_expression(c, apm, bc, stmt->expression);
+            assemble_expression(a, bc, stmt->expression);
             EMIT(OUTPUT_VALUE);
             break;
 
@@ -138,14 +148,17 @@ void assemble_code_block(Compiler *c, Program *apm, ByteCode *bc, Block *block)
 
 // ASSEMBLE FUNCTION //
 
-void assemble_function(Compiler *c, Program *apm, ByteCode *bc, Function *funct)
+void assemble_function(Assembler *a, ByteCode *bc, Function *funct)
 {
-    assemble_code_block(c, apm, bc, funct->body);
+    assemble_code_block(a, bc, funct->body);
 }
 
 // ASSEMBLE //
 
-void assemble(Compiler *c, Program *apm, ByteCode *bc)
+void assemble(Compiler *compiler, Program *apm, ByteCode *bc)
 {
-    assemble_function(c, apm, bc, apm->main);
+    Assembler assembler;
+    assembler.source_text = compiler->source_text;
+    assembler.apm = apm;
+    assemble_function(&assembler, bc, apm->main);
 }
