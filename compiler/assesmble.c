@@ -32,6 +32,8 @@ size_t get_node_register(Assembler *a, void *node)
 
 // EMIT BYTES //
 
+// TODO: Turn these into functoins, rather than macros
+
 #define EMIT(_byte) bc->byte[bc->byte_count++] = (uint8_t)_byte
 
 #define EMIT_DATA(data, T)                 \
@@ -313,7 +315,29 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
             // TODO: Implement
             // case BREAK_LOOP:
             // case FOR_LOOP:
-            // case WHILE_LOOP:
+
+        case WHILE_LOOP:
+        {
+            size_t jump_to_start = bc->byte_count;
+            assemble_expression(a, bc, stmt->condition);
+
+            EMIT(JUMP_IF_FALSE);
+            size_t jump_to_end = bc->byte_count;
+            {
+                EMIT_DATA(0, size_t);
+            }
+
+            assemble_code_block(a, bc, stmt->block);
+            EMIT(JUMP);
+            {
+                EMIT_DATA(jump_to_start, size_t);
+            }
+
+            PATCH_DATA(jump_to_end, bc->byte_count, size_t);
+            break;
+        }
+
+            // TODO: Implement
             // case BREAK_STATEMENT:
 
         case ASSIGNMENT_STATEMENT:
