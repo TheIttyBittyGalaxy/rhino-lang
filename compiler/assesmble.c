@@ -312,8 +312,16 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
         case ELSE_SEGMENT:
             break;
 
+        case BREAK_LOOP:
+        {
+            size_t jump_to_start = bc->byte_count;
+            assemble_code_block(a, bc, stmt->block);
+            EMIT(JUMP);
+            EMIT_DATA(jump_to_start, size_t);
+            break;
+        }
+
             // TODO: Implement
-            // case BREAK_LOOP:
             // case FOR_LOOP:
 
         case WHILE_LOOP:
