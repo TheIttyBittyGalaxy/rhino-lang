@@ -99,6 +99,25 @@ void output_to(RunOnString *output, const char *format, ...)
 
 // INTERPRET //
 
+#define FETCH_DATA(T, var)                                           \
+    T var;                                                           \
+    {                                                                \
+        assert(sizeof(T) <= 8);                                      \
+        union                                                        \
+        {                                                            \
+            T data;                                                  \
+            uint32_t word[2];                                        \
+        } as;                                                        \
+                                                                     \
+        as.word[0] = byte_code->instruction[program_counter++].word; \
+        as.word[1] =                                                 \
+            (sizeof(T) > 4)                                          \
+                ? byte_code->instruction[program_counter++].word     \
+                : 0;                                                 \
+                                                                     \
+        var = as.data;                                               \
+    }
+
 void interpret(ByteCode *byte_code, RunOnString *output_string)
 {
     size_t program_counter = 0;
@@ -108,120 +127,82 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
 
     RhinoValue register_value[256];
 
-#define NEXT_BYTE() byte_code->byte[program_counter++]
-
-#define DECODE_BYTES(data, T)              \
-    union                                  \
-    {                                      \
-        T value;                           \
-        uint8_t bytes[sizeof(T)];          \
-    } data;                                \
-                                           \
-    for (size_t i = 0; i < sizeof(T); i++) \
-        data.bytes[i] = NEXT_BYTE();
-
-#define PUSH_STACK(value) stack_value[stack_pointer++] = value
-#define POP_STACK() stack_value[--stack_pointer]
-
-    while (program_counter < byte_code->byte_count)
+    while (program_counter < byte_code->count)
     {
-        Instruction ins = (Instruction)NEXT_BYTE();
+        // printf_instruction(byte_code, program_counter);
+        Instruction ins = byte_code->instruction[program_counter++];
 
-        // printf("%04X\t%s\n", program_counter - 1, instruction_string(ins));
-
-        switch (ins)
+        switch (ins.op)
         {
+
+        case MOVE:
+        {
+            register_value[ins.a] = register_value[ins.b];
+            break;
+        }
 
         case JUMP:
         {
-            DECODE_BYTES(jump_to, size_t)
-            program_counter = jump_to.value;
+            program_counter = ins.x;
             break;
         }
 
         case JUMP_IF_FALSE:
         {
-            RhinoValue value = POP_STACK();
+            RhinoValue value = register_value[ins.a];
             if (value.kind != RHINO_BOOL)
-                fatal_error("Could not interpret JUMP_IF_FALSE as value at top of stack is %s.", rhino_value_kind_string(value.kind));
+                fatal_error("Could not interpret JUMP_IF_FALSE as value in register is %s.", rhino_value_kind_string(value.kind));
 
-            DECODE_BYTES(jump_to, size_t)
             if (value.as_bool == false)
-                program_counter = jump_to.value;
+                program_counter = ins.x;
 
             break;
         }
 
-        case DISCARD_STACK_VALUE:
+        case LOAD_NONE:
         {
-            POP_STACK();
+            register_value[ins.a] = (RhinoValue){.kind = RHINO_NONE, .as_bool = false};
             break;
         }
 
-        case PUSH_NONE:
+        case LOAD_TRUE:
         {
-            RhinoValue value = {.kind = RHINO_NONE, .as_bool = false};
-            PUSH_STACK(value);
+            register_value[ins.a] = (RhinoValue){.kind = RHINO_BOOL, .as_bool = true};
             break;
         }
 
-        case PUSH_TRUE:
+        case LOAD_FALSE:
         {
-            RhinoValue value = {.kind = RHINO_BOOL, .as_bool = true};
-            PUSH_STACK(value);
+            register_value[ins.a] = (RhinoValue){.kind = RHINO_BOOL, .as_bool = false};
             break;
         }
 
-        case PUSH_FALSE:
+        case LOAD_INT:
         {
-            RhinoValue value = {.kind = RHINO_BOOL, .as_bool = false};
-            PUSH_STACK(value);
+            FETCH_DATA(int, data);
+            register_value[ins.a] = (RhinoValue){.kind = RHINO_INT, .as_int = data};
             break;
         }
 
-        case PUSH_INT:
+        case LOAD_NUM:
         {
-            DECODE_BYTES(data, int);
-            RhinoValue value = {.kind = RHINO_INT, .as_int = data.value};
-            PUSH_STACK(value);
+            FETCH_DATA(double, data);
+            register_value[ins.a] = (RhinoValue){.kind = RHINO_NUM, .as_num = data};
             break;
         }
 
-        case PUSH_NUM:
+        case LOAD_STR:
         {
-            DECODE_BYTES(data, double);
-            RhinoValue value = {.kind = RHINO_NUM, .as_num = data.value};
-            PUSH_STACK(value);
+            FETCH_DATA(char *, data);
+            register_value[ins.a] = (RhinoValue){.kind = RHINO_STR, .as_str = data};
             break;
         }
 
-        case PUSH_STR:
+        case INCREMENT:
+        case DECREMENT:
         {
-            DECODE_BYTES(data, char *);
-            RhinoValue value = {.kind = RHINO_STR, .as_str = data.value};
-            PUSH_STACK(value);
-            break;
-        }
-
-        case PUSH_REGISTER_VALUE:
-        {
-            uint8_t reg = NEXT_BYTE();
-            PUSH_STACK(register_value[reg]);
-            break;
-        }
-
-        case SET_REGISTER_VALUE:
-        {
-            uint8_t reg = NEXT_BYTE();
-            register_value[reg] = POP_STACK();
-            break;
-        }
-
-        case INCREMENT_REGISTER:
-        case DECREMENT_REGISTER:
-        {
-            int diff = ins == INCREMENT_REGISTER ? 1 : -1;
-            uint8_t reg = NEXT_BYTE();
+            int diff = ins.op == INCREMENT ? 1 : -1;
+            vm_reg reg = ins.a;
             RhinoValue value = register_value[reg];
 
             if (value.kind == RHINO_INT)
@@ -229,62 +210,44 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
             else if (value.kind == RHINO_NUM)
                 register_value[reg].as_num -= diff;
             else
-                fatal_error("Could not interpret %s as value in register %d is %s.", instruction_string(ins), reg, rhino_value_kind_string(value.kind));
+                fatal_error("Could not interpret %s as value in register %d is %s.", op_code_string((OpCode)ins.op), reg, rhino_value_kind_string(value.kind));
 
-            break;
-        }
-
-        case PUSH_THEN_INCREMENT_REGISTER:
-        case PUSH_THEN_DECREMENT_REGISTER:
-        {
-            int diff = ins == PUSH_THEN_INCREMENT_REGISTER ? 1 : -1;
-            uint8_t reg = NEXT_BYTE();
-            RhinoValue value = register_value[reg];
-
-            if (value.kind == RHINO_INT)
-                register_value[reg].as_int += diff;
-            else if (value.kind == RHINO_NUM)
-                register_value[reg].as_num -= diff;
-            else
-                fatal_error("Could not interpret %s as value in register %d is %s.", instruction_string(ins), reg, rhino_value_kind_string(value.kind));
-
-            PUSH_STACK(value);
             break;
         }
 
         case OP_NEG:
         {
-            RhinoValue value = POP_STACK();
+            RhinoValue value = register_value[ins.b];
 
             if (value.kind == RHINO_INT)
                 value.as_int = -value.as_int;
             else if (value.kind == RHINO_NUM)
                 value.as_num = -value.as_num;
             else
-                fatal_error("Could not interpret OP_NEG as value at top of stack is %s.", rhino_value_kind_string(value.kind));
+                fatal_error("Could not interpret OP_NEG as value in register is %s.", rhino_value_kind_string(value.kind));
 
-            PUSH_STACK(value);
+            register_value[ins.a] = value;
             break;
         }
 
         case OP_NOT:
         {
-            RhinoValue value = POP_STACK();
+            RhinoValue value = register_value[ins.b];
 
             if (value.kind == RHINO_BOOL)
                 value.as_bool = !value.as_bool;
             else
-                fatal_error("Could not interpret OP_NOT as value at top of stack is %s.", rhino_value_kind_string(value.kind));
+                fatal_error("Could not interpret OP_NOT as value in register is %s.", rhino_value_kind_string(value.kind));
 
-            PUSH_STACK(value);
+            register_value[ins.a] = value;
             break;
         }
 
 #define CASE_BINARY_ARITHMETIC(OP, operation)                            \
     case OP:                                                             \
     {                                                                    \
-        RhinoValue rhs = POP_STACK();                                    \
-        RhinoValue lhs = POP_STACK();                                    \
+        RhinoValue lhs = register_value[ins.b];                          \
+        RhinoValue rhs = register_value[ins.c];                          \
         RhinoValue result = {.kind = RHINO_NUM};                         \
                                                                          \
         if (lhs.kind == RHINO_INT && rhs.kind == RHINO_INT)              \
@@ -308,15 +271,15 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
                 rhino_value_kind_string(lhs.kind),                       \
                 rhino_value_kind_string(rhs.kind));                      \
                                                                          \
-        PUSH_STACK(result);                                              \
+        register_value[ins.a] = result;                                  \
         break;                                                           \
     }
 
 #define CASE_COMPARE_ARITHMETIC(OP, operation)                           \
     case OP:                                                             \
     {                                                                    \
-        RhinoValue rhs = POP_STACK();                                    \
-        RhinoValue lhs = POP_STACK();                                    \
+        RhinoValue lhs = register_value[ins.b];                          \
+        RhinoValue rhs = register_value[ins.c];                          \
         bool result;                                                     \
                                                                          \
         if (lhs.kind == RHINO_INT && rhs.kind == RHINO_INT)              \
@@ -337,16 +300,18 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
                 rhino_value_kind_string(lhs.kind),                       \
                 rhino_value_kind_string(rhs.kind));                      \
                                                                          \
-        RhinoValue value = {.kind = RHINO_BOOL, .as_bool = result};      \
-        PUSH_STACK(value);                                               \
+        register_value[ins.a] = (RhinoValue){                            \
+            .kind = RHINO_BOOL,                                          \
+            .as_bool = result,                                           \
+        };                                                               \
         break;                                                           \
     }
 
 #define CASE_BINARY_LOGIC(OP, operation)                                 \
     case OP:                                                             \
     {                                                                    \
-        RhinoValue rhs = POP_STACK();                                    \
-        RhinoValue lhs = POP_STACK();                                    \
+        RhinoValue lhs = register_value[ins.b];                          \
+        RhinoValue rhs = register_value[ins.c];                          \
                                                                          \
         if (lhs.kind != RHINO_BOOL || rhs.kind != RHINO_BOOL)            \
             fatal_error(                                                 \
@@ -355,15 +320,17 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
                 rhino_value_kind_string(rhs.kind));                      \
                                                                          \
         bool result = lhs.as_bool operation rhs.as_bool;                 \
-        RhinoValue value = {.kind = RHINO_BOOL, .as_bool = result};      \
-        PUSH_STACK(value);                                               \
+        register_value[ins.a] = (RhinoValue){                            \
+            .kind = RHINO_BOOL,                                          \
+            .as_bool = result,                                           \
+        };                                                               \
         break;                                                           \
     }
 
         case OP_DIVIDE:
         {
-            RhinoValue rhs = POP_STACK();
-            RhinoValue lhs = POP_STACK();
+            RhinoValue lhs = register_value[ins.b];
+            RhinoValue rhs = register_value[ins.c];
             RhinoValue result = {.kind = RHINO_NUM};
 
             if (lhs.kind == RHINO_INT && rhs.kind == RHINO_INT)
@@ -384,15 +351,15 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
                     rhino_value_kind_string(lhs.kind),
                     rhino_value_kind_string(rhs.kind));
 
-            PUSH_STACK(result);
+            register_value[ins.a] = result;
             break;
         }
 
         // FIXME: This does not implement Rhino semantics
         case OP_REMAINDER:
         {
-            RhinoValue rhs = POP_STACK();
-            RhinoValue lhs = POP_STACK();
+            RhinoValue lhs = register_value[ins.b];
+            RhinoValue rhs = register_value[ins.c];
 
             if (lhs.kind != RHINO_INT || rhs.kind != RHINO_INT)
                 fatal_error(
@@ -401,8 +368,7 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
                     rhino_value_kind_string(rhs.kind));
 
             int result = lhs.as_int % rhs.as_int;
-            RhinoValue value = {.kind = RHINO_INT, .as_int = result};
-            PUSH_STACK(value);
+            register_value[ins.a] = (RhinoValue){.kind = RHINO_INT, .as_int = result};
             break;
         }
 
@@ -413,8 +379,8 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
         case OP_EQUAL:
         case OP_NOT_EQUAL:
         {
-            RhinoValue rhs = POP_STACK();
-            RhinoValue lhs = POP_STACK();
+            RhinoValue lhs = register_value[ins.b];
+            RhinoValue rhs = register_value[ins.c];
             bool result = false;
 
             // FIXME: Check this works for all data types
@@ -424,11 +390,10 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
                 result = lhs.as_ptr == rhs.as_ptr;
             }
 
-            if (ins == OP_NOT_EQUAL)
+            if (ins.op == OP_NOT_EQUAL)
                 result = !result;
 
-            RhinoValue value = {.kind = RHINO_BOOL, .as_bool = result};
-            PUSH_STACK(value);
+            register_value[ins.a] = (RhinoValue){.kind = RHINO_BOOL, .as_bool = result};
             break;
         }
 
@@ -446,7 +411,7 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
 
         case OUTPUT_VALUE:
         {
-            RhinoValue value = POP_STACK();
+            RhinoValue value = register_value[ins.a];
             if (value.kind == RHINO_NONE)
                 output_to(output_string, "none\n");
             else if (value.kind == RHINO_BOOL)
@@ -467,12 +432,8 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
         }
 
         default:
-            fatal_error("Could not interpret %s instruction %04X (%02X).", instruction_string(ins), --program_counter, ins);
+            fatal_error("Could not interpret %s instruction %04X.", op_code_string((OpCode)ins.op), --program_counter);
             break;
         }
     }
-
-#undef NEXT_BYTE
-#undef PUSH_STACK
-#undef POP_STACK
 }

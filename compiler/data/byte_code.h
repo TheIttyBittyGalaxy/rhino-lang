@@ -1,59 +1,84 @@
-#ifndef BYTECODE_H
-#define BYTECODE_H
+#ifndef BYTE_CODE_H
+#define BYTE_CODE_H
 
 #include "../core.h"
 
-// Byte code instruction
-#define INSTRUCTION(MACRO)              \
-    MACRO(INVALID_INSTRUCTION)          \
-                                        \
-    MACRO(JUMP)                         \
-    MACRO(JUMP_IF_FALSE)                \
-                                        \
-    MACRO(DISCARD_STACK_VALUE)          \
-                                        \
-    MACRO(PUSH_NONE)                    \
-    MACRO(PUSH_TRUE)                    \
-    MACRO(PUSH_FALSE)                   \
-    MACRO(PUSH_INT)                     \
-    MACRO(PUSH_NUM)                     \
-    MACRO(PUSH_STR)                     \
-                                        \
-    MACRO(PUSH_REGISTER_VALUE)          \
-    MACRO(SET_REGISTER_VALUE)           \
-                                        \
-    MACRO(INCREMENT_REGISTER)           \
-    MACRO(DECREMENT_REGISTER)           \
-    MACRO(PUSH_THEN_INCREMENT_REGISTER) \
-    MACRO(PUSH_THEN_DECREMENT_REGISTER) \
-                                        \
-    MACRO(OP_NEG)                       \
-    MACRO(OP_NOT)                       \
-                                        \
-    MACRO(OP_MULTIPLY)                  \
-    MACRO(OP_DIVIDE)                    \
-    MACRO(OP_REMAINDER)                 \
-    MACRO(OP_ADD)                       \
-    MACRO(OP_SUBTRACT)                  \
-    MACRO(OP_LESS_THAN)                 \
-    MACRO(OP_GREATER_THAN)              \
-    MACRO(OP_LESS_THAN_EQUAL)           \
-    MACRO(OP_GREATER_THAN_EQUAL)        \
-    MACRO(OP_EQUAL)                     \
-    MACRO(OP_NOT_EQUAL)                 \
-    MACRO(OP_LOGICAL_AND)               \
-    MACRO(OP_LOGICAL_OR)                \
-                                        \
+// TYPEDEFS //
+
+typedef uint8_t vm_reg;
+
+// OP CODE //
+
+#define OP_CODE(MACRO)           \
+    MACRO(INVALID_OP_CODE)       \
+                                 \
+    MACRO(MOVE)                  \
+                                 \
+    MACRO(JUMP)                  \
+    MACRO(JUMP_IF_FALSE)         \
+                                 \
+    MACRO(LOAD_NONE)             \
+    MACRO(LOAD_TRUE)             \
+    MACRO(LOAD_FALSE)            \
+    MACRO(LOAD_INT)              \
+    MACRO(LOAD_NUM)              \
+    MACRO(LOAD_STR)              \
+                                 \
+    MACRO(INCREMENT)             \
+    MACRO(DECREMENT)             \
+                                 \
+    MACRO(OP_NEG)                \
+    MACRO(OP_NOT)                \
+                                 \
+    MACRO(OP_MULTIPLY)           \
+    MACRO(OP_DIVIDE)             \
+    MACRO(OP_REMAINDER)          \
+    MACRO(OP_ADD)                \
+    MACRO(OP_SUBTRACT)           \
+    MACRO(OP_LESS_THAN)          \
+    MACRO(OP_GREATER_THAN)       \
+    MACRO(OP_LESS_THAN_EQUAL)    \
+    MACRO(OP_GREATER_THAN_EQUAL) \
+    MACRO(OP_EQUAL)              \
+    MACRO(OP_NOT_EQUAL)          \
+    MACRO(OP_LOGICAL_AND)        \
+    MACRO(OP_LOGICAL_OR)         \
+                                 \
     MACRO(OUTPUT_VALUE)
 
-DECLARE_ENUM(INSTRUCTION, Instruction, instruction)
+DECLARE_ENUM(OP_CODE, OpCode, op_code)
+
+// INSTRUCTION //
 
 typedef struct
 {
-    uint8_t byte[2048];
-    size_t byte_count;
+    union
+    {
+        struct
+        {
+            uint8_t op;
+            uint8_t a;
+            uint8_t b;
+            uint8_t c;
+        };
+        struct
+        {
+            uint16_t _;
+            uint16_t x;
+        };
+        uint32_t word;
+    };
+} Instruction;
+
+// BYTE CODE //
+
+typedef struct
+{
+    Instruction instruction[1024];
+    size_t count;
 } ByteCode;
 
 void init_byte_code(ByteCode *byte_code);
+size_t printf_instruction(ByteCode *byte_code, size_t i);
 
 #endif

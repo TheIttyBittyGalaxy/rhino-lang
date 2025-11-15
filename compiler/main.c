@@ -211,36 +211,9 @@ int main(int argc, char *argv[])
     assemble(&compiler, &apm, &byte_code);
     if (flag_byte_code_dump)
     {
-        size_t data_remaining = 0;
-        for (size_t i = 0; i < byte_code.byte_count; i++)
-        {
-            uint8_t byte = byte_code.byte[i];
-            if (data_remaining > 0)
-            {
-                printf("  \t%02X\n", byte);
-                data_remaining--;
-            }
-            else
-            {
-                printf("%04X\t", i);
-                printf("%02X\t", byte);
-                printf("%-*s\n", 13, instruction_string((Instruction)byte));
-                if (byte == JUMP)
-                    data_remaining = sizeof(size_t);
-                else if (byte == JUMP_IF_FALSE)
-                    data_remaining = sizeof(size_t);
-                else if (byte == PUSH_INT)
-                    data_remaining = sizeof(int);
-                else if (byte == PUSH_NUM)
-                    data_remaining = sizeof(double);
-                else if (byte == PUSH_STR)
-                    data_remaining = sizeof(void *);
-                else if (byte == PUSH_REGISTER_VALUE)
-                    data_remaining = 1;
-                else if (byte == SET_REGISTER_VALUE)
-                    data_remaining = 1;
-            }
-        }
+        size_t i = 0;
+        while (i < byte_code.count)
+            i = printf_instruction(&byte_code, i);
     }
 
     HEADING("Interpret");
