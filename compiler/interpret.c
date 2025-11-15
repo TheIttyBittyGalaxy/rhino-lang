@@ -452,7 +452,7 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
         }
 
         default:
-            fatal_error("Could not interpret %s instruction %d (%02X).", instruction_string(ins), --program_counter, ins);
+            fatal_error("Could not interpret %s instruction %04X (%02X).", instruction_string(ins), --program_counter, ins);
             break;
         }
     }
