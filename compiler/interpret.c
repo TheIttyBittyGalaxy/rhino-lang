@@ -32,4 +32,8 @@ void interpret(ByteCode *byte_code)
             break;
         }
     }
+
+#undef NEXT_BYTE
+#undef PUSH_STACK
+#undef POP_STACK
 }
