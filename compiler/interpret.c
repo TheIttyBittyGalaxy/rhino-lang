@@ -189,6 +189,24 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
             break;
         }
 
+        case PUSH_THEN_INCREMENT_REGISTER:
+        case PUSH_THEN_DECREMENT_REGISTER:
+        {
+            int diff = ins == PUSH_THEN_INCREMENT_REGISTER ? 1 : -1;
+            uint8_t reg = NEXT_BYTE();
+            RhinoValue value = register_value[reg];
+
+            if (value.kind == RHINO_INT)
+                register_value[reg].as_int += diff;
+            else if (value.kind == RHINO_NUM)
+                register_value[reg].as_num -= diff;
+            else
+                fatal_error("Could not interpret %s as value in register %d is %s.", instruction_string(ins), reg, rhino_value_kind_string(value.kind));
+
+            PUSH_STACK(value);
+            break;
+        }
+
         case OP_NEG:
         {
             RhinoValue value = POP_STACK();

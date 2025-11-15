@@ -186,9 +186,21 @@ void assemble_expression(Assembler *a, ByteCode *bc, Expression *expr)
         EMIT(OP_NOT);
         break;
 
-        // TODO: Implement
-        // case UNARY_INCREMENT:
-        // case UNARY_DECREMENT:
+    case UNARY_INCREMENT:
+    {
+        uint8_t reg = get_register_of_expression(a, expr->subject);
+        EMIT(PUSH_THEN_INCREMENT_REGISTER);
+        EMIT(reg);
+        break;
+    }
+
+    case UNARY_DECREMENT:
+    {
+        uint8_t reg = get_register_of_expression(a, expr->subject);
+        EMIT(PUSH_THEN_DECREMENT_REGISTER);
+        EMIT(reg);
+        break;
+    }
 
 #define CASE_BINARY(expr_kind, ins)            \
     case expr_kind:                            \
