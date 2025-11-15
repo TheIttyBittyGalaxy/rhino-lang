@@ -7,6 +7,8 @@
 #define INSTRUCTION(MACRO)              \
     MACRO(INVALID_INSTRUCTION)          \
                                         \
+    MACRO(DISCARD_STACK_VALUE)          \
+                                        \
     MACRO(PUSH_NONE)                    \
     MACRO(PUSH_TRUE)                    \
     MACRO(PUSH_FALSE)                   \

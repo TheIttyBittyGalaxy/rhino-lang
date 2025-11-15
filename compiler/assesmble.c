@@ -299,6 +299,7 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
 
         case EXPRESSION_STMT:
             assemble_expression(a, bc, stmt->expression);
+            EMIT(DISCARD_STACK_VALUE);
             break;
 
             // TODO: Implement

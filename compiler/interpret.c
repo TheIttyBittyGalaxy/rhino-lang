@@ -130,6 +130,10 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
         switch (ins)
         {
 
+        case DISCARD_STACK_VALUE:
+            POP_STACK();
+            break;
+
         case PUSH_NONE:
         {
             RhinoValue value = {.kind = RHINO_NONE, .as_bool = false};
