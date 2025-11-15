@@ -220,6 +220,10 @@ int main(int argc, char *argv[])
                     data_remaining = sizeof(double);
                 else if (byte == PUSH_STR)
                     data_remaining = sizeof(void *);
+                else if (byte == PUSH_REGISTER_VALUE)
+                    data_remaining = 1;
+                else if (byte == SET_REGISTER_VALUE)
+                    data_remaining = 1;
             }
             printf("\n");
         }

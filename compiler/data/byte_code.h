@@ -14,6 +14,9 @@
     MACRO(PUSH_NUM)              \
     MACRO(PUSH_STR)              \
                                  \
+    MACRO(PUSH_REGISTER_VALUE)   \
+    MACRO(SET_REGISTER_VALUE)    \
+                                 \
     MACRO(OP_NEG)                \
     MACRO(OP_NOT)                \
                                  \

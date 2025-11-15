@@ -6,13 +6,33 @@
 
 typedef struct
 {
+    void *node;
+    uint8_t reg;
+} NodeRegister;
+
+typedef struct
+{
     const char *source_text;
     Program *apm;
+
+    // TODO: Handle a situation where more than 256 registers are being used
+    uint8_t register_count;
+    NodeRegister node_to_register[256];
 } Assembler;
+
+size_t get_node_register(Assembler *a, void *node)
+{
+    for (size_t i = 0; i < a->register_count; i++)
+        if (a->node_to_register[i].node == node)
+            return i;
+
+    fatal_error("Could not get register for APM node %p.", node);
+    unreachable;
+}
 
 // EMIT BYTES //
 
-#define EMIT(ins) bc->byte[bc->byte_count++] = (uint8_t)ins
+#define EMIT(_byte) bc->byte[bc->byte_count++] = (uint8_t)_byte
 
 #define EMIT_DATA(data, T)                 \
     union                                  \
@@ -24,6 +44,73 @@ typedef struct
         EMIT(__data.bytes[i]);
 
 // ASSEMBLE EXPRESSION //
+
+uint8_t get_register_of_expression(Assembler *a, Expression *expr)
+{
+    switch (expr->kind)
+    {
+    case IDENTITY_LITERAL:
+        fatal_error("Attempt to determine the register of an IDENTITY_LITERAL expression. By this pass we would have expected this to become a VARIABLE_REFERENCE.");
+        break;
+
+    case VARIABLE_REFERENCE:
+        return get_node_register(a, expr->variable);
+        break;
+
+    case PARAMETER_REFERENCE:
+        return get_node_register(a, expr->parameter);
+        break;
+
+        // TODO: Implement
+        // case INDEX_BY_FIELD:
+
+    default:
+        fatal_error("Attempt to determine the register of a %s expression.", expression_kind_string(expr->kind));
+        break;
+    }
+
+    unreachable;
+}
+
+void assemble_default_value(Assembler *a, ByteCode *bc, RhinoType ty)
+{
+    Program *apm = a->apm;
+
+    switch (ty.tag)
+    {
+    case RHINO_NATIVE_TYPE:
+        if (IS_BOOL_TYPE(ty))
+        {
+            EMIT(PUSH_FALSE);
+        }
+        else if (IS_INT_TYPE(ty))
+        {
+            EMIT(PUSH_INT);
+            EMIT_DATA(0, int);
+        }
+        else if (IS_NUM_TYPE(ty))
+        {
+            EMIT(PUSH_INT);
+            EMIT_DATA(0, double);
+        }
+        // else if (IS_STR_TYPE(ty))
+        else
+        {
+            fatal_error("Could not transpile default value for value of native type %s.", ty.native_type->name);
+        }
+
+        break;
+
+        // TODO: Implement
+        // case RHINO_ENUM_TYPE:
+
+        // TODO: Implement
+        // case RHINO_STRUCT_TYPE:
+
+    default:
+        fatal_error("Could not transpile default value for value of type %s.", rhino_type_string(apm, ty));
+    }
+}
 
 void assemble_expression(Assembler *a, ByteCode *bc, Expression *expr)
 {
@@ -70,7 +157,13 @@ void assemble_expression(Assembler *a, ByteCode *bc, Expression *expr)
 
         // TODO: Implement
         // case ENUM_VALUE_LITERAL:
-        // case VARIABLE_REFERENCE:
+
+    case VARIABLE_REFERENCE:
+        EMIT(PUSH_REGISTER_VALUE);
+        EMIT(get_node_register(a, expr->variable));
+        break;
+
+        // TODO: Implement
         // case PARAMETER_REFERENCE:
 
         // TODO: Implement
@@ -132,6 +225,8 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
 {
     assert(!block->declaration_block);
 
+    size_t initial_register_count = a->register_count;
+
     Statement *stmt;
     StatementIterator it = statement_iterator(block->statements);
     while (stmt = next_statement_iterator(&it))
@@ -159,9 +254,31 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
             // case WHILE_LOOP:
             // case BREAK_STATEMENT:
 
-            // TODO: Implement
-            // case ASSIGNMENT_STATEMENT:
-            // case VARIABLE_DECLARATION:
+        case ASSIGNMENT_STATEMENT:
+        {
+            uint8_t reg = get_register_of_expression(a, stmt->assignment_lhs);
+            assemble_expression(a, bc, stmt->assignment_rhs);
+            EMIT(SET_REGISTER_VALUE);
+            EMIT(reg);
+            break;
+        }
+
+        case VARIABLE_DECLARATION:
+        {
+            uint8_t reg = a->register_count++;
+            a->node_to_register[reg] = (NodeRegister){
+                .node = (void *)stmt->variable,
+                .reg = reg};
+
+            if (stmt->initial_value)
+                assemble_expression(a, bc, stmt->initial_value);
+            else
+                assemble_default_value(a, bc, stmt->variable->type);
+
+            EMIT(SET_REGISTER_VALUE);
+            EMIT(reg);
+            break;
+        }
 
         case OUTPUT_STATEMENT:
             assemble_expression(a, bc, stmt->expression);
@@ -180,6 +297,8 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
             break;
         }
     }
+
+    a->register_count = initial_register_count;
 }
 
 // ASSEMBLE FUNCTION //
@@ -196,5 +315,8 @@ void assemble(Compiler *compiler, Program *apm, ByteCode *bc)
     Assembler assembler;
     assembler.source_text = compiler->source_text;
     assembler.apm = apm;
+
+    assembler.register_count = 0;
+
     assemble_function(&assembler, bc, apm->main);
 }

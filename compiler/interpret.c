@@ -105,6 +105,8 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
     RhinoValue stack_value[128];
     size_t stack_pointer = 0;
 
+    RhinoValue register_value[256];
+
 #define NEXT_BYTE() byte_code->byte[program_counter++]
 
 #define DECODE_BYTES(data, T)              \
@@ -169,6 +171,20 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
             DECODE_BYTES(data, char *);
             RhinoValue value = {.kind = RHINO_STR, .as_str = data.value};
             PUSH_STACK(value);
+            break;
+        }
+
+        case PUSH_REGISTER_VALUE:
+        {
+            uint8_t reg = NEXT_BYTE();
+            PUSH_STACK(register_value[reg]);
+            break;
+        }
+
+        case SET_REGISTER_VALUE:
+        {
+            uint8_t reg = NEXT_BYTE();
+            register_value[reg] = POP_STACK();
             break;
         }
 
