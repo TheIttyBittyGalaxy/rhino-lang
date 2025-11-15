@@ -116,10 +116,6 @@ int main(int argc, char *argv[])
         resolve(&compiler, &apm);
         check(&compiler, &apm);
 
-        ByteCode byte_code;
-        init_byte_code(&byte_code);
-        assemble(&compiler, &apm, &byte_code);
-
         if (compiler.error_count > 0)
         {
             printf("ERRORS\n");
@@ -135,6 +131,10 @@ int main(int argc, char *argv[])
 
             return EXIT_FAILURE;
         }
+
+        ByteCode byte_code;
+        init_byte_code(&byte_code);
+        assemble(&compiler, &apm, &byte_code);
 
         RunOnString output_buffer;
         init_run_on_string(&output_buffer, 1);
@@ -195,6 +195,16 @@ int main(int argc, char *argv[])
     HEADING("Check");
     check(&compiler, &apm);
 
+    // Report errors
+    if (compiler.error_count > 0)
+    {
+        HEADING("Errors");
+        determine_error_positions(&compiler);
+        for (size_t i = 0; i < compiler.error_count; i++)
+            printf_compilation_error(&compiler, i);
+        return EXIT_FAILURE;
+    }
+
     HEADING("Asessble");
     ByteCode byte_code;
     init_byte_code(&byte_code);
@@ -231,16 +241,6 @@ int main(int argc, char *argv[])
                     data_remaining = 1;
             }
         }
-    }
-
-    // Report errors
-    if (compiler.error_count > 0)
-    {
-        HEADING("Errors");
-        determine_error_positions(&compiler);
-        for (size_t i = 0; i < compiler.error_count; i++)
-            printf_compilation_error(&compiler, i);
-        return EXIT_FAILURE;
     }
 
     HEADING("Interpret");
