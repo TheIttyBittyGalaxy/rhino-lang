@@ -205,15 +205,16 @@ int main(int argc, char *argv[])
         for (size_t i = 0; i < byte_code.byte_count; i++)
         {
             uint8_t byte = byte_code.byte[i];
-            printf("%02d\t", i);
-            printf("%02X\t", byte);
             if (data_remaining > 0)
             {
+                printf("  \t%02X\n", byte);
                 data_remaining--;
             }
             else
             {
-                printf("%-*s", 13, instruction_string((Instruction)byte));
+                printf("%02d\t", i);
+                printf("%02X\t", byte);
+                printf("%-*s\n", 13, instruction_string((Instruction)byte));
                 if (byte == PUSH_INT)
                     data_remaining = sizeof(int);
                 else if (byte == PUSH_NUM)
@@ -225,7 +226,6 @@ int main(int argc, char *argv[])
                 else if (byte == SET_REGISTER_VALUE)
                     data_remaining = 1;
             }
-            printf("\n");
         }
     }
 
