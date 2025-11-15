@@ -25,6 +25,7 @@ typedef struct
         int as_int;
         double as_num;
         char *as_str;
+        void *as_ptr;
     };
 } RhinoValue;
 
@@ -187,6 +188,183 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
             register_value[reg] = POP_STACK();
             break;
         }
+
+        case OP_NEG:
+        {
+            RhinoValue value = POP_STACK();
+
+            if (value.kind == RHINO_INT)
+                value.as_int = -value.as_int;
+            else if (value.kind == RHINO_NUM)
+                value.as_num = -value.as_num;
+            else
+                fatal_error("Could not interpret OP_NEG as value at top of stack is %s.", rhino_value_kind_string(value.kind));
+
+            PUSH_STACK(value);
+            break;
+        }
+
+        case OP_NOT:
+        {
+            RhinoValue value = POP_STACK();
+
+            if (value.kind == RHINO_BOOL)
+                value.as_bool = !value.as_bool;
+            else
+                fatal_error("Could not interpret OP_NOT as value at top of stack is %s.", rhino_value_kind_string(value.kind));
+
+            PUSH_STACK(value);
+            break;
+        }
+
+#define CASE_BINARY_ARITHMETIC(OP, operation)                            \
+    case OP:                                                             \
+    {                                                                    \
+        RhinoValue rhs = POP_STACK();                                    \
+        RhinoValue lhs = POP_STACK();                                    \
+        RhinoValue result = {.kind = RHINO_NUM};                         \
+                                                                         \
+        if (lhs.kind == RHINO_INT && rhs.kind == RHINO_INT)              \
+        {                                                                \
+            result.kind = RHINO_INT;                                     \
+            result.as_int = lhs.as_int operation rhs.as_int;             \
+        }                                                                \
+                                                                         \
+        else if (lhs.kind == RHINO_NUM && rhs.kind == RHINO_INT)         \
+            result.as_num = lhs.as_num operation rhs.as_int;             \
+                                                                         \
+        else if (lhs.kind == RHINO_INT && rhs.kind == RHINO_NUM)         \
+            result.as_num = lhs.as_int operation rhs.as_num;             \
+                                                                         \
+        else if (lhs.kind == RHINO_NUM && rhs.kind == RHINO_NUM)         \
+            result.as_num = lhs.as_num operation rhs.as_num;             \
+                                                                         \
+        else                                                             \
+            fatal_error(                                                 \
+                "Could not interpret " #OP " between %s and %s values.", \
+                rhino_value_kind_string(lhs.kind),                       \
+                rhino_value_kind_string(rhs.kind));                      \
+                                                                         \
+        PUSH_STACK(result);                                              \
+        break;                                                           \
+    }
+
+#define CASE_COMPARE_ARITHMETIC(OP, operation)                           \
+    case OP:                                                             \
+    {                                                                    \
+        RhinoValue rhs = POP_STACK();                                    \
+        RhinoValue lhs = POP_STACK();                                    \
+        bool result;                                                     \
+                                                                         \
+        if (lhs.kind == RHINO_INT && rhs.kind == RHINO_INT)              \
+            result = lhs.as_int operation rhs.as_int;                    \
+                                                                         \
+        else if (lhs.kind == RHINO_NUM && rhs.kind == RHINO_INT)         \
+            result = lhs.as_num operation rhs.as_int;                    \
+                                                                         \
+        else if (lhs.kind == RHINO_INT && rhs.kind == RHINO_NUM)         \
+            result = lhs.as_int operation rhs.as_num;                    \
+                                                                         \
+        else if (lhs.kind == RHINO_NUM && rhs.kind == RHINO_NUM)         \
+            result = lhs.as_num operation rhs.as_num;                    \
+                                                                         \
+        else                                                             \
+            fatal_error(                                                 \
+                "Could not interpret " #OP " between %s and %s values.", \
+                rhino_value_kind_string(lhs.kind),                       \
+                rhino_value_kind_string(rhs.kind));                      \
+                                                                         \
+        RhinoValue value = {.kind = RHINO_BOOL, .as_bool = result};      \
+        PUSH_STACK(value);                                               \
+        break;                                                           \
+    }
+
+#define CASE_BINARY_LOGIC(OP, operation)                                 \
+    case OP:                                                             \
+    {                                                                    \
+        RhinoValue rhs = POP_STACK();                                    \
+        RhinoValue lhs = POP_STACK();                                    \
+                                                                         \
+        if (lhs.kind != RHINO_BOOL && rhs.kind == RHINO_BOOL)            \
+            fatal_error(                                                 \
+                "Could not interpret " #OP " between %s and %s values.", \
+                rhino_value_kind_string(lhs.kind),                       \
+                rhino_value_kind_string(rhs.kind));                      \
+                                                                         \
+        bool result = lhs.as_bool operation rhs.as_bool;                 \
+        RhinoValue value = {.kind = RHINO_BOOL, .as_bool = result};      \
+        PUSH_STACK(value);                                               \
+        break;                                                           \
+    }
+
+        case OP_DIVIDE:
+        {
+            RhinoValue rhs = POP_STACK();
+            RhinoValue lhs = POP_STACK();
+            RhinoValue result = {.kind = RHINO_NUM};
+
+            if (lhs.kind == RHINO_INT && rhs.kind == RHINO_INT)
+                result.as_num = (double)lhs.as_int / (double)rhs.as_int;
+
+            else if (lhs.kind == RHINO_NUM && rhs.kind == RHINO_INT)
+                result.as_num = lhs.as_num / (double)rhs.as_int;
+
+            else if (lhs.kind == RHINO_INT && rhs.kind == RHINO_NUM)
+                result.as_num = (double)lhs.as_int / rhs.as_num;
+
+            else if (lhs.kind == RHINO_NUM && rhs.kind == RHINO_NUM)
+                result.as_num = lhs.as_num / rhs.as_num;
+
+            else
+                fatal_error(
+                    "Could not interpret OP_DIVIDE between %s and %s values.",
+                    rhino_value_kind_string(lhs.kind),
+                    rhino_value_kind_string(rhs.kind));
+
+            PUSH_STACK(result);
+            break;
+        }
+
+            CASE_BINARY_ARITHMETIC(OP_MULTIPLY, *)
+            CASE_BINARY_ARITHMETIC(OP_ADD, +)
+            CASE_BINARY_ARITHMETIC(OP_SUBTRACT, -)
+
+            // TODO: Implement
+            // case OP_REMAINDER:
+
+        case OP_EQUAL:
+        case OP_NOT_EQUAL:
+        {
+            RhinoValue rhs = POP_STACK();
+            RhinoValue lhs = POP_STACK();
+            bool result = false;
+
+            // FIXME: Check this works for all data types
+            // FIXME: Implement the correct semantics for strings
+            if (lhs.kind == rhs.kind)
+            {
+                result = lhs.as_ptr == rhs.as_ptr;
+            }
+
+            if (ins == OP_NOT_EQUAL)
+                result = !result;
+
+            RhinoValue value = {.kind = RHINO_BOOL, .as_bool = result};
+            PUSH_STACK(value);
+            break;
+        }
+
+            CASE_COMPARE_ARITHMETIC(OP_LESS_THAN, <)
+            CASE_COMPARE_ARITHMETIC(OP_GREATER_THAN, >)
+            CASE_COMPARE_ARITHMETIC(OP_LESS_THAN_EQUAL, <=)
+            CASE_COMPARE_ARITHMETIC(OP_GREATER_THAN_EQUAL, >=)
+
+            CASE_BINARY_LOGIC(OP_LOGICAL_AND, &&)
+            CASE_BINARY_LOGIC(OP_LOGICAL_OR, ||)
+
+#undef CASE_BINARY_ARITHMETIC
+#undef CASE_COMPARE_ARITHMETIC
+#undef CASE_BINARY_LOGIC
 
         case OUTPUT_VALUE:
         {
