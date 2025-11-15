@@ -382,6 +382,7 @@ struct Statement
         {
             Block *body;
             Expression *condition;
+            Statement *next;
         };
         struct // BREAK_LOOP
         {

@@ -215,7 +215,11 @@ int main(int argc, char *argv[])
                 printf("%04X\t", i);
                 printf("%02X\t", byte);
                 printf("%-*s\n", 13, instruction_string((Instruction)byte));
-                if (byte == PUSH_INT)
+                if (byte == JUMP)
+                    data_remaining = sizeof(size_t);
+                else if (byte == JUMP_IF_FALSE)
+                    data_remaining = sizeof(size_t);
+                else if (byte == PUSH_INT)
                     data_remaining = sizeof(int);
                 else if (byte == PUSH_NUM)
                     data_remaining = sizeof(double);

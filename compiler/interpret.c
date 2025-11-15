@@ -127,12 +127,36 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
     {
         Instruction ins = (Instruction)NEXT_BYTE();
 
+        // printf("%04X\t%s\n", program_counter - 1, instruction_string(ins));
+
         switch (ins)
         {
 
+        case JUMP:
+        {
+            DECODE_BYTES(jump_to, size_t)
+            program_counter = jump_to.value;
+            break;
+        }
+
+        case JUMP_IF_FALSE:
+        {
+            RhinoValue value = POP_STACK();
+            if (value.kind != RHINO_BOOL)
+                fatal_error("Could not interpret JUMP_IF_FALSE as value at top of stack is %s.", rhino_value_kind_string(value.kind));
+
+            DECODE_BYTES(jump_to, size_t)
+            if (value.as_bool == false)
+                program_counter = jump_to.value;
+
+            break;
+        }
+
         case DISCARD_STACK_VALUE:
+        {
             POP_STACK();
             break;
+        }
 
         case PUSH_NONE:
         {

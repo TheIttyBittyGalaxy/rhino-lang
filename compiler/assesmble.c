@@ -43,6 +43,16 @@ size_t get_node_register(Assembler *a, void *node)
     for (size_t i = 0; i < sizeof(T); i++) \
         EMIT(__data.bytes[i]);
 
+#define PATCH_DATA(start, data, T)         \
+    union                                  \
+    {                                      \
+        T value;                           \
+        uint8_t bytes[sizeof(T)];          \
+    } __patch = {.value = data};           \
+    size_t __start = start;                \
+    for (size_t i = 0; i < sizeof(T); i++) \
+        bc->byte[__start + i] = __patch.bytes[i];
+
 // ASSEMBLE EXPRESSION //
 
 uint8_t get_register_of_expression(Assembler *a, Expression *expr)
@@ -255,10 +265,50 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
             assemble_code_block(a, bc, stmt->block);
             break;
 
-            // TODO: Implement
-            // case ELSE_IF_SEGMENT:
-            // case IF_SEGMENT:
-            // case ELSE_SEGMENT:
+        case IF_SEGMENT:
+        {
+            size_t jump_to_end[128];
+            size_t jump_to_end_count = 0;
+
+            Statement *segment = stmt;
+            while (segment)
+            {
+                if (segment->kind == ELSE_SEGMENT)
+                {
+                    assemble_code_block(a, bc, segment->block);
+                    break;
+                }
+
+                assemble_expression(a, bc, segment->condition);
+
+                EMIT(JUMP_IF_FALSE); // Jump over this segment if the condition fails
+                size_t jump_to_next_segment = bc->byte_count;
+                EMIT_DATA(0xFFFFFFFF, size_t);
+
+                assemble_code_block(a, bc, segment->body);
+                if (segment->next) // Jump to the end of the if statement
+                {
+                    EMIT(JUMP);
+                    jump_to_end[jump_to_end_count++] = bc->byte_count;
+                    EMIT_DATA(0xFFFFFFFF, size_t);
+                }
+
+                PATCH_DATA(jump_to_next_segment, bc->byte_count, size_t);
+
+                segment = segment->next;
+            }
+
+            for (size_t i = 0; i < jump_to_end_count; i++)
+            {
+                PATCH_DATA(jump_to_end[i], bc->byte_count, size_t);
+            }
+
+            break;
+        }
+
+        case ELSE_IF_SEGMENT:
+        case ELSE_SEGMENT:
+            break;
 
             // TODO: Implement
             // case BREAK_LOOP:
