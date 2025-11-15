@@ -68,12 +68,15 @@ void assemble_expression(Assembler *a, ByteCode *bc, Expression *expr)
         break;
     }
 
+        // TODO: Implement
         // case ENUM_VALUE_LITERAL:
         // case VARIABLE_REFERENCE:
         // case PARAMETER_REFERENCE:
 
+        // TODO: Implement
         // case FUNCTION_CALL:
 
+        // TODO: Implement
         // case INDEX_BY_FIELD:
 
     case UNARY_POS:
@@ -90,6 +93,7 @@ void assemble_expression(Assembler *a, ByteCode *bc, Expression *expr)
         EMIT(OP_NOT);
         break;
 
+        // TODO: Implement
         // case UNARY_INCREMENT:
         // case UNARY_DECREMENT:
 
@@ -134,10 +138,42 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
     {
         switch (stmt->kind)
         {
+
+        case FUNCTION_DECLARATION:
+        case ENUM_TYPE_DECLARATION:
+        case STRUCT_TYPE_DECLARATION:
+            break;
+
+        case CODE_BLOCK:
+            assemble_code_block(a, bc, stmt->block);
+            break;
+
+            // TODO: Implement
+            // case ELSE_IF_SEGMENT:
+            // case IF_SEGMENT:
+            // case ELSE_SEGMENT:
+
+            // TODO: Implement
+            // case BREAK_LOOP:
+            // case FOR_LOOP:
+            // case WHILE_LOOP:
+            // case BREAK_STATEMENT:
+
+            // TODO: Implement
+            // case ASSIGNMENT_STATEMENT:
+            // case VARIABLE_DECLARATION:
+
         case OUTPUT_STATEMENT:
             assemble_expression(a, bc, stmt->expression);
             EMIT(OUTPUT_VALUE);
             break;
+
+        case EXPRESSION_STMT:
+            assemble_expression(a, bc, stmt->expression);
+            break;
+
+            // TODO: Implement
+            // case RETURN_STATEMENT:
 
         default:
             fatal_error("Could not assemble %s statement in code block.", statement_kind_string(stmt->kind));
