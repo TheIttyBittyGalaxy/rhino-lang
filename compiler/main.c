@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                printf("%02d\t", i);
+                printf("%04X\t", i);
                 printf("%02X\t", byte);
                 printf("%-*s\n", 13, instruction_string((Instruction)byte));
                 if (byte == PUSH_INT)

@@ -45,7 +45,7 @@ DECLARE_ENUM(INSTRUCTION, Instruction, instruction)
 
 typedef struct
 {
-    uint8_t byte[128];
+    uint8_t byte[2048];
     size_t byte_count;
 } ByteCode;
 
