@@ -22,6 +22,8 @@
     MACRO(PUSH_REGISTER_VALUE)          \
     MACRO(SET_REGISTER_VALUE)           \
                                         \
+    MACRO(INCREMENT_REGISTER)           \
+    MACRO(DECREMENT_REGISTER)           \
     MACRO(PUSH_THEN_INCREMENT_REGISTER) \
     MACRO(PUSH_THEN_DECREMENT_REGISTER) \
                                         \

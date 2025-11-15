@@ -337,8 +337,54 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
             break;
         }
 
-            // TODO: Implement
-            // case FOR_LOOP:
+        case FOR_LOOP:
+        {
+            Variable *iterator = stmt->iterator;
+            Expression *iterable = stmt->iterable;
+
+            // FIXME: Can the two jumps in this loop be combined into one?
+            if (iterable->kind == RANGE_LITERAL)
+            {
+                uint8_t reg = a->register_count++;
+                a->node_to_register[reg] = (NodeRegister){.node = (void *)iterator, .reg = reg};
+
+                // Initialise iterator to the first value in the range
+                assemble_expression(a, bc, iterable->first);
+                EMIT(SET_REGISTER_VALUE);
+                EMIT(reg);
+
+                size_t start_of_loop = bc->byte_count;
+
+                // Check condition and jump to end if false
+                EMIT(PUSH_REGISTER_VALUE);
+                EMIT(reg);
+                assemble_expression(a, bc, iterable->last);
+                EMIT(OP_LESS_THAN_EQUAL); // e.g. i <= 10
+
+                EMIT(JUMP_IF_FALSE);
+                size_t jump_to_end = bc->byte_count;
+                {
+                    EMIT_DATA(0xFFFFFFFF, size_t);
+                }
+
+                // Assemble block, incrementing the iterator once done
+                assemble_code_block(a, bc, stmt->body);
+                EMIT(INCREMENT_REGISTER);
+                EMIT(reg);
+
+                // Jump back to the start of the loop
+                EMIT(JUMP);
+                {
+                    EMIT_DATA(start_of_loop, size_t);
+                }
+
+                PATCH_DATA(jump_to_end, bc->byte_count, size_t);
+                break;
+            }
+
+            fatal_error("Could not assemble for loop with %s iterable.", expression_kind_string(iterable->kind));
+            break;
+        }
 
         case WHILE_LOOP:
         {
