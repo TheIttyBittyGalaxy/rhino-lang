@@ -102,8 +102,8 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
 {
     size_t program_counter = 0;
 
-    RhinoValue stack[128];
-    size_t v = 0;
+    RhinoValue stack_value[128];
+    size_t stack_pointer = 0;
 
 #define NEXT_BYTE() byte_code->byte[program_counter++]
 
@@ -117,8 +117,8 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
     for (size_t i = 0; i < sizeof(T); i++) \
         data.bytes[i] = NEXT_BYTE();
 
-#define PUSH_STACK(_value) stack[v++] = _value
-#define POP_STACK() stack[--v]
+#define PUSH_STACK(value) stack_value[stack_pointer++] = value
+#define POP_STACK() stack_value[--stack_pointer]
 
     while (program_counter < byte_code->byte_count)
     {
