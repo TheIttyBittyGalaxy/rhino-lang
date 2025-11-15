@@ -18,6 +18,10 @@ typedef struct
     // TODO: Handle a situation where more than 256 registers are being used
     uint8_t register_count;
     NodeRegister node_to_register[256];
+
+    size_t loop_depth;
+    size_t jump_to_end_of_loop[128][128];
+    size_t jump_to_end_of_loop_count[128];
 } Assembler;
 
 size_t get_node_register(Assembler *a, void *node)
@@ -249,12 +253,24 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
 {
     assert(!block->declaration_block);
 
+    // Track registers in use
     size_t initial_register_count = a->register_count;
 
+    // Assemble statements
     Statement *stmt;
     StatementIterator it = statement_iterator(block->statements);
     while (stmt = next_statement_iterator(&it))
     {
+        // Track JUMP instructions to the end of the loop
+        if (stmt->kind == FOR_LOOP ||
+            stmt->kind == WHILE_LOOP ||
+            stmt->kind == BREAK_LOOP)
+        {
+            a->loop_depth++;
+            a->jump_to_end_of_loop_count[a->loop_depth] = 0;
+        }
+
+        // Generate the statement
         switch (stmt->kind)
         {
 
@@ -345,8 +361,14 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
             break;
         }
 
-            // TODO: Implement
-            // case BREAK_STATEMENT:
+        case BREAK_STATEMENT:
+        {
+            EMIT(JUMP);
+            size_t i = a->jump_to_end_of_loop_count[a->loop_depth]++;
+            a->jump_to_end_of_loop[a->loop_depth][i] = bc->byte_count;
+            EMIT_DATA(0xFFFFFFFF, size_t);
+            break;
+        }
 
         case ASSIGNMENT_STATEMENT:
         {
@@ -391,8 +413,21 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
             fatal_error("Could not assemble %s statement in code block.", statement_kind_string(stmt->kind));
             break;
         }
+
+        // Hot patch any jumps to the end of the block
+        if (stmt->kind == FOR_LOOP ||
+            stmt->kind == WHILE_LOOP ||
+            stmt->kind == BREAK_LOOP)
+        {
+            for (size_t i = 0; i < a->jump_to_end_of_loop_count[a->loop_depth]; i++)
+            {
+                PATCH_DATA(a->jump_to_end_of_loop[a->loop_depth][i], bc->byte_count, size_t);
+            }
+            a->loop_depth--;
+        }
     }
 
+    // Clear registers
     a->register_count = initial_register_count;
 }
 
@@ -412,6 +447,8 @@ void assemble(Compiler *compiler, Program *apm, ByteCode *bc)
     assembler.apm = apm;
 
     assembler.register_count = 0;
+
+    assembler.loop_depth = 0;
 
     assemble_function(&assembler, bc, apm->main);
 }
