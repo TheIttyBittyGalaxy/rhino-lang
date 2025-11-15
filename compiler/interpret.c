@@ -29,6 +29,12 @@ typedef struct
     };
 } RhinoValue;
 
+#define NONE_VALUE() (RhinoValue){.kind = RHINO_NONE, .as_bool = false};
+#define BOOL_VALUE(value) (RhinoValue){.kind = RHINO_BOOL, .as_bool = value};
+#define INT_VALUE(value) (RhinoValue){.kind = RHINO_INT, .as_int = value};
+#define NUM_VALUE(value) (RhinoValue){.kind = RHINO_NUM, .as_num = value};
+#define STR_VALUE(value) (RhinoValue){.kind = RHINO_STR, .as_str = value};
+
 // IO //
 
 char float_to_str_buffer[64];
@@ -136,16 +142,12 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
         {
 
         case MOVE:
-        {
             register_value[ins.a] = register_value[ins.b];
             break;
-        }
 
         case JUMP:
-        {
             program_counter = ins.x;
             break;
-        }
 
         case JUMP_IF_FALSE:
         {
@@ -160,41 +162,35 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
         }
 
         case LOAD_NONE:
-        {
-            register_value[ins.a] = (RhinoValue){.kind = RHINO_NONE, .as_bool = false};
+            register_value[ins.a] = NONE_VALUE();
             break;
-        }
 
         case LOAD_TRUE:
-        {
-            register_value[ins.a] = (RhinoValue){.kind = RHINO_BOOL, .as_bool = true};
+            register_value[ins.a] = BOOL_VALUE(true);
             break;
-        }
 
         case LOAD_FALSE:
-        {
-            register_value[ins.a] = (RhinoValue){.kind = RHINO_BOOL, .as_bool = false};
+            register_value[ins.a] = BOOL_VALUE(false);
             break;
-        }
 
         case LOAD_INT:
         {
             FETCH_DATA(int, data);
-            register_value[ins.a] = (RhinoValue){.kind = RHINO_INT, .as_int = data};
+            register_value[ins.a] = INT_VALUE(data);
             break;
         }
 
         case LOAD_NUM:
         {
             FETCH_DATA(double, data);
-            register_value[ins.a] = (RhinoValue){.kind = RHINO_NUM, .as_num = data};
+            register_value[ins.a] = NUM_VALUE(data);
             break;
         }
 
         case LOAD_STR:
         {
             FETCH_DATA(char *, data);
-            register_value[ins.a] = (RhinoValue){.kind = RHINO_STR, .as_str = data};
+            register_value[ins.a] = STR_VALUE(data);
             break;
         }
 
@@ -300,10 +296,7 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
                 rhino_value_kind_string(lhs.kind),                       \
                 rhino_value_kind_string(rhs.kind));                      \
                                                                          \
-        register_value[ins.a] = (RhinoValue){                            \
-            .kind = RHINO_BOOL,                                          \
-            .as_bool = result,                                           \
-        };                                                               \
+        register_value[ins.a] = BOOL_VALUE(result);                      \
         break;                                                           \
     }
 
@@ -320,10 +313,7 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
                 rhino_value_kind_string(rhs.kind));                      \
                                                                          \
         bool result = lhs.as_bool operation rhs.as_bool;                 \
-        register_value[ins.a] = (RhinoValue){                            \
-            .kind = RHINO_BOOL,                                          \
-            .as_bool = result,                                           \
-        };                                                               \
+        register_value[ins.a] = BOOL_VALUE(result);                      \
         break;                                                           \
     }
 
@@ -368,7 +358,7 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
                     rhino_value_kind_string(rhs.kind));
 
             int result = lhs.as_int % rhs.as_int;
-            register_value[ins.a] = (RhinoValue){.kind = RHINO_INT, .as_int = result};
+            register_value[ins.a] = INT_VALUE(result);
             break;
         }
 
@@ -393,7 +383,7 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
             if (ins.op == OP_NOT_EQUAL)
                 result = !result;
 
-            register_value[ins.a] = (RhinoValue){.kind = RHINO_BOOL, .as_bool = result};
+            register_value[ins.a] = BOOL_VALUE(result);
             break;
         }
 

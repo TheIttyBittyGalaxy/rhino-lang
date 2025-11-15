@@ -15,11 +15,10 @@ typedef struct
     const char *source_text;
     Program *apm;
 
-    // TODO: Handle a situation where more than 256 registers are being used
     uint8_t active_registers;
 
-    size_t node_to_register_count;
-    NodeRegister node_to_register[256];
+    size_t node_register_count;
+    NodeRegister node_register[256];
 
     size_t loop_depth;
     size_t jump_to_end_of_loop[128][128];
@@ -31,6 +30,16 @@ vm_reg reserve_register(Assembler *a)
     return a->active_registers++;
 }
 
+vm_reg reserve_register_for_node(Assembler *a, void *node)
+{
+    vm_reg reg = reserve_register(a);
+    a->node_register[a->node_register_count++] = (NodeRegister){
+        .node = node,
+        .reg = reg,
+    };
+    return reg;
+}
+
 void release_register(Assembler *a)
 {
     assert(a->active_registers > 0);
@@ -40,7 +49,7 @@ void release_register(Assembler *a)
 vm_reg get_node_register(Assembler *a, void *node)
 {
     for (size_t i = 0; i < a->active_registers; i++)
-        if (a->node_to_register[i].node == node)
+        if (a->node_register[i].node == node)
             return i;
 
     fatal_error("Could not get register for APM node %p.", node);
@@ -413,11 +422,8 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
             // FIXME: Can the two jumps in this loop be combined into one?
             if (iterable->kind == RANGE_LITERAL)
             {
-                // Reserve a register to the iterator
-                vm_reg iterator_reg = reserve_register(a);
-
-                // TODO: Make a helper function for this
-                a->node_to_register[a->node_to_register_count++] = (NodeRegister){.node = (void *)iterator, .reg = iterator_reg};
+                // Reserve a register for the iterator
+                vm_reg iterator_reg = reserve_register_for_node(a, (void *)iterator);
 
                 // Initialise iterator to the first value in the range
                 assemble_expression(a, bc, iterable->first, iterator_reg);
@@ -487,10 +493,7 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
         case VARIABLE_DECLARATION:
         {
             // FIXME: I think it's fine that we never release this, but check?
-            vm_reg variable_reg = reserve_register(a);
-
-            // TODO: Make a helper function for this
-            a->node_to_register[a->node_to_register_count++] = (NodeRegister){.node = (void *)stmt->variable, .reg = variable_reg};
+            vm_reg variable_reg = reserve_register_for_node(a, (void *)stmt->variable);
 
             if (stmt->initial_value)
                 assemble_expression(a, bc, stmt->initial_value, variable_reg);
@@ -539,10 +542,6 @@ void assemble_code_block(Assembler *a, ByteCode *bc, Block *block)
             a->loop_depth--;
         }
     }
-
-    // Clear registers
-    // NOTE: I think all this does is clear registers that were reserved for variables?
-    // a->active_registers = initial_register_count;
 }
 
 // ASSEMBLE FUNCTION //
@@ -561,7 +560,7 @@ void assemble(Compiler *compiler, Program *apm, ByteCode *bc)
     assembler.apm = apm;
 
     assembler.active_registers = 0;
-    assembler.node_to_register_count = 0;
+    assembler.node_register_count = 0;
 
     assembler.loop_depth = 0;
 
@@ -575,10 +574,7 @@ void assemble(Compiler *compiler, Program *apm, ByteCode *bc)
 
         // TODO: This code was copy/pasted from assemble_code_block - is there a better way to factor this?
         // FIXME: I think it's fine that we never release this, but check?
-        vm_reg variable_reg = reserve_register(&assembler);
-
-        // TODO: Make a helper function for this
-        assembler.node_to_register[assembler.node_to_register_count++] = (NodeRegister){.node = (void *)stmt->variable, .reg = variable_reg};
+        vm_reg variable_reg = reserve_register_for_node(&assembler, (void *)stmt->variable);
 
         if (stmt->initial_value)
             assemble_expression(&assembler, bc, stmt->initial_value, variable_reg);
