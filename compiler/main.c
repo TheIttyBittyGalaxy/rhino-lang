@@ -6,6 +6,8 @@
 #include "parse.h"
 #include "resolve.h"
 #include "check.h"
+#include "assemble.h"
+#include "interpret.h"
 
 // OUTPUT MARCOS //
 
@@ -50,6 +52,7 @@ bool flag_token_dump = false;
 bool flag_parse_dump = false;
 bool flag_resolve_dump = false;
 bool flag_dump_tree = false;
+bool flag_byte_code_dump = false;
 
 bool process_arguments(int argc, char *argv[])
 {
@@ -66,6 +69,8 @@ bool process_arguments(int argc, char *argv[])
             flag_parse_dump = true;
         else if ((strcmp(argv[i], "-r") == 0) || strcmp(argv[i], "-resolve") == 0)
             flag_resolve_dump = true;
+        else if ((strcmp(argv[i], "-b") == 0) || strcmp(argv[i], "-byte") == 0)
+            flag_byte_code_dump = true;
         else if ((strcmp(argv[i], "-n") == 0) || strcmp(argv[i], "-nice") == 0)
             flag_dump_tree = true;
         else
@@ -111,6 +116,10 @@ int main(int argc, char *argv[])
         resolve(&compiler, &apm);
         check(&compiler, &apm);
 
+        ByteCode byte_code;
+        init_byte_code(&byte_code);
+        assemble(&compiler, &apm, &byte_code);
+
         if (compiler.error_count > 0)
         {
             printf("ERRORS\n");
@@ -127,9 +136,8 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
 
-        // TODO: Interpret
-
         printf("SUCCESS\n");
+        interpret(&byte_code);
 
         return EXIT_SUCCESS;
     }
@@ -183,6 +191,20 @@ int main(int argc, char *argv[])
     HEADING("Check");
     check(&compiler, &apm);
 
+    HEADING("Asessble");
+    ByteCode byte_code;
+    init_byte_code(&byte_code);
+    assemble(&compiler, &apm, &byte_code);
+    if (flag_byte_code_dump)
+    {
+        for (size_t i = 0; i < byte_code.byte_count; i++)
+        {
+            uint8_t byte = byte_code.byte[i];
+            printf("%02X\t", byte);
+            printf("%-*s\t", 13, instruction_string((Instruction)byte));
+        }
+    }
+
     // Report errors
     if (compiler.error_count > 0)
     {
@@ -193,8 +215,8 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    // TODO: Interpret
-    // HEADING("Interpret");
+    HEADING("Interpret");
+    interpret(&byte_code);
 
     HEADING("Complete");
     return EXIT_SUCCESS;
