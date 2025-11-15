@@ -388,12 +388,27 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
             break;
         }
 
+        // FIXME: This does not implement Rhino semantics
+        case OP_REMAINDER:
+        {
+            RhinoValue rhs = POP_STACK();
+            RhinoValue lhs = POP_STACK();
+
+            if (lhs.kind != RHINO_INT || rhs.kind != RHINO_INT)
+                fatal_error(
+                    "Could not interpret OP_REMAINDER between %s and %s values.",
+                    rhino_value_kind_string(lhs.kind),
+                    rhino_value_kind_string(rhs.kind));
+
+            int result = lhs.as_int % rhs.as_int;
+            RhinoValue value = {.kind = RHINO_INT, .as_int = result};
+            PUSH_STACK(value);
+            break;
+        }
+
             CASE_BINARY_ARITHMETIC(OP_MULTIPLY, *)
             CASE_BINARY_ARITHMETIC(OP_ADD, +)
             CASE_BINARY_ARITHMETIC(OP_SUBTRACT, -)
-
-            // TODO: Implement
-            // case OP_REMAINDER:
 
         case OP_EQUAL:
         case OP_NOT_EQUAL:
