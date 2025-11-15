@@ -2,7 +2,29 @@
 
 #include "fatal_error.h"
 
-void interpret(ByteCode *byte_code)
+void output_to(RunOnString *output, const char *format, ...)
+{
+    if (!output)
+    {
+        va_list args;
+        va_start(args, format);
+        vprintf(format, args);
+        va_end(args);
+        return;
+    }
+
+    // FIXME: This could overflow
+    char buffer[1024];
+
+    va_list args;
+    va_start(args, format);
+    vsprintf(buffer, format, args);
+    va_end(args);
+
+    append_run_on_string_with_terminator(output, buffer);
+}
+
+void interpret(ByteCode *byte_code, RunOnString *output_string)
 {
     size_t i = 0;
 
@@ -24,7 +46,7 @@ void interpret(ByteCode *byte_code)
             break;
 
         case OUTPUT_INT_VALUE:
-            printf("%d\n", POP_STACK());
+            output_to(output_string, "%d\n", POP_STACK());
             break;
 
         default:

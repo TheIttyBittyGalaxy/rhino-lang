@@ -136,8 +136,12 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
 
+        RunOnString output_buffer;
+        init_run_on_string(&output_buffer, 1);
+        interpret(&byte_code, &output_buffer);
+
         printf("SUCCESS\n");
-        interpret(&byte_code);
+        printf(output_buffer.str);
 
         return EXIT_SUCCESS;
     }
@@ -216,7 +220,7 @@ int main(int argc, char *argv[])
     }
 
     HEADING("Interpret");
-    interpret(&byte_code);
+    interpret(&byte_code, NULL);
 
     HEADING("Complete");
     return EXIT_SUCCESS;
