@@ -348,7 +348,7 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
         RhinoValue rhs = POP_STACK();                                    \
         RhinoValue lhs = POP_STACK();                                    \
                                                                          \
-        if (lhs.kind != RHINO_BOOL && rhs.kind == RHINO_BOOL)            \
+        if (lhs.kind != RHINO_BOOL || rhs.kind != RHINO_BOOL)            \
             fatal_error(                                                 \
                 "Could not interpret " #OP " between %s and %s values.", \
                 rhino_value_kind_string(lhs.kind),                       \
