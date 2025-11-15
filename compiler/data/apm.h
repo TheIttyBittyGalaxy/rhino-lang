@@ -179,6 +179,7 @@ SymbolTable *allocate_symbol_table(Allocator *allocator, SymbolTable *parent);
 void declare_symbol(Program *apm, SymbolTable *table, SymbolTag tag, void *ptr, substr identity);
 
 // None variants
+// TODO: Remove this, I don't think we need it anymore
 #define LIST_NONE_VARIANT(MACRO) \
     MACRO(NONE_UNDETERMINED)     \
     MACRO(NONE_NULL)

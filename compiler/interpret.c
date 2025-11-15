@@ -41,11 +41,11 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
         switch (ins)
         {
 
-        case PUSH_INT_IMMEDIATE:
+        case PUSH_INT:
             PUSH_STACK(NEXT_BYTE());
             break;
 
-        case OUTPUT_INT_VALUE:
+        case OUTPUT_VALUE:
             output_to(output_string, "%d\n", POP_STACK());
             break;
 
