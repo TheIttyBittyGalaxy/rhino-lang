@@ -105,26 +105,26 @@ void output_to(RunOnString *output, const char *format, ...)
 
 // INTERPRET //
 
-#define FETCH_DATA(T, var)                                           \
-    T var;                                                           \
-    {                                                                \
-        assert(wordsizeof(T) <= 2);                                  \
-        union                                                        \
-        {                                                            \
-            T data;                                                  \
-            uint32_t word[2];                                        \
-        } as;                                                        \
-                                                                     \
-        as.word[0] = byte_code->instruction[program_counter++].word; \
-        as.word[1] =                                                 \
-            (wordsizeof(T) == 2)                                     \
-                ? byte_code->instruction[program_counter++].word     \
-                : 0;                                                 \
-                                                                     \
-        var = as.data;                                               \
+#define FETCH_DATA(T, var)                                      \
+    T var;                                                      \
+    {                                                           \
+        assert(wordsizeof(T) <= 2);                             \
+        union                                                   \
+        {                                                       \
+            T data;                                             \
+            uint32_t word[2];                                   \
+        } as;                                                   \
+                                                                \
+        as.word[0] = unit->instruction[program_counter++].word; \
+        as.word[1] =                                            \
+            (wordsizeof(T) == 2)                                \
+                ? unit->instruction[program_counter++].word     \
+                : 0;                                            \
+                                                                \
+        var = as.data;                                          \
     }
 
-void interpret(ByteCode *byte_code, RunOnString *output_string)
+void interpret_unit(Unit *unit, RunOnString *output_string)
 {
     size_t program_counter = 0;
 
@@ -133,10 +133,10 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
 
     RhinoValue register_value[256];
 
-    while (program_counter < byte_code->count)
+    while (program_counter < unit->count)
     {
         // printf_instruction(byte_code, program_counter);
-        Instruction ins = byte_code->instruction[program_counter++];
+        Instruction ins = unit->instruction[program_counter++];
 
         switch (ins.op)
         {
@@ -426,4 +426,9 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
             break;
         }
     }
+}
+
+void interpret(ByteCode *byte_code, RunOnString *output_string)
+{
+    interpret_unit(byte_code->main, output_string);
 }

@@ -210,11 +210,7 @@ int main(int argc, char *argv[])
     init_byte_code(&byte_code);
     assemble(&compiler, &apm, &byte_code);
     if (flag_byte_code_dump)
-    {
-        size_t i = 0;
-        while (i < byte_code.count)
-            i = printf_instruction(&byte_code, i);
-    }
+        printf_unit(byte_code.main);
 
     HEADING("Interpret");
     interpret(&byte_code, NULL);

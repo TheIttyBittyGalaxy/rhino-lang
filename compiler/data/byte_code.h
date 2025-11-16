@@ -79,9 +79,17 @@ typedef struct
 {
     Instruction instruction[1024];
     size_t count;
+} Unit;
+
+typedef struct
+{
+    Unit *main;
 } ByteCode;
 
 void init_byte_code(ByteCode *byte_code);
-size_t printf_instruction(ByteCode *byte_code, size_t i);
+void init_unit(Unit *unit);
+
+size_t printf_instruction(Unit *unit, size_t i);
+void printf_unit(Unit *unit);
 
 #endif
