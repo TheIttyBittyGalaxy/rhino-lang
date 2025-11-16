@@ -10,20 +10,42 @@ typedef struct
     uint8_t reg;
 } NodeRegister;
 
-typedef struct
+typedef struct Assembler Assembler;
+
+struct Assembler
 {
     const char *source_text;
     Program *apm;
 
+    Assembler *parent;
+    Unit *unit;
+
     uint8_t active_registers;
 
-    size_t node_register_count;
     NodeRegister node_register[256];
+    size_t node_register_count;
 
     size_t loop_depth;
     size_t jump_to_end_of_loop[128][128];
     size_t jump_to_end_of_loop_count[128];
-} Assembler;
+};
+
+void init_assembler_and_create_unit(Assembler *a, Assembler *parent, Program *apm, const char *source_text)
+{
+    // TODO: Implement a proper system for managing this memory
+    a->unit = (Unit *)malloc(sizeof(Unit));
+    init_unit(a->unit);
+
+    a->parent = parent;
+    a->apm = apm;
+    a->source_text = source_text;
+
+    a->active_registers = 0;
+
+    a->node_register_count = 0;
+
+    a->loop_depth = 0;
+}
 
 vm_reg reserve_register(Assembler *a)
 {
@@ -167,8 +189,9 @@ vm_reg get_register_of_expression(Assembler *a, Expression *expr)
     unreachable;
 }
 
-void assemble_default_value(Assembler *a, Unit *unit, RhinoType ty, vm_reg dest)
+void assemble_default_value(Assembler *a, RhinoType ty, vm_reg dest)
 {
+    Unit *unit = a->unit;
     Program *apm = a->apm;
 
     switch (ty.tag)
@@ -207,8 +230,10 @@ void assemble_default_value(Assembler *a, Unit *unit, RhinoType ty, vm_reg dest)
     }
 }
 
-void assemble_expression(Assembler *a, Unit *unit, Expression *expr, vm_reg dest)
+void assemble_expression(Assembler *a, Expression *expr, vm_reg dest)
 {
+    Unit *unit = a->unit;
+
     switch (expr->kind)
     {
     case IDENTITY_LITERAL:
@@ -263,16 +288,16 @@ void assemble_expression(Assembler *a, Unit *unit, Expression *expr, vm_reg dest
         // case INDEX_BY_FIELD:
 
     case UNARY_POS:
-        assemble_expression(a, unit, expr->operand, dest);
+        assemble_expression(a, expr->operand, dest);
         break;
 
     case UNARY_NEG:
-        assemble_expression(a, unit, expr->operand, dest);
+        assemble_expression(a, expr->operand, dest);
         EMIT_AB(OP_NEG, dest, dest);
         break;
 
     case UNARY_NOT:
-        assemble_expression(a, unit, expr->operand, dest);
+        assemble_expression(a, expr->operand, dest);
         EMIT_AB(OP_NOT, dest, dest);
         break;
 
@@ -293,20 +318,20 @@ void assemble_expression(Assembler *a, Unit *unit, Expression *expr, vm_reg dest
     }
 
     // FIXME: I'm fairly certain we don't actually need to reserve two registers for this, but I can't figure out the logic for that right now
-#define CASE_BINARY(expr_kind, ins)                   \
-    case expr_kind:                                   \
-    {                                                 \
-        vm_reg lhs = reserve_register(a);             \
-        assemble_expression(a, unit, expr->lhs, lhs); \
-                                                      \
-        vm_reg rhs = reserve_register(a);             \
-        assemble_expression(a, unit, expr->rhs, rhs); \
-                                                      \
-        EMIT_ABC(ins, dest, lhs, rhs);                \
-                                                      \
-        release_register(a);                          \
-        release_register(a);                          \
-        break;                                        \
+#define CASE_BINARY(expr_kind, ins)             \
+    case expr_kind:                             \
+    {                                           \
+        vm_reg lhs = reserve_register(a);       \
+        assemble_expression(a, expr->lhs, lhs); \
+                                                \
+        vm_reg rhs = reserve_register(a);       \
+        assemble_expression(a, expr->rhs, rhs); \
+                                                \
+        EMIT_ABC(ins, dest, lhs, rhs);          \
+                                                \
+        release_register(a);                    \
+        release_register(a);                    \
+        break;                                  \
     }
 
         CASE_BINARY(BINARY_MULTIPLY, OP_MULTIPLY)
@@ -333,14 +358,11 @@ void assemble_expression(Assembler *a, Unit *unit, Expression *expr, vm_reg dest
 
 // ASSEMBLE CODE BLOCK //
 
-void assemble_code_block(Assembler *a, Unit *unit, Block *block)
+void assemble_code_block(Assembler *a, Block *block)
 {
     assert(!block->declaration_block);
+    Unit *unit = a->unit;
 
-    // Track registers in use
-    size_t initial_register_count = a->active_registers;
-
-    // Assemble statements
     Statement *stmt;
     StatementIterator it = statement_iterator(block->statements);
     while (stmt = next_statement_iterator(&it))
@@ -364,7 +386,7 @@ void assemble_code_block(Assembler *a, Unit *unit, Block *block)
             break;
 
         case CODE_BLOCK:
-            assemble_code_block(a, unit, stmt->block);
+            assemble_code_block(a, stmt->block);
             break;
 
         case IF_SEGMENT:
@@ -377,27 +399,28 @@ void assemble_code_block(Assembler *a, Unit *unit, Block *block)
             {
                 if (segment->kind == ELSE_SEGMENT)
                 {
-                    assemble_code_block(a, unit, segment->block);
+                    assemble_code_block(a, segment->block);
                     break;
                 }
 
                 vm_reg condition_result = reserve_register(a);
-                assemble_expression(a, unit, segment->condition, condition_result);
+                assemble_expression(a, segment->condition, condition_result);
                 release_register(a);
 
                 size_t jump_to_next_segment = EMIT_AX(JUMP_IF_FALSE, condition_result, 0xFFFF); // Jump over this segment if the condition fails
 
-                assemble_code_block(a, unit, segment->body);
+                assemble_code_block(a, segment->body);
                 if (segment->next) // Jump to the end of the if statement
                     jump_to_end[jump_to_end_count++] = EMIT_X(JUMP, 0xFFFF);
 
+                // FIXME: Create a helper function for this
                 unit->instruction[jump_to_next_segment].x = unit->count;
 
                 segment = segment->next;
             }
 
             for (size_t i = 0; i < jump_to_end_count; i++)
-                unit->instruction[jump_to_end[i]].x = unit->count;
+                unit->instruction[jump_to_end[i]].x = unit->count; // FIXME: Create a helper function for this
 
             break;
         }
@@ -409,7 +432,7 @@ void assemble_code_block(Assembler *a, Unit *unit, Block *block)
         case BREAK_LOOP:
         {
             size_t jump_to_start = unit->count;
-            assemble_code_block(a, unit, stmt->block);
+            assemble_code_block(a, stmt->block);
             EMIT_X(JUMP, jump_to_start);
             break;
         }
@@ -426,25 +449,26 @@ void assemble_code_block(Assembler *a, Unit *unit, Block *block)
                 vm_reg iterator_reg = reserve_register_for_node(a, (void *)iterator);
 
                 // Initialise iterator to the first value in the range
-                assemble_expression(a, unit, iterable->first, iterator_reg);
+                assemble_expression(a, iterable->first, iterator_reg);
 
                 size_t start_of_loop = unit->count;
 
                 // Check condition and jump to end if false
                 vm_reg condition_reg = reserve_register(a);
-                assemble_expression(a, unit, iterable->last, condition_reg);
+                assemble_expression(a, iterable->last, condition_reg);
                 EMIT_ABC(OP_LESS_THAN_EQUAL, condition_reg, iterator_reg, condition_reg);
 
                 size_t jump_to_end = EMIT_AX(JUMP_IF_FALSE, condition_reg, 0xFFFF);
                 release_register(a); // condition_reg
 
                 // Assemble block, incrementing the iterator once done
-                assemble_code_block(a, unit, stmt->body);
+                assemble_code_block(a, stmt->body);
                 EMIT_A(INCREMENT, iterator_reg);
 
                 // Jump back to the start of the loop
                 EMIT_X(JUMP, start_of_loop);
 
+                // FIXME: Create a helper function for this
                 unit->instruction[jump_to_end].x = unit->count;
 
                 release_register(a); // iterator_reg
@@ -461,13 +485,14 @@ void assemble_code_block(Assembler *a, Unit *unit, Block *block)
             size_t start_of_loop = unit->count;
 
             vm_reg condition_reg = reserve_register(a);
-            assemble_expression(a, unit, stmt->condition, condition_reg);
+            assemble_expression(a, stmt->condition, condition_reg);
             size_t jump_to_end = EMIT_AX(JUMP_IF_FALSE, condition_reg, 0xFFFF);
             release_register(a);
 
-            assemble_code_block(a, unit, stmt->block);
+            assemble_code_block(a, stmt->block);
             EMIT_X(JUMP, start_of_loop);
 
+            // FIXME: Create a helper function for this
             unit->instruction[jump_to_end].x = unit->count;
             break;
         }
@@ -484,7 +509,7 @@ void assemble_code_block(Assembler *a, Unit *unit, Block *block)
         {
             vm_reg dest = get_register_of_expression(a, stmt->assignment_lhs);
             vm_reg src = reserve_register(a);
-            assemble_expression(a, unit, stmt->assignment_rhs, src);
+            assemble_expression(a, stmt->assignment_rhs, src);
             release_register(a);
             EMIT_AB(MOVE, dest, src);
             break;
@@ -496,9 +521,9 @@ void assemble_code_block(Assembler *a, Unit *unit, Block *block)
             vm_reg variable_reg = reserve_register_for_node(a, (void *)stmt->variable);
 
             if (stmt->initial_value)
-                assemble_expression(a, unit, stmt->initial_value, variable_reg);
+                assemble_expression(a, stmt->initial_value, variable_reg);
             else
-                assemble_default_value(a, unit, stmt->variable->type, variable_reg);
+                assemble_default_value(a, stmt->variable->type, variable_reg);
 
             break;
         }
@@ -506,7 +531,7 @@ void assemble_code_block(Assembler *a, Unit *unit, Block *block)
         case OUTPUT_STATEMENT:
         {
             vm_reg reg = reserve_register(a);
-            assemble_expression(a, unit, stmt->expression, reg);
+            assemble_expression(a, stmt->expression, reg);
             EMIT_A(OUTPUT_VALUE, reg);
             release_register(a);
             break;
@@ -516,7 +541,7 @@ void assemble_code_block(Assembler *a, Unit *unit, Block *block)
         case EXPRESSION_STMT:
         {
             vm_reg reg = reserve_register(a);
-            assemble_expression(a, unit, stmt->expression, reg);
+            assemble_expression(a, stmt->expression, reg);
             release_register(a);
             break;
         }
@@ -537,6 +562,7 @@ void assemble_code_block(Assembler *a, Unit *unit, Block *block)
             for (size_t i = 0; i < a->jump_to_end_of_loop_count[a->loop_depth]; i++)
             {
                 size_t j = a->jump_to_end_of_loop[a->loop_depth][i];
+                // FIXME: Create a helper function for this
                 unit->instruction[j].x = unit->count;
             }
             a->loop_depth--;
@@ -546,23 +572,26 @@ void assemble_code_block(Assembler *a, Unit *unit, Block *block)
 
 // ASSEMBLE FUNCTION //
 
-Unit *assemble_function(Assembler *a, ByteCode *bc, Function *funct)
+Unit *assemble_function(Assembler *global, ByteCode *bc, Function *funct)
 {
-    // TODO: Implement a proper system for managing this memory
-    Unit *unit = (Unit *)malloc(sizeof(Unit));
-    init_unit(unit);
-
-    assemble_code_block(a, unit, funct->body);
-    return unit;
+    Assembler a;
+    init_assembler_and_create_unit(&a, global, global->apm, global->source_text);
+    assemble_code_block(&a, funct->body);
+    return a.unit;
 }
 
 // ASSEMBLE PROGRAM //
 
-void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
+void assemble_program(ByteCode *bc, Program *apm, const char *source_text)
 {
-    // TODO: Implement a proper system for managing this memory
-    bc->init = (Unit *)malloc(sizeof(Unit));
-    init_unit(bc->init);
+    // Create init unit
+    Assembler assembler;
+    Assembler *a = &assembler;
+
+    init_assembler_and_create_unit(a, NULL, apm, source_text);
+    Unit *unit = assembler.unit;
+
+    bc->init = unit;
 
     // Initialise global variables
     Statement *stmt;
@@ -577,33 +606,22 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
         vm_reg variable_reg = reserve_register_for_node(a, (void *)stmt->variable);
 
         if (stmt->initial_value)
-            assemble_expression(a, bc->init, stmt->initial_value, variable_reg);
+            assemble_expression(a, stmt->initial_value, variable_reg);
         else
-            assemble_default_value(a, bc->init, stmt->variable->type, variable_reg);
+            assemble_default_value(a, stmt->variable->type, variable_reg);
     }
 
     // Assemble main
     bc->main = assemble_function(a, bc, apm->main);
 
-    // Call to main from init Unit
-    {
-        Unit *unit = bc->init;
-        EMIT(CALL);
-        EMIT_DATA(Unit *, bc->main);
-    }
+    // Call to main from the init unit
+    EMIT(CALL);
+    EMIT_DATA(Unit *, bc->main);
 }
 
 // ASSEMBLE //
 
 void assemble(Compiler *compiler, Program *apm, ByteCode *byte_code)
 {
-    Assembler assembler;
-    assembler.source_text = compiler->source_text;
-    assembler.apm = apm;
-
-    assembler.active_registers = 0;
-    assembler.node_register_count = 0;
-
-    assembler.loop_depth = 0;
-    assemble_program(&assembler, byte_code, apm);
+    assemble_program(byte_code, apm, compiler->source_text);
 }
