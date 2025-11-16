@@ -2,6 +2,8 @@
 
 DEFINE_ENUM(OP_CODE, OpCode, op_code)
 
+#include "../include/get_payload_size.c"
+
 void init_byte_code(ByteCode *byte_code)
 {
     byte_code->init = NULL;
@@ -24,33 +26,23 @@ size_t printf_instruction(Unit *unit, size_t i)
     printf("\x1b[90m%04X\x1b[0m  \x1b[34m%-*s\x1b[0m  %02x %02x %02x",
            i,
            21, op_code_string((OpCode)ins.op),
-           ins.a, ins.b, ins.c);
+           ins.x, ins.a, ins.b);
 
     i++;
 
-    int playload = 0;
-    if (ins.op == LOAD_INT)
-        playload = wordsizeof(int);
-    else if (ins.op == LOAD_NUM)
-        playload = wordsizeof(double);
-    else if (ins.op == LOAD_STR)
-        playload = wordsizeof(char *);
-    else if (ins.op == CALL)
-        playload = wordsizeof(Unit *);
-    else
+    size_t playload = get_playload_size((OpCode)ins.op);
+    if (playload > 0)
     {
-        printf("\n");
-        return i;
+        printf("\x1b[90m");
+        while (playload--)
+        {
+            Instruction data = unit->instruction[i++];
+            printf("  %02x %02x %02x %02x", data.op, data.x, data.a, data.b);
+        }
+        printf("\x1b[0m");
     }
 
-    printf("\x1b[90m");
-    while (playload--)
-    {
-        Instruction data = unit->instruction[i++];
-        printf("  %02x %02x %02x %02x", data.op, data.a, data.b, data.c);
-    }
-    printf("\x1b[0m\n");
-
+    printf("\n");
     return i;
 }
 
