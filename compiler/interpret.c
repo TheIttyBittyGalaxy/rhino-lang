@@ -9,7 +9,6 @@
                                 \
     MACRO(RHINO_NONE)           \
     MACRO(RHINO_BOOL)           \
-    MACRO(RHINO_INT)            \
     MACRO(RHINO_NUM)            \
     MACRO(RHINO_STR)
 
@@ -21,17 +20,15 @@ typedef struct
     RhinoValueKind kind;
     union
     {
+        uint64_t as_bits;
         bool as_bool;
-        int as_int;
         double as_num;
         char *as_str;
-        void *as_ptr;
     };
 } RhinoValue;
 
 #define NONE_VALUE() ((RhinoValue){.kind = RHINO_NONE, .as_bool = false})
 #define BOOL_VALUE(value) ((RhinoValue){.kind = RHINO_BOOL, .as_bool = value})
-#define INT_VALUE(value) ((RhinoValue){.kind = RHINO_INT, .as_int = value})
 #define NUM_VALUE(value) ((RhinoValue){.kind = RHINO_NUM, .as_num = value})
 #define STR_VALUE(value) ((RhinoValue){.kind = RHINO_STR, .as_str = value})
 
@@ -279,13 +276,6 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, RunOnString *output_str
             SET(ins.a, ins.x, BOOL_VALUE(false));
             break;
 
-        case OP_LOAD_INT:
-        {
-            FETCH_DATA(int, data);
-            SET(ins.a, ins.x, INT_VALUE(data));
-            break;
-        }
-
         case OP_LOAD_NUM:
         {
             FETCH_DATA(double, data);
@@ -307,8 +297,6 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, RunOnString *output_str
                 output_to(output_string, "none\n");
             else if (value.kind == RHINO_BOOL)
                 output_to(output_string, "%s\n", value.as_bool ? "true" : "false");
-            else if (value.kind == RHINO_INT)
-                output_to(output_string, "%d\n", value.as_int);
             else if (value.kind == RHINO_NUM)
             {
                 float_to_str(value.as_num);
@@ -323,32 +311,17 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, RunOnString *output_str
         }
 
         case OP_INC:
-        case OP_DEC:
-        {
-            int diff = ins.op == OP_INC ? 1 : -1;
-            RhinoValue *value = PTR(ins.a, ins.x);
-
-            if (value->kind == RHINO_INT)
-                value->as_int += diff;
-            else if (value->kind == RHINO_NUM)
-                value->as_num -= diff;
-            else
-                fatal_error("Could not interpret %s as value register (%d, %d) is %s.", op_code_string((OpCode)ins.op), ins.a, ins.x, rhino_value_kind_string(value->kind));
-
+            PTR(ins.a, ins.x)->as_num += 1;
             break;
-        }
+
+        case OP_DEC:
+            PTR(ins.a, ins.x)->as_num -= 1;
+            break;
 
         case OP_NEG:
         {
             RhinoValue value = GET(ins.b, ins.x);
-
-            if (value.kind == RHINO_INT)
-                value.as_int = -value.as_int;
-            else if (value.kind == RHINO_NUM)
-                value.as_num = -value.as_num;
-            else
-                fatal_error("Could not interpret OP_NEG as value in register is %s.", rhino_value_kind_string(value.kind));
-
+            value.as_num = -value.as_num;
             SET(ins.a, 0, value);
             break;
         }
@@ -356,140 +329,50 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, RunOnString *output_str
         case OP_NOT:
         {
             RhinoValue value = GET(ins.b, ins.x);
-
-            if (value.kind == RHINO_BOOL)
-                value.as_bool = !value.as_bool;
-            else
-                fatal_error("Could not interpret OP_NOT as value in register is %s.", rhino_value_kind_string(value.kind));
-
+            value.as_bool = !value.as_bool;
             SET(ins.a, 0, value);
             break;
         }
 
-#define CASE_BINARY_ARITHMETIC(OP, operation)                            \
-    case OP:                                                             \
-    {                                                                    \
-        RhinoValue lhs = GET(ins.a, 0);                                  \
-        RhinoValue rhs = GET(ins.b, 0);                                  \
-        RhinoValue result = {.kind = RHINO_NUM};                         \
-                                                                         \
-        if (lhs.kind == RHINO_INT && rhs.kind == RHINO_INT)              \
-        {                                                                \
-            result.kind = RHINO_INT;                                     \
-            result.as_int = lhs.as_int operation rhs.as_int;             \
-        }                                                                \
-                                                                         \
-        else if (lhs.kind == RHINO_NUM && rhs.kind == RHINO_INT)         \
-            result.as_num = lhs.as_num operation rhs.as_int;             \
-                                                                         \
-        else if (lhs.kind == RHINO_INT && rhs.kind == RHINO_NUM)         \
-            result.as_num = lhs.as_int operation rhs.as_num;             \
-                                                                         \
-        else if (lhs.kind == RHINO_NUM && rhs.kind == RHINO_NUM)         \
-            result.as_num = lhs.as_num operation rhs.as_num;             \
-                                                                         \
-        else                                                             \
-            fatal_error(                                                 \
-                "Could not interpret " #OP " between %s and %s values.", \
-                rhino_value_kind_string(lhs.kind),                       \
-                rhino_value_kind_string(rhs.kind));                      \
-                                                                         \
-        SET(ins.x, 0, result);                                           \
-        break;                                                           \
-    }
+#define CASE_BINARY_ARITHMETIC(OP, operation)                                          \
+    case OP:                                                                           \
+        SET(ins.x, 0, NUM_VALUE(GET(ins.a, 0).as_num operation GET(ins.b, 0).as_num)); \
+        break;
 
-#define CASE_COMPARE_ARITHMETIC(OP, operation)                           \
-    case OP:                                                             \
-    {                                                                    \
-        RhinoValue lhs = GET(ins.a, 0);                                  \
-        RhinoValue rhs = GET(ins.b, 0);                                  \
-        bool result;                                                     \
-                                                                         \
-        if (lhs.kind == RHINO_INT && rhs.kind == RHINO_INT)              \
-            result = lhs.as_int operation rhs.as_int;                    \
-                                                                         \
-        else if (lhs.kind == RHINO_NUM && rhs.kind == RHINO_INT)         \
-            result = lhs.as_num operation rhs.as_int;                    \
-                                                                         \
-        else if (lhs.kind == RHINO_INT && rhs.kind == RHINO_NUM)         \
-            result = lhs.as_int operation rhs.as_num;                    \
-                                                                         \
-        else if (lhs.kind == RHINO_NUM && rhs.kind == RHINO_NUM)         \
-            result = lhs.as_num operation rhs.as_num;                    \
-                                                                         \
-        else                                                             \
-            fatal_error(                                                 \
-                "Could not interpret " #OP " between %s and %s values.", \
-                rhino_value_kind_string(lhs.kind),                       \
-                rhino_value_kind_string(rhs.kind));                      \
-                                                                         \
-        SET(ins.x, 0, BOOL_VALUE(result));                               \
-        break;                                                           \
-    }
+#define CASE_COMPARE_ARITHMETIC(OP, operation)                                          \
+    case OP:                                                                            \
+        SET(ins.x, 0, BOOL_VALUE(GET(ins.a, 0).as_num operation GET(ins.b, 0).as_num)); \
+        break;
 
-#define CASE_BINARY_LOGIC(OP, operation)                                 \
-    case OP:                                                             \
-    {                                                                    \
-        RhinoValue lhs = GET(ins.a, 0);                                  \
-        RhinoValue rhs = GET(ins.b, 0);                                  \
-                                                                         \
-        if (lhs.kind != RHINO_BOOL || rhs.kind != RHINO_BOOL)            \
-            fatal_error(                                                 \
-                "Could not interpret " #OP " between %s and %s values.", \
-                rhino_value_kind_string(lhs.kind),                       \
-                rhino_value_kind_string(rhs.kind));                      \
-                                                                         \
-        bool result = lhs.as_bool operation rhs.as_bool;                 \
-        SET(ins.x, 0, BOOL_VALUE(result));                               \
-        break;                                                           \
-    }
+#define CASE_BINARY_LOGIC(OP, operation)                                                  \
+    case OP:                                                                              \
+        SET(ins.x, 0, BOOL_VALUE(GET(ins.a, 0).as_bool operation GET(ins.b, 0).as_bool)); \
+        break;
 
             CASE_BINARY_ARITHMETIC(OP_ADD, +)
             CASE_BINARY_ARITHMETIC(OP_SUB, -)
             CASE_BINARY_ARITHMETIC(OP_MUL, *)
+            CASE_BINARY_ARITHMETIC(OP_DIV, /)
 
-        case OP_DIV:
-        {
-            RhinoValue lhs = GET(ins.a, 0);
-            RhinoValue rhs = GET(ins.b, 0);
-            RhinoValue result = {.kind = RHINO_NUM};
+            CASE_COMPARE_ARITHMETIC(OP_LESS_THN, <)
+            CASE_COMPARE_ARITHMETIC(OP_LESS_EQL, <=)
 
-            if (lhs.kind == RHINO_INT && rhs.kind == RHINO_INT)
-                result.as_num = (double)lhs.as_int / (double)rhs.as_int;
+            CASE_BINARY_LOGIC(OP_AND, &&)
+            CASE_BINARY_LOGIC(OP_OR, ||)
 
-            else if (lhs.kind == RHINO_NUM && rhs.kind == RHINO_INT)
-                result.as_num = lhs.as_num / (double)rhs.as_int;
-
-            else if (lhs.kind == RHINO_INT && rhs.kind == RHINO_NUM)
-                result.as_num = (double)lhs.as_int / rhs.as_num;
-
-            else if (lhs.kind == RHINO_NUM && rhs.kind == RHINO_NUM)
-                result.as_num = lhs.as_num / rhs.as_num;
-
-            else
-                fatal_error(
-                    "Could not interpret OP_DIVIDE between %s and %s values.",
-                    rhino_value_kind_string(lhs.kind),
-                    rhino_value_kind_string(rhs.kind));
-
-            SET(ins.x, 0, result);
-            break;
-        }
-
-        // FIXME: This does not implement Rhino semantics
         case OP_REM:
         {
-            RhinoValue lhs = GET(ins.a, 0);
-            RhinoValue rhs = GET(ins.b, 0);
+            double result = GET(ins.a, 0).as_num;
+            double divisor = GET(ins.b, 0).as_num;
 
-            if (lhs.kind != RHINO_INT || rhs.kind != RHINO_INT)
-                fatal_error(
-                    "Could not interpret OP_REMAINDER between %s and %s values.",
-                    rhino_value_kind_string(lhs.kind),
-                    rhino_value_kind_string(rhs.kind));
+            // FIXME: Make this an approach that works for negative numbers
+            assert(result > 0);
+            assert(divisor > 0);
 
-            int result = lhs.as_int % rhs.as_int;
-            SET(ins.x, 0, INT_VALUE(result));
+            while (result >= divisor)
+                result -= divisor;
+
+            SET(ins.x, 0, NUM_VALUE(result));
             break;
         }
 
@@ -504,7 +387,7 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, RunOnString *output_str
             // FIXME: Implement the correct semantics for strings
             if (lhs.kind == rhs.kind)
             {
-                result = lhs.as_ptr == rhs.as_ptr;
+                result = lhs.as_bits == rhs.as_bits;
             }
 
             if (ins.op == OP_EQLN)
@@ -513,12 +396,6 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, RunOnString *output_str
             SET(ins.x, 0, BOOL_VALUE(result));
             break;
         }
-
-            CASE_COMPARE_ARITHMETIC(OP_LESS_THN, <)
-            CASE_COMPARE_ARITHMETIC(OP_LESS_EQL, <=)
-
-            CASE_BINARY_LOGIC(OP_AND, &&)
-            CASE_BINARY_LOGIC(OP_OR, ||)
 
 #undef CASE_BINARY_ARITHMETIC
 #undef CASE_COMPARE_ARITHMETIC

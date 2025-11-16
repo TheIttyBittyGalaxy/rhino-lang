@@ -18,7 +18,6 @@ COPY_DN      X:u   A:r   B:r              A     = (B, X)
 LOAD_NONE    X:u   A:r                   (A, X) = none
 LOAD_TRUE    X:u   A:r                   (A, X) = true
 LOAD_FALSE   X:u   A:r                   (A, X) = false
-LOAD_INT     X:u   A:r         P:int     (A, X) = P
 LOAD_NUM     X:u   A:r         P:double  (A, X) = P
 LOAD_STR     X:u   A:r         P:char*   (A, X) = P
 

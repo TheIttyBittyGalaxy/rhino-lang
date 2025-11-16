@@ -108,26 +108,6 @@ size_t emit_load_false(Unit* unit, uint8_t x, vm_reg a)
 	return i;
 }
 
-// LOAD_INT
-// (A, X) = P
-size_t emit_load_int(Unit* unit, uint8_t x, vm_reg a, int p)
-{
-	size_t i = unit->count++;
-	unit->instruction[i].op = OP_LOAD_INT;
-	unit->instruction[i].x = x;
-	unit->instruction[i].a = a;
-	
-	union
-	{
-		int data;
-		uint32_t word[wordsizeof(int)];
-	} as = {.data = p};
-	for (size_t i = 0; i < wordsizeof(int); i++)
-		unit->instruction[unit->count++].word = as.word[i];
-	
-	return i;
-}
-
 // LOAD_NUM
 // (A, X) = P
 size_t emit_load_num(Unit* unit, uint8_t x, vm_reg a, double p)

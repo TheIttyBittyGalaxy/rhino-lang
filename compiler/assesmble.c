@@ -235,7 +235,7 @@ void assemble_default_value(Assembler *a, RhinoType ty, vm_loc loc)
         if (IS_BOOL_TYPE(ty))
             emit_load_false(unit, loc.up, loc.reg);
         else if (IS_INT_TYPE(ty))
-            emit_load_int(unit, loc.up, loc.reg, 0);
+            emit_load_num(unit, loc.up, loc.reg, 0);
         else if (IS_NUM_TYPE(ty))
             emit_load_num(unit, loc.up, loc.reg, 0);
         // else if (IS_STR_TYPE(ty))
@@ -279,7 +279,7 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
         break;
 
     case INTEGER_LITERAL:
-        emit_load_int(unit, dst.up, dst.reg, expr->integer_value);
+        emit_load_num(unit, dst.up, dst.reg, expr->integer_value);
         break;
 
     case FLOAT_LITERAL:
