@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
     init_byte_code(&byte_code);
     assemble(&compiler, &apm, &byte_code);
     if (flag_byte_code_dump)
-        printf_unit(byte_code.main);
+        printf_byte_code(&byte_code);
 
     HEADING("Interpret");
     interpret(&byte_code, NULL);

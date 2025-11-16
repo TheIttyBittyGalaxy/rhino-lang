@@ -135,15 +135,18 @@ void interpret_unit(Unit *unit, RunOnString *output_string)
 
     while (program_counter < unit->count)
     {
-        // printf_instruction(byte_code, program_counter);
+        // printf_instruction(unit, program_counter);
         Instruction ins = unit->instruction[program_counter++];
 
         switch (ins.op)
         {
 
-        case MOVE:
-            register_value[ins.a] = register_value[ins.b];
+        case CALL:
+        {
+            FETCH_DATA(Unit *, data);
+            interpret_unit(data, output_string);
             break;
+        }
 
         case JUMP:
             program_counter = ins.x;
@@ -160,6 +163,10 @@ void interpret_unit(Unit *unit, RunOnString *output_string)
 
             break;
         }
+
+        case MOVE:
+            register_value[ins.a] = register_value[ins.b];
+            break;
 
         case LOAD_NONE:
             register_value[ins.a] = NONE_VALUE();
@@ -430,5 +437,5 @@ void interpret_unit(Unit *unit, RunOnString *output_string)
 
 void interpret(ByteCode *byte_code, RunOnString *output_string)
 {
-    interpret_unit(byte_code->main, output_string);
+    interpret_unit(byte_code->init, output_string);
 }

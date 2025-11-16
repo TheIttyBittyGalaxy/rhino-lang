@@ -4,6 +4,7 @@ DEFINE_ENUM(OP_CODE, OpCode, op_code)
 
 void init_byte_code(ByteCode *byte_code)
 {
+    byte_code->init = NULL;
     byte_code->main = NULL;
 }
 
@@ -31,6 +32,8 @@ size_t printf_instruction(Unit *unit, size_t i)
         playload = wordsizeof(double);
     else if (ins.op == LOAD_STR)
         playload = wordsizeof(char *);
+    else if (ins.op == CALL)
+        playload = wordsizeof(Unit *);
     else
     {
         printf("\n");
@@ -50,7 +53,15 @@ size_t printf_instruction(Unit *unit, size_t i)
 
 void printf_unit(Unit *unit)
 {
+    printf("UNIT %p\n", unit);
     size_t i = 0;
     while (i < unit->count)
         i = printf_instruction(unit, i);
+    printf("\n");
+}
+
+void printf_byte_code(ByteCode *byte_code)
+{
+    printf_unit(byte_code->init);
+    printf_unit(byte_code->main);
 }

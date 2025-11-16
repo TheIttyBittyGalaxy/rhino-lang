@@ -15,11 +15,11 @@ typedef uint8_t vm_reg;
 #define OP_CODE(MACRO)           \
     MACRO(INVALID_OP_CODE)       \
                                  \
-    MACRO(MOVE)                  \
-                                 \
+    MACRO(CALL)                  \
     MACRO(JUMP)                  \
     MACRO(JUMP_IF_FALSE)         \
                                  \
+    MACRO(MOVE)                  \
     MACRO(LOAD_NONE)             \
     MACRO(LOAD_TRUE)             \
     MACRO(LOAD_FALSE)            \
@@ -83,6 +83,7 @@ typedef struct
 
 typedef struct
 {
+    Unit *init;
     Unit *main;
 } ByteCode;
 
@@ -91,5 +92,6 @@ void init_unit(Unit *unit);
 
 size_t printf_instruction(Unit *unit, size_t i);
 void printf_unit(Unit *unit);
+void printf_byte_code(ByteCode *byte_code);
 
 #endif

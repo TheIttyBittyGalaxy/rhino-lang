@@ -545,6 +545,7 @@ void assemble_code_block(Assembler *a, Unit *unit, Block *block)
 }
 
 // ASSEMBLE FUNCTION //
+
 Unit *assemble_function(Assembler *a, ByteCode *bc, Function *funct)
 {
     // TODO: Implement a proper system for managing this memory
@@ -555,25 +556,15 @@ Unit *assemble_function(Assembler *a, ByteCode *bc, Function *funct)
     return unit;
 }
 
-// ASSEMBLE //
+// ASSEMBLE PROGRAM //
 
-void assemble(Compiler *compiler, Program *apm, ByteCode *bc)
+void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
 {
-    Assembler assembler;
-    assembler.source_text = compiler->source_text;
-    assembler.apm = apm;
+    // TODO: Implement a proper system for managing this memory
+    bc->init = (Unit *)malloc(sizeof(Unit));
+    init_unit(bc->init);
 
-    assembler.active_registers = 0;
-    assembler.node_register_count = 0;
-
-    assembler.loop_depth = 0;
-
-    // Global variables
-
-    // FIXME: Create an "initialise program" Unit that will set the
-    //        global values and call main when the program starts.
-
-    /*
+    // Initialise global variables
     Statement *stmt;
     StatementIterator it = statement_iterator(apm->program_block->statements);
     while (stmt = next_statement_iterator(&it))
@@ -583,15 +574,36 @@ void assemble(Compiler *compiler, Program *apm, ByteCode *bc)
 
         // TODO: This code was copy/pasted from assemble_code_block - is there a better way to factor this?
         // FIXME: I think it's fine that we never release this, but check?
-        vm_reg variable_reg = reserve_register_for_node(&assembler, (void *)stmt->variable);
+        vm_reg variable_reg = reserve_register_for_node(a, (void *)stmt->variable);
 
         if (stmt->initial_value)
-            assemble_expression(&assembler, bc, stmt->initial_value, variable_reg);
+            assemble_expression(a, bc->init, stmt->initial_value, variable_reg);
         else
-            assemble_default_value(&assembler, bc, stmt->variable->type, variable_reg);
-        }
-    */
+            assemble_default_value(a, bc->init, stmt->variable->type, variable_reg);
+    }
 
     // Assemble main
-    bc->main = assemble_function(&assembler, bc, apm->main);
+    bc->main = assemble_function(a, bc, apm->main);
+
+    // Call to main from init Unit
+    {
+        Unit *unit = bc->init;
+        EMIT(CALL);
+        EMIT_DATA(Unit *, bc->main);
+    }
+}
+
+// ASSEMBLE //
+
+void assemble(Compiler *compiler, Program *apm, ByteCode *byte_code)
+{
+    Assembler assembler;
+    assembler.source_text = compiler->source_text;
+    assembler.apm = apm;
+
+    assembler.active_registers = 0;
+    assembler.node_register_count = 0;
+
+    assembler.loop_depth = 0;
+    assemble_program(&assembler, byte_code, apm);
 }
