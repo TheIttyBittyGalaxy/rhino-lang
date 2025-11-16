@@ -12,8 +12,29 @@ typedef struct
 
 typedef struct
 {
+    Function *funct;
+    Unit *unit;
+} FunctionUnit;
+
+typedef struct
+{
+    Unit *unit;
+    size_t instruction;
+    Function *funct;
+} CallPatch;
+
+typedef struct
+{
     const char *source_text;
     Program *apm;
+
+    // TODO: Make this a dynamically sized array
+    CallPatch call_patch[128];
+    size_t call_patch_count;
+
+    // TODO: Make this a dynamically sized array
+    FunctionUnit function_unit[128];
+    size_t function_unit_count;
 } GlobalAssemblerData;
 
 typedef struct Assembler Assembler;
@@ -22,6 +43,7 @@ struct Assembler
 {
     GlobalAssemblerData *data;
     Assembler *parent;
+
     Unit *unit;
 
     uint8_t active_registers;
@@ -37,12 +59,12 @@ struct Assembler
 
 void init_assembler_and_create_unit(Assembler *a, Assembler *parent)
 {
+    a->parent = parent;
+    a->data = (parent) ? parent->data : NULL;
+
     // TODO: Implement a proper system for managing this memory
     a->unit = (Unit *)malloc(sizeof(Unit));
     init_unit(a->unit);
-
-    a->parent = parent;
-    a->data = (parent) ? parent->data : NULL;
 
     a->active_registers = 0;
     a->max_registers = 0;
@@ -74,6 +96,16 @@ void release_register(Assembler *a)
 {
     assert(a->active_registers > 0);
     a->active_registers--;
+}
+
+Unit *get_unit_of_function(Assembler *a, Function *funct)
+{
+    for (size_t i = 0; i < a->data->function_unit_count; i++)
+        if (a->data->function_unit[i].funct == funct)
+            return a->data->function_unit[i].unit;
+
+    fatal_error("Could not get unit for APM function %p.", funct);
+    unreachable;
 }
 
 vm_reg get_node_register(Assembler *a, void *node)
@@ -169,7 +201,25 @@ void patch(Unit *unit, Instruction ins, size_t location)
     unit->instruction[location] = ins;
 }
 
+// PATCH DATA //
+
+#define PATCH_DATA(T, value, location)                       \
+    {                                                        \
+        assert(wordsizeof(T) <= 2);                          \
+        union                                                \
+        {                                                    \
+            T data;                                          \
+            uint32_t word[2];                                \
+        } as = {.data = value};                              \
+                                                             \
+        size_t __location = location;                        \
+        unit->instruction[__location].word = as.word[0];     \
+        if (wordsizeof(T) == 2)                              \
+            unit->instruction[__location].word = as.word[1]; \
+    }
+
 // ASSEMBLE EXPRESSION //
+
 vm_reg get_register_of_expression(Assembler *a, Expression *expr)
 {
     switch (expr->kind)
@@ -289,8 +339,25 @@ void assemble_expression(Assembler *a, Expression *expr, vm_reg dest)
         // TODO: Implement
         // case PARAMETER_REFERENCE:
 
-        // TODO: Implement
-        // case FUNCTION_CALL:
+    case FUNCTION_CALL:
+    {
+        if (expr->callee->kind != FUNCTION_REFERENCE)
+            fatal_error("Could not assemble CALL expression whose callee is a %s.", expression_kind_string(expr->callee->kind));
+
+        // TODO: Supply the arguments to the call
+
+        EMIT(CALL);
+
+        Function *funct = expr->callee->function;
+        a->data->call_patch[a->data->call_patch_count++] = (CallPatch){
+            .unit = unit,
+            .instruction = unit->count,
+            .funct = funct,
+        };
+        EMIT_DATA(Unit *, (Unit *)0xFFFFFFFF);
+
+        break;
+    }
 
         // TODO: Implement
         // case INDEX_BY_FIELD:
@@ -584,6 +651,12 @@ Unit *assemble_function(Assembler *global, ByteCode *bc, Function *funct)
 {
     Assembler a;
     init_assembler_and_create_unit(&a, global);
+
+    a.data->function_unit[a.data->function_unit_count++] = (FunctionUnit){
+        .funct = funct,
+        .unit = a.unit,
+    };
+
     assemble_code_block(&a, funct->body);
     return a.unit;
 }
@@ -594,7 +667,7 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
 {
     Unit *unit = a->unit;
 
-    // Initialise global variables
+    // Initialise global variables in the init unit
     Statement *stmt;
     StatementIterator it = statement_iterator(apm->program_block->statements);
     while (stmt = next_statement_iterator(&it))
@@ -618,6 +691,18 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
     // Call to main from the init unit
     EMIT(CALL);
     EMIT_DATA(Unit *, bc->main);
+
+    // Patch all function calls
+    for (size_t i = 0; i < a->data->call_patch_count; i++)
+    {
+        Unit *unit = a->data->call_patch[i].unit; // NOTE: This variable has to be called `unit` so that the PATCH_DATA macro will work
+        size_t ins = a->data->call_patch[i].instruction;
+
+        Function *call_funct = a->data->call_patch[i].funct;
+        Unit *call_unit = get_unit_of_function(a, call_funct);
+
+        PATCH_DATA(Unit *, call_unit, ins);
+    }
 }
 
 // ASSEMBLE //
@@ -629,6 +714,9 @@ void assemble(Compiler *compiler, Program *apm, ByteCode *byte_code)
 
     data.apm = apm;
     data.source_text = compiler->source_text;
+
+    data.call_patch_count = 0;
+    data.function_unit_count = 0;
 
     // Create init unit
     Assembler assembler;
