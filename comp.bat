@@ -1,1 +1,0 @@
-chcp 65001 && rhino local.rhi %*
