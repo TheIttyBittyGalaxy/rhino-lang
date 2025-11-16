@@ -5,4 +5,9 @@ fn main() {
     }
 
     > factorial(5);
+    > factorial(16);
 }
+
+// SUCCESS
+// 120
+// 20922789888000
