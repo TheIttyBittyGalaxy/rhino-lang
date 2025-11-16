@@ -21,6 +21,7 @@ struct Assembler
     Unit *unit;
 
     uint8_t active_registers;
+    uint8_t max_registers;
 
     NodeRegister node_register[256];
     size_t node_register_count;
@@ -41,6 +42,7 @@ void init_assembler_and_create_unit(Assembler *a, Assembler *parent, Program *ap
     a->source_text = source_text;
 
     a->active_registers = 0;
+    a->max_registers = 0;
 
     a->node_register_count = 0;
 
@@ -49,7 +51,10 @@ void init_assembler_and_create_unit(Assembler *a, Assembler *parent, Program *ap
 
 vm_reg reserve_register(Assembler *a)
 {
-    return a->active_registers++;
+    vm_reg reg = a->active_registers++;
+    if (a->active_registers > a->max_registers)
+        a->max_registers = a->active_registers;
+    return reg;
 }
 
 vm_reg reserve_register_for_node(Assembler *a, void *node)
@@ -517,7 +522,7 @@ void assemble_code_block(Assembler *a, Block *block)
 
         case VARIABLE_DECLARATION:
         {
-            // FIXME: I think it's fine that we never release this, but check?
+            // NOTE: This register is never released
             vm_reg variable_reg = reserve_register_for_node(a, (void *)stmt->variable);
 
             if (stmt->initial_value)
