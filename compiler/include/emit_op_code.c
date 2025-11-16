@@ -190,6 +190,18 @@ size_t emit_load_str(Unit* unit, uint8_t x, vm_reg a, char* p)
 	return i;
 }
 
+// LOAD_ENUM
+// (A, X) = B
+size_t emit_load_enum(Unit* unit, uint8_t x, vm_reg a, uint8_t b)
+{
+	size_t i = unit->count++;
+	unit->instruction[i].op = OP_LOAD_ENUM;
+	unit->instruction[i].x = x;
+	unit->instruction[i].a = a;
+	unit->instruction[i].b = b;
+	return i;
+}
+
 // OUT
 // Output the value in register (A, X).
 size_t emit_out(Unit* unit, uint8_t x, vm_reg a)

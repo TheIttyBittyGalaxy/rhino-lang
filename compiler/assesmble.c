@@ -43,6 +43,10 @@ typedef struct
     // TODO: Make this a dynamically sized array
     FunctionUnit function_unit[128];
     size_t function_unit_count;
+
+    // TODO: Make this a dynamically sized hash map or the like
+    EnumValue *enum_int[256];
+    size_t enum_int_count;
 } GlobalAssemblerData;
 
 typedef struct Assembler Assembler;
@@ -146,6 +150,16 @@ vm_loc get_node_location(Assembler *a, void *node)
     }
 
     fatal_error("Could not get register for APM node %p.", node);
+    unreachable;
+}
+
+size_t get_enum_int(Assembler *a, EnumValue *enum_value)
+{
+    for (size_t i = 0; i < a->data->enum_int_count; i++)
+        if (a->data->enum_int[i] == enum_value)
+            return i;
+
+    fatal_error("Could not get int of enum value %p.", enum_value);
     unreachable;
 }
 
@@ -298,8 +312,9 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
         break;
     }
 
-        // TODO: Implement
-        // case ENUM_VALUE_LITERAL:
+    case ENUM_VALUE_LITERAL:
+        emit_load_enum(unit, dst.up, dst.reg, get_enum_int(a, expr->enum_value));
+        break;
 
     case VARIABLE_REFERENCE:
     {
@@ -455,6 +470,25 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
     }
 }
 
+// META-DATA FOR ENUM VALUES //
+
+void assign_enum_ints(Assembler *a, Block *block)
+{
+    GlobalAssemblerData *d = a->data;
+
+    Statement *stmt;
+    StatementIterator it = statement_iterator(block->statements);
+    while (stmt = next_statement_iterator(&it))
+    {
+        if (stmt->kind != ENUM_TYPE_DECLARATION)
+            continue;
+
+        EnumType *enum_type = stmt->enum_type;
+        for (size_t i = 0; i < enum_type->values.count; i++)
+            d->enum_int[d->enum_int_count++] = get_enum_value(enum_type->values, i);
+    }
+}
+
 // ASSEMBLE PROGRAM //
 
 void assemble_code_block(Assembler *a, Block *block);
@@ -467,6 +501,10 @@ void assemble_code_block(Assembler *a, Block *block)
 
     Statement *stmt;
     StatementIterator it;
+
+    // Create representations for all enum values declared in this block
+    size_t initial_enum_int_count = a->data->enum_int_count;
+    assign_enum_ints(a, block);
 
     // Assemble statements
     it = statement_iterator(block->statements);
@@ -695,6 +733,9 @@ void assemble_code_block(Assembler *a, Block *block)
         if (stmt->kind == FUNCTION_DECLARATION)
             assemble_function(a, stmt->function);
     }
+
+    // Release representations for enum values
+    a->data->enum_int_count = initial_enum_int_count;
 }
 
 void assemble_function(Assembler *parent, Function *funct)
@@ -723,6 +764,9 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
     Unit *unit = a->unit;
     Statement *stmt;
     StatementIterator it;
+
+    // Create representations for enum values
+    assign_enum_ints(a, apm->program_block);
 
     // Initialise global variables in the init unit
     it = statement_iterator(apm->program_block->statements);
@@ -781,6 +825,7 @@ void assemble(Compiler *compiler, Program *apm, ByteCode *byte_code)
 
     data.call_patch_count = 0;
     data.function_unit_count = 0;
+    data.enum_int_count = 0;
 
     // Create init unit
     Assembler assembler;

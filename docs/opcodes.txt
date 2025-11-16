@@ -26,6 +26,7 @@ LOAD_TRUE    X:u   A:r                   (A, X) = true
 LOAD_FALSE   X:u   A:r                   (A, X) = false
 LOAD_NUM     X:u   A:r         P:double  (A, X) = P
 LOAD_STR     X:u   A:r         P:char*   (A, X) = P
+LOAD_ENUM    X:u   A:r   B:i             (A, X) = B
 
 # OUTPUT
 

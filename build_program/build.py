@@ -44,6 +44,7 @@ def as_c_data_type(v):
     if v == "r": return "vm_reg"
     if v == "u": return "uint8_t"
     if v == "pc": return "uint16_t"
+    if v == "i": return "uint8_t"
     return v
 
 with create_include("op_code_list.c") as f:

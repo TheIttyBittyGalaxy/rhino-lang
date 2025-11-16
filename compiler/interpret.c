@@ -10,7 +10,8 @@
     MACRO(RHINO_NONE)           \
     MACRO(RHINO_BOOL)           \
     MACRO(RHINO_NUM)            \
-    MACRO(RHINO_STR)
+    MACRO(RHINO_STR)            \
+    MACRO(RHINO_ENUM)
 
 DECLARE_ENUM(RHINO_VALUE_KIND, RhinoValueKind, rhino_value_kind)
 DEFINE_ENUM(RHINO_VALUE_KIND, RhinoValueKind, rhino_value_kind)
@@ -24,6 +25,7 @@ typedef struct
         bool as_bool;
         double as_num;
         char *as_str;
+        int as_enum;
     };
 } RhinoValue;
 
@@ -31,6 +33,7 @@ typedef struct
 #define BOOL_VALUE(value) ((RhinoValue){.kind = RHINO_BOOL, .as_bool = value})
 #define NUM_VALUE(value) ((RhinoValue){.kind = RHINO_NUM, .as_num = value})
 #define STR_VALUE(value) ((RhinoValue){.kind = RHINO_STR, .as_str = value})
+#define ENUM_VALUE(value) ((RhinoValue){.kind = RHINO_ENUM, .as_enum = value})
 
 // IO //
 
@@ -321,6 +324,10 @@ RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, R
             SET(ins.a, ins.x, STR_VALUE(data));
             break;
         }
+
+        case OP_LOAD_ENUM:
+            SET(ins.a, ins.x, ENUM_VALUE(ins.b));
+            break;
 
         case OP_OUT:
         {
