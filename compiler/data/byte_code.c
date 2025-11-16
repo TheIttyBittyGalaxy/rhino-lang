@@ -18,12 +18,14 @@ void init_unit(Unit *unit)
 
 size_t printf_instruction(Unit *unit, size_t i)
 {
-    Instruction ins = unit->instruction[i++];
+    Instruction ins = unit->instruction[i];
 
     printf("\x1b[90m%04X\x1b[0m  \x1b[34m%-*s\x1b[0m  %02x %02x %02x",
            i,
            21, op_code_string((OpCode)ins.op),
            ins.a, ins.b, ins.c);
+
+    i++;
 
     int playload = 0;
     if (ins.op == LOAD_INT)
