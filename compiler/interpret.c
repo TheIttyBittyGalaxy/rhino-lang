@@ -108,7 +108,7 @@ void output_to(RunOnString *output, const char *format, ...)
 #define FETCH_DATA(T, var)                                           \
     T var;                                                           \
     {                                                                \
-        assert(sizeof(T) <= 8);                                      \
+        assert(wordsizeof(T) <= 2);                                  \
         union                                                        \
         {                                                            \
             T data;                                                  \
@@ -117,7 +117,7 @@ void output_to(RunOnString *output, const char *format, ...)
                                                                      \
         as.word[0] = byte_code->instruction[program_counter++].word; \
         as.word[1] =                                                 \
-            (sizeof(T) > 4)                                          \
+            (wordsizeof(T) == 2)                                     \
                 ? byte_code->instruction[program_counter++].word     \
                 : 0;                                                 \
                                                                      \

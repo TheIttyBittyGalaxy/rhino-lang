@@ -21,11 +21,11 @@ size_t printf_instruction(ByteCode *byte_code, size_t i)
 
     int playload = 0;
     if (ins.op == LOAD_INT)
-        playload = sizeof(int) / 4;
+        playload = wordsizeof(int);
     else if (ins.op == LOAD_NUM)
-        playload = sizeof(double) / 4;
+        playload = wordsizeof(double);
     else if (ins.op == LOAD_STR)
-        playload = sizeof(char *) / 4;
+        playload = wordsizeof(char *);
     else
     {
         printf("\n");

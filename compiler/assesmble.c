@@ -120,7 +120,7 @@ size_t emit_ax(ByteCode *bc, OpCode op, vm_reg a, uint16_t x)
 
 #define EMIT_DATA(T, value)                                 \
     {                                                       \
-        assert(sizeof(T) <= 8);                             \
+        assert(wordsizeof(T) <= 2);                         \
         union                                               \
         {                                                   \
             T data;                                         \
@@ -128,7 +128,7 @@ size_t emit_ax(ByteCode *bc, OpCode op, vm_reg a, uint16_t x)
         } as = {.data = value};                             \
                                                             \
         bc->instruction[bc->count++].word = as.word[0];     \
-        if (sizeof(T) > 4)                                  \
+        if (wordsizeof(T) == 2)                             \
             bc->instruction[bc->count++].word = as.word[1]; \
     }
 

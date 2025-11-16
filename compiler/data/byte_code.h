@@ -3,9 +3,12 @@
 
 #include "../core.h"
 
-// TYPEDEFS //
+// UTILITY //
 
 typedef uint8_t vm_reg;
+
+// Returns the number of 32 bit words needed to represent a data type
+#define wordsizeof(T) (sizeof(T) - 1) / 4 + 1
 
 // OP CODE //
 
