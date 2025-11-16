@@ -11,9 +11,9 @@ JUMP_IF      X:r   Y:pc                  Set the Program Counter to Y if the val
 
 # MOVE AND LOAD VALUES
 
-COPY         X:u   A:r   B:r             Copy the value in register (A, X) to register (B, X).
-COPY_DOWN    X:u   A:r   B:r             Copy the value in register (A, X) to register B.
-COPY_UP      X:u   A:r   B:r             Copy the value in register A to register (B, X).
+COPY         X:u   A:r   B:r             (A, X) = (B, X)
+COPY_UP      X:u   A:r   B:r             (A, X) =  B
+COPY_DN      X:u   A:r   B:r              A     = (B, X)
 
 LOAD_NONE    X:u   A:r                   (A, X) = none
 LOAD_TRUE    X:u   A:r                   (A, X) = true
@@ -28,15 +28,13 @@ OUT          X:u   A:r                   Output the value in register (A, X).
 
 # INCREMENT AND DECREMENT
 
-INCA         X:u   A:r   B:r             B = (A, X)          ; (A, X) = (A, X) + 1
-DECA         X:u   A:r   B:r             B = (A, X)          ; (A, X) = (A, X) - 1
-INCB         X:u   A:r   B:r             (A, X) = (A, X) + 1 ; B = (A, X)
-DECB         X:u   A:r   B:r             (A, X) = (A, X) - 1 ; B = (A, X)
+INC         X:u   A:r                    (A, X) = (A, X) + 1
+DEC         X:u   A:r                    (A, X) = (A, X) - 1
 
 # UNARY OPERATORS
 
-NEG          X:u   A:r   B:r             B =   - (A, X)
-NOT          X:u   A:r   B:r             B = NOT (A, X)
+NEG          X:u   A:r   B:r             A =   - (B, X)
+NOT          X:u   A:r   B:r             A = NOT (B, X)
 
 # BINARY OPERATORS
 
@@ -49,8 +47,8 @@ REM          X:r   A:r   B:r             X = the remainder of A / B
 EQLA         X:r   A:r   B:r             X =     A == B
 EQLN         X:r   A:r   B:r             X = NOT A == B
 
-LESS         X:r   A:r   B:r             X = A <  B
-LESS_EQUAL   X:r   A:r   B:r             X = A <= B
+LESS_THN     X:r   A:r   B:r             X = A <  B
+LESS_EQL     X:r   A:r   B:r             X = A <= B
 
 AND          X:r   A:r   B:r             X = A AND B
 OR           X:r   A:r   B:r             X = A OR  B

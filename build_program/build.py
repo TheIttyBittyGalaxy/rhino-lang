@@ -40,7 +40,6 @@ def create_include(path):
     f.write("// This file was generated automatically by build_program/build.py\n\n")
     return f
 
-
 def as_c_data_type(v):
     if v == "r": return "vm_reg"
     if v == "u": return "uint8_t"
@@ -55,11 +54,12 @@ with create_include("op_code_list.c") as f:
 
 with create_include("emit_op_code.c") as f:
     for ins in data:
+        f.write("// " + ins["op"] + "\n")
         f.write("// " + ins["desc"] + "\n")
         f.write("size_t emit_" + ins["op"].lower() + "(Unit* unit")
 
         for arg in ins["args"]:
-            f.write(", " + as_c_data_type(arg[1]) + " " + arg[0])
+            f.write(", " + as_c_data_type(arg[1]) + " " + arg[0].lower())
         
         f.write(")\n{\n")
 
@@ -76,7 +76,7 @@ with create_include("emit_op_code.c") as f:
             f.write("\t{\n")
             f.write("\t\t" + ins["payload"] + " data;\n")
             f.write("\t\tuint32_t word[wordsizeof(" + ins["payload"] + ")];\n")
-            f.write("\t} as = {.data = P};\n")
+            f.write("\t} as = {.data = p};\n")
             f.write("\tfor (size_t i = 0; i < wordsizeof(" + ins["payload"] + "); i++)\n")
             f.write("\t\tunit->instruction[unit->count++].word = as.word[i];\n")
             f.write("\t\n")
@@ -84,3 +84,13 @@ with create_include("emit_op_code.c") as f:
         f.write("\treturn i;\n")
 
         f.write("}\n\n")
+
+with create_include("get_payload_size.c") as f:
+    f.write("size_t get_playload_size(OpCode op)\n")
+    f.write("{\n")
+    for ins in data:
+        if ins["payload"]:
+            f.write("\tif (op == " + ins["enum"] + ")\n")
+            f.write("\t\treturn wordsizeof(" + ins["payload"] + ");\n")
+    f.write("\n\treturn 0;\n")
+    f.write("}\n")

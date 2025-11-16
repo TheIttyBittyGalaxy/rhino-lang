@@ -1,7 +1,8 @@
 // This file was generated automatically by build_program/build.py
 
+// CALL
 // Make a function call to Unit P.
-size_t emit_call(Unit* unit, Unit* P)
+size_t emit_call(Unit* unit, Unit* p)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_CALL;
@@ -10,15 +11,16 @@ size_t emit_call(Unit* unit, Unit* P)
 	{
 		Unit* data;
 		uint32_t word[wordsizeof(Unit*)];
-	} as = {.data = P};
+	} as = {.data = p};
 	for (size_t i = 0; i < wordsizeof(Unit*); i++)
 		unit->instruction[unit->count++].word = as.word[i];
 	
 	return i;
 }
 
+// JUMP
 // Set the Program Counter to Y.
-size_t emit_jump(Unit* unit, uint16_t Y)
+size_t emit_jump(Unit* unit, uint16_t y)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_JUMP;
@@ -26,8 +28,9 @@ size_t emit_jump(Unit* unit, uint16_t Y)
 	return i;
 }
 
+// JUMP_IF
 // Set the Program Counter to Y if the value in register X is false or none.
-size_t emit_jump_if(Unit* unit, vm_reg X, uint16_t Y)
+size_t emit_jump_if(Unit* unit, vm_reg x, uint16_t y)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_JUMP_IF;
@@ -36,8 +39,9 @@ size_t emit_jump_if(Unit* unit, vm_reg X, uint16_t Y)
 	return i;
 }
 
-// Copy the value in register (A, X) to register (B, X).
-size_t emit_copy(Unit* unit, uint8_t X, vm_reg A, vm_reg B)
+// COPY
+// (A, X) = (B, X)
+size_t emit_copy(Unit* unit, uint8_t x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_COPY;
@@ -47,19 +51,9 @@ size_t emit_copy(Unit* unit, uint8_t X, vm_reg A, vm_reg B)
 	return i;
 }
 
-// Copy the value in register (A, X) to register B.
-size_t emit_copy_down(Unit* unit, uint8_t X, vm_reg A, vm_reg B)
-{
-	size_t i = unit->count++;
-	unit->instruction[i].op = OP_COPY_DOWN;
-	unit->instruction[i].x = x;
-	unit->instruction[i].a = a;
-	unit->instruction[i].b = b;
-	return i;
-}
-
-// Copy the value in register A to register (B, X).
-size_t emit_copy_up(Unit* unit, uint8_t X, vm_reg A, vm_reg B)
+// COPY_UP
+// (A, X) = B
+size_t emit_copy_up(Unit* unit, uint8_t x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_COPY_UP;
@@ -69,8 +63,21 @@ size_t emit_copy_up(Unit* unit, uint8_t X, vm_reg A, vm_reg B)
 	return i;
 }
 
+// COPY_DN
+// A = (B, X)
+size_t emit_copy_dn(Unit* unit, uint8_t x, vm_reg a, vm_reg b)
+{
+	size_t i = unit->count++;
+	unit->instruction[i].op = OP_COPY_DN;
+	unit->instruction[i].x = x;
+	unit->instruction[i].a = a;
+	unit->instruction[i].b = b;
+	return i;
+}
+
+// LOAD_NONE
 // (A, X) = none
-size_t emit_load_none(Unit* unit, uint8_t X, vm_reg A)
+size_t emit_load_none(Unit* unit, uint8_t x, vm_reg a)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_LOAD_NONE;
@@ -79,8 +86,9 @@ size_t emit_load_none(Unit* unit, uint8_t X, vm_reg A)
 	return i;
 }
 
+// LOAD_TRUE
 // (A, X) = true
-size_t emit_load_true(Unit* unit, uint8_t X, vm_reg A)
+size_t emit_load_true(Unit* unit, uint8_t x, vm_reg a)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_LOAD_TRUE;
@@ -89,8 +97,9 @@ size_t emit_load_true(Unit* unit, uint8_t X, vm_reg A)
 	return i;
 }
 
+// LOAD_FALSE
 // (A, X) = false
-size_t emit_load_false(Unit* unit, uint8_t X, vm_reg A)
+size_t emit_load_false(Unit* unit, uint8_t x, vm_reg a)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_LOAD_FALSE;
@@ -99,8 +108,9 @@ size_t emit_load_false(Unit* unit, uint8_t X, vm_reg A)
 	return i;
 }
 
+// LOAD_INT
 // (A, X) = P
-size_t emit_load_int(Unit* unit, uint8_t X, vm_reg A, int P)
+size_t emit_load_int(Unit* unit, uint8_t x, vm_reg a, int p)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_LOAD_INT;
@@ -111,15 +121,16 @@ size_t emit_load_int(Unit* unit, uint8_t X, vm_reg A, int P)
 	{
 		int data;
 		uint32_t word[wordsizeof(int)];
-	} as = {.data = P};
+	} as = {.data = p};
 	for (size_t i = 0; i < wordsizeof(int); i++)
 		unit->instruction[unit->count++].word = as.word[i];
 	
 	return i;
 }
 
+// LOAD_NUM
 // (A, X) = P
-size_t emit_load_num(Unit* unit, uint8_t X, vm_reg A, double P)
+size_t emit_load_num(Unit* unit, uint8_t x, vm_reg a, double p)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_LOAD_NUM;
@@ -130,15 +141,16 @@ size_t emit_load_num(Unit* unit, uint8_t X, vm_reg A, double P)
 	{
 		double data;
 		uint32_t word[wordsizeof(double)];
-	} as = {.data = P};
+	} as = {.data = p};
 	for (size_t i = 0; i < wordsizeof(double); i++)
 		unit->instruction[unit->count++].word = as.word[i];
 	
 	return i;
 }
 
+// LOAD_STR
 // (A, X) = P
-size_t emit_load_str(Unit* unit, uint8_t X, vm_reg A, char* P)
+size_t emit_load_str(Unit* unit, uint8_t x, vm_reg a, char* p)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_LOAD_STR;
@@ -149,15 +161,16 @@ size_t emit_load_str(Unit* unit, uint8_t X, vm_reg A, char* P)
 	{
 		char* data;
 		uint32_t word[wordsizeof(char*)];
-	} as = {.data = P};
+	} as = {.data = p};
 	for (size_t i = 0; i < wordsizeof(char*); i++)
 		unit->instruction[unit->count++].word = as.word[i];
 	
 	return i;
 }
 
+// OUT
 // Output the value in register (A, X).
-size_t emit_out(Unit* unit, uint8_t X, vm_reg A)
+size_t emit_out(Unit* unit, uint8_t x, vm_reg a)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_OUT;
@@ -166,52 +179,31 @@ size_t emit_out(Unit* unit, uint8_t X, vm_reg A)
 	return i;
 }
 
-// B = (A, X) ; (A, X) = (A, X) + 1
-size_t emit_inca(Unit* unit, uint8_t X, vm_reg A, vm_reg B)
+// INC
+// (A, X) = (A, X) + 1
+size_t emit_inc(Unit* unit, uint8_t x, vm_reg a)
 {
 	size_t i = unit->count++;
-	unit->instruction[i].op = OP_INCA;
+	unit->instruction[i].op = OP_INC;
 	unit->instruction[i].x = x;
 	unit->instruction[i].a = a;
-	unit->instruction[i].b = b;
 	return i;
 }
 
-// B = (A, X) ; (A, X) = (A, X) - 1
-size_t emit_deca(Unit* unit, uint8_t X, vm_reg A, vm_reg B)
+// DEC
+// (A, X) = (A, X) - 1
+size_t emit_dec(Unit* unit, uint8_t x, vm_reg a)
 {
 	size_t i = unit->count++;
-	unit->instruction[i].op = OP_DECA;
+	unit->instruction[i].op = OP_DEC;
 	unit->instruction[i].x = x;
 	unit->instruction[i].a = a;
-	unit->instruction[i].b = b;
 	return i;
 }
 
-// (A, X) = (A, X) + 1 ; B = (A, X)
-size_t emit_incb(Unit* unit, uint8_t X, vm_reg A, vm_reg B)
-{
-	size_t i = unit->count++;
-	unit->instruction[i].op = OP_INCB;
-	unit->instruction[i].x = x;
-	unit->instruction[i].a = a;
-	unit->instruction[i].b = b;
-	return i;
-}
-
-// (A, X) = (A, X) - 1 ; B = (A, X)
-size_t emit_decb(Unit* unit, uint8_t X, vm_reg A, vm_reg B)
-{
-	size_t i = unit->count++;
-	unit->instruction[i].op = OP_DECB;
-	unit->instruction[i].x = x;
-	unit->instruction[i].a = a;
-	unit->instruction[i].b = b;
-	return i;
-}
-
-// B = - (A, X)
-size_t emit_neg(Unit* unit, uint8_t X, vm_reg A, vm_reg B)
+// NEG
+// A = - (B, X)
+size_t emit_neg(Unit* unit, uint8_t x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_NEG;
@@ -221,8 +213,9 @@ size_t emit_neg(Unit* unit, uint8_t X, vm_reg A, vm_reg B)
 	return i;
 }
 
-// B = NOT (A, X)
-size_t emit_not(Unit* unit, uint8_t X, vm_reg A, vm_reg B)
+// NOT
+// A = NOT (B, X)
+size_t emit_not(Unit* unit, uint8_t x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_NOT;
@@ -232,8 +225,9 @@ size_t emit_not(Unit* unit, uint8_t X, vm_reg A, vm_reg B)
 	return i;
 }
 
+// ADD
 // X = A + B
-size_t emit_add(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
+size_t emit_add(Unit* unit, vm_reg x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_ADD;
@@ -243,8 +237,9 @@ size_t emit_add(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
 	return i;
 }
 
+// SUB
 // X = A - B
-size_t emit_sub(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
+size_t emit_sub(Unit* unit, vm_reg x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_SUB;
@@ -254,8 +249,9 @@ size_t emit_sub(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
 	return i;
 }
 
+// MUL
 // X = A * B
-size_t emit_mul(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
+size_t emit_mul(Unit* unit, vm_reg x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_MUL;
@@ -265,8 +261,9 @@ size_t emit_mul(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
 	return i;
 }
 
+// DIV
 // X = A / B
-size_t emit_div(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
+size_t emit_div(Unit* unit, vm_reg x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_DIV;
@@ -276,8 +273,9 @@ size_t emit_div(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
 	return i;
 }
 
+// REM
 // X = the remainder of A / B
-size_t emit_rem(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
+size_t emit_rem(Unit* unit, vm_reg x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_REM;
@@ -287,8 +285,9 @@ size_t emit_rem(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
 	return i;
 }
 
+// EQLA
 // X = A == B
-size_t emit_eqla(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
+size_t emit_eqla(Unit* unit, vm_reg x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_EQLA;
@@ -298,8 +297,9 @@ size_t emit_eqla(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
 	return i;
 }
 
+// EQLN
 // X = NOT A == B
-size_t emit_eqln(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
+size_t emit_eqln(Unit* unit, vm_reg x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_EQLN;
@@ -309,30 +309,33 @@ size_t emit_eqln(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
 	return i;
 }
 
+// LESS_THN
 // X = A < B
-size_t emit_less(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
+size_t emit_less_thn(Unit* unit, vm_reg x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
-	unit->instruction[i].op = OP_LESS;
+	unit->instruction[i].op = OP_LESS_THN;
 	unit->instruction[i].x = x;
 	unit->instruction[i].a = a;
 	unit->instruction[i].b = b;
 	return i;
 }
 
+// LESS_EQL
 // X = A <= B
-size_t emit_less_equal(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
+size_t emit_less_eql(Unit* unit, vm_reg x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
-	unit->instruction[i].op = OP_LESS_EQUAL;
+	unit->instruction[i].op = OP_LESS_EQL;
 	unit->instruction[i].x = x;
 	unit->instruction[i].a = a;
 	unit->instruction[i].b = b;
 	return i;
 }
 
+// AND
 // X = A AND B
-size_t emit_and(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
+size_t emit_and(Unit* unit, vm_reg x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_AND;
@@ -342,8 +345,9 @@ size_t emit_and(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
 	return i;
 }
 
+// OR
 // X = A OR B
-size_t emit_or(Unit* unit, vm_reg X, vm_reg A, vm_reg B)
+size_t emit_or(Unit* unit, vm_reg x, vm_reg a, vm_reg b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_OR;
