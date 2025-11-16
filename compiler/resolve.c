@@ -703,6 +703,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
             break;
         }
 
+        // TODO: Output statements should implicitly cast their expression to a string if it is not a string already
         case OUTPUT_STATEMENT:
         case EXPRESSION_STMT:
         case RETURN_STATEMENT:

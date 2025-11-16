@@ -271,6 +271,7 @@ void assemble_default_value(Assembler *a, RhinoType ty, vm_loc loc)
     }
 }
 
+// TODO: Rework this method to return a register location, rather than receiving one
 void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
 {
     Unit *unit = a->unit;
@@ -472,6 +473,7 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
 
 // META-DATA FOR ENUM VALUES //
 
+// TODO: This function should also create a "convert enum value to string" Unit for each enum_type
 void assign_enum_ints(Assembler *a, Block *block)
 {
     GlobalAssemblerData *d = a->data;
@@ -769,6 +771,7 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
     assign_enum_ints(a, apm->program_block);
 
     // Initialise global variables in the init unit
+    // FIXME: This approach cannot handle global variable that have been declared "out of order"
     it = statement_iterator(apm->program_block->statements);
     while (stmt = next_statement_iterator(&it))
     {
