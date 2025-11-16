@@ -172,6 +172,7 @@ bool peek_statement(Compiler *c)
            PEEK(KEYWORD_LOOP) ||
            PEEK(KEYWORD_WHILE) ||
            PEEK(KEYWORD_DEF) ||
+           PEEK(KEYWORD_RETURN) ||
            PEEK(ARROW_R) ||
            peek_expression(c);
 }
