@@ -1,12 +1,14 @@
 // This file was generated automatically by build_program/build.py
 
 // CALL
-// Make a function call to Unit P where the first argument is stored in register X.
-size_t emit_call(Unit* unit, vm_reg x, Unit* p)
+// Make a function call to Unit P where the first argument is stored in register B, and the return value is stored in register (A, X).
+size_t emit_call(Unit* unit, uint8_t x, vm_reg a, vm_reg b, Unit* p)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_CALL;
 	unit->instruction[i].x = x;
+	unit->instruction[i].a = a;
+	unit->instruction[i].b = b;
 	
 	union
 	{
@@ -16,6 +18,45 @@ size_t emit_call(Unit* unit, vm_reg x, Unit* p)
 	for (size_t i = 0; i < wordsizeof(Unit*); i++)
 		unit->instruction[unit->count++].word = as.word[i];
 	
+	return i;
+}
+
+// RUN
+// Make a function call to Unit P where the first argument is stored in register B, and do nothing with the return value.
+size_t emit_run(Unit* unit, vm_reg b, Unit* p)
+{
+	size_t i = unit->count++;
+	unit->instruction[i].op = OP_RUN;
+	unit->instruction[i].b = b;
+	
+	union
+	{
+		Unit* data;
+		uint32_t word[wordsizeof(Unit*)];
+	} as = {.data = p};
+	for (size_t i = 0; i < wordsizeof(Unit*); i++)
+		unit->instruction[unit->count++].word = as.word[i];
+	
+	return i;
+}
+
+// RTNN
+// Return the the current unit.
+size_t emit_rtnn(Unit* unit)
+{
+	size_t i = unit->count++;
+	unit->instruction[i].op = OP_RTNN;
+	return i;
+}
+
+// RTNV
+// Return the the current unit with the return value in register (A, X).
+size_t emit_rtnv(Unit* unit, uint8_t x, vm_reg a)
+{
+	size_t i = unit->count++;
+	unit->instruction[i].op = OP_RTNV;
+	unit->instruction[i].x = x;
+	unit->instruction[i].a = a;
 	return i;
 }
 

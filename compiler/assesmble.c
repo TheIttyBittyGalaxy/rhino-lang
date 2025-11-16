@@ -320,7 +320,7 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
         if (expr->callee->kind != FUNCTION_REFERENCE)
             fatal_error("Could not assemble CALL expression whose callee is a %s.", expression_kind_string(expr->callee->kind));
 
-        vm_reg first_reg = a->active_registers;
+        vm_reg first_arg_reg = a->active_registers;
         for (size_t i = 0; i < expr->arguments.count; i++)
         {
             Expression *arg = get_argument(expr->arguments, i)->expr;
@@ -328,7 +328,12 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
             assemble_expression(a, arg, local(arg_reg));
         }
 
-        size_t call_ins = emit_call(unit, first_reg, 0X0);
+        // TODO: Use OP_RUN in any case where the return value is not needed
+
+        size_t call_ins = emit_call(unit, dst.up, dst.reg, first_arg_reg, 0X0);
+
+        for (size_t i = 0; i < expr->arguments.count; i++)
+            release_register(a);
 
         a->data->call_patch[a->data->call_patch_count++] = (CallPatch){
             .unit = unit,
@@ -450,7 +455,10 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
     }
 }
 
-// ASSEMBLE CODE BLOCK //
+// ASSEMBLE PROGRAM //
+
+void assemble_code_block(Assembler *a, Block *block);
+void assemble_function(Assembler *parent, Function *funct);
 
 void assemble_code_block(Assembler *a, Block *block)
 {
@@ -458,7 +466,10 @@ void assemble_code_block(Assembler *a, Block *block)
     Unit *unit = a->unit;
 
     Statement *stmt;
-    StatementIterator it = statement_iterator(block->statements);
+    StatementIterator it;
+
+    // Assemble statements
+    it = statement_iterator(block->statements);
     while (stmt = next_statement_iterator(&it))
     {
         // Track JUMP instructions to the end of the loop
@@ -641,8 +652,21 @@ void assemble_code_block(Assembler *a, Block *block)
             break;
         }
 
-            // TODO: Implement
-            // case RETURN_STATEMENT:
+        case RETURN_STATEMENT:
+        {
+            if (stmt->expression)
+            {
+                vm_reg reg = reserve_register(a);
+                assemble_expression(a, stmt->expression, local(reg));
+                emit_rtnv(unit, reg, 0);
+                release_register(a);
+            }
+            else
+            {
+                emit_rtnn(unit);
+            }
+            break;
+        }
 
         default:
             fatal_error("Could not assemble %s statement in code block.", statement_kind_string(stmt->kind));
@@ -663,14 +687,20 @@ void assemble_code_block(Assembler *a, Block *block)
             a->loop_depth--;
         }
     }
+
+    // Assemble nested functions
+    it = statement_iterator(block->statements);
+    while (stmt = next_statement_iterator(&it))
+    {
+        if (stmt->kind == FUNCTION_DECLARATION)
+            assemble_function(a, stmt->function);
+    }
 }
 
-// ASSEMBLE FUNCTION //
-
-Unit *assemble_function(Assembler *global, ByteCode *bc, Function *funct)
+void assemble_function(Assembler *parent, Function *funct)
 {
     Assembler a;
-    init_assembler_and_create_unit(&a, global, NULL);
+    init_assembler_and_create_unit(&a, parent, NULL);
 
     a.data->function_unit[a.data->function_unit_count++] = (FunctionUnit){
         .funct = funct,
@@ -686,10 +716,7 @@ Unit *assemble_function(Assembler *global, ByteCode *bc, Function *funct)
         reserve_register_for_node(&a, (void *)parameter);
 
     assemble_code_block(&a, funct->body);
-    return a.unit;
 }
-
-// ASSEMBLE PROGRAM //
 
 void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
 {
@@ -719,13 +746,13 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
     while (stmt = next_statement_iterator(&it))
     {
         if (stmt->kind == FUNCTION_DECLARATION)
-            assemble_function(a, bc, stmt->function);
+            assemble_function(a, stmt->function);
     }
 
     bc->main = get_unit_of_function(a, apm->main);
 
     // Call to main from the init unit
-    emit_call(unit, 0, bc->main);
+    emit_run(unit, 0, bc->main);
 
     // Patch all function calls
     for (size_t i = 0; i < a->data->call_patch_count; i++)

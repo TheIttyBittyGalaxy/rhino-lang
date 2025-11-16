@@ -3,9 +3,14 @@
 
 # TODO: Generate a Markdown file using this data
 
-# CALLS AND JUMPS
+# CALL
 
-CALL         X:r               P:Unit*   Make a function call to Unit P where the first argument is stored in register X.
+CALL         X:u   A:r   B:r   P:Unit*   Make a function call to Unit P where the first argument is stored in register B, and the return value is stored in register (A, X).
+RUN                      B:r   P:Unit*   Make a function call to Unit P where the first argument is stored in register B, and do nothing with the return value.
+RTNN                                     Return the the current unit.
+RTNV         X:u   A:r                   Return the the current unit with the return value in register (A, X).
+
+# JUMP
 
 JUMP               Y:pc                  Set the Program Counter to Y.
 JUMP_IF      X:r   Y:pc                  Set the Program Counter to Y if the value in register X is false or none.

@@ -206,9 +206,8 @@ inline void set_reg(CallStacks *call_stacks, Unit *unit, Record *record, vm_reg 
         var = as.data;                                              \
     }
 
-void interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, RunOnString *output_string)
+RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, RunOnString *output_string)
 {
-
     size_t program_counter = 0;
 
     RhinoValue stack_value[128];
@@ -220,6 +219,8 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, RunOnSt
 #define GET(reg, up) get_reg(call_stacks, unit, record, reg, up)
 #define PTR(reg, up) point_to_reg(call_stacks, unit, record, reg, up)
 #define SET(reg, up, value) set_reg(call_stacks, unit, record, reg, up, value)
+
+    RhinoValue return_value = NONE_VALUE();
 
     // printf("%p\n", unit);
     while (program_counter < unit->count)
@@ -237,13 +238,35 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, RunOnSt
             Record *callee_record = push_record(call_stacks, callee);
             for (size_t i = 0; i < callee->parameter_count; i++)
             {
-                RhinoValue arg = GET(ins.x + i, 0);
+                RhinoValue arg = GET(ins.b + i, 0);
+                set_reg(call_stacks, unit, callee_record, i, 0, arg);
+            }
+
+            RhinoValue return_value = interpret_unit(call_stacks, callee, callee_record, output_string);
+            SET(ins.a, ins.x, return_value);
+            break;
+        }
+
+        case OP_RUN:
+        {
+            FETCH_DATA(Unit *, callee);
+
+            Record *callee_record = push_record(call_stacks, callee);
+            for (size_t i = 0; i < callee->parameter_count; i++)
+            {
+                RhinoValue arg = GET(ins.b + i, 0);
                 set_reg(call_stacks, unit, callee_record, i, 0, arg);
             }
 
             interpret_unit(call_stacks, callee, callee_record, output_string);
             break;
         }
+
+        case OP_RTNV:
+            return_value = GET(ins.x, 0);
+        case OP_RTNN:
+            program_counter = unit->count;
+            break;
 
         case OP_JUMP:
             program_counter = ins.y;
@@ -417,6 +440,7 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, RunOnSt
     }
 
     pop_record(call_stacks, unit, record);
+    return return_value;
 }
 
 void interpret(ByteCode *byte_code, RunOnString *output_string)
