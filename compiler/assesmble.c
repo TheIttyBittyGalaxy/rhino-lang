@@ -55,7 +55,6 @@ struct Assembler
     Unit *unit;
 
     uint8_t active_registers;
-    uint8_t max_registers;
 
     NodeRegister node_register[256];
     size_t node_register_count;
@@ -67,29 +66,29 @@ struct Assembler
 
 void init_assembler_and_create_unit(Assembler *a, Assembler *parent, GlobalAssemblerData *data)
 {
-    a->parent = parent;
+    // TODO: Implement a proper system for managing this memory
+    a->unit = (Unit *)malloc(sizeof(Unit));
+    init_unit(a->unit);
 
+    a->parent = parent;
     if (parent)
     {
         assert(data == NULL);
         a->data = parent->data;
+        a->unit->nested_in = parent->unit;
     }
     else
     {
         assert(data != NULL);
         a->data = data;
+        // a->unit->nested_in = NULL; // Not needed, already done in init_unit
     }
-
-    // TODO: Implement a proper system for managing this memory
-    a->unit = (Unit *)malloc(sizeof(Unit));
-    init_unit(a->unit);
 
     if (a->data->last_unit)
         a->data->last_unit->next = a->unit;
     a->data->last_unit = a->unit;
 
     a->active_registers = 0;
-    a->max_registers = 0;
 
     a->node_register_count = 0;
 
@@ -99,8 +98,8 @@ void init_assembler_and_create_unit(Assembler *a, Assembler *parent, GlobalAssem
 vm_reg reserve_register(Assembler *a)
 {
     vm_reg reg = a->active_registers++;
-    if (a->active_registers > a->max_registers)
-        a->max_registers = a->active_registers;
+    if (a->active_registers > a->unit->register_count)
+        a->unit->register_count = a->active_registers;
     return reg;
 }
 

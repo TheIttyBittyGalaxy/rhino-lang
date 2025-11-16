@@ -12,10 +12,13 @@ void init_byte_code(ByteCode *byte_code)
 
 void init_unit(Unit *unit)
 {
+    unit->register_count = 0;
+
     for (size_t i = 0; i < 128; i++)
         unit->instruction[i].word = 0x00000000;
-
     unit->count = 0;
+
+    unit->nested_in = NULL;
     unit->next = NULL;
 }
 

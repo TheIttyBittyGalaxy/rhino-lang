@@ -44,9 +44,13 @@ typedef struct Unit Unit;
 
 struct Unit
 {
+    size_t register_count;
+
     Instruction instruction[1024];
     size_t count;
-    Unit *next; // TODO: Is it possible to get rid of this? It is currently only used for debug printing.
+
+    Unit *nested_in;
+    Unit *next; // TODO: This is currently used so that we can access all the units. Factor this in some better way.
 };
 
 typedef struct
