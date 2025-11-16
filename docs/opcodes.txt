@@ -5,7 +5,8 @@
 
 # CALLS AND JUMPS
 
-CALL                           P:Unit*   Make a function call to Unit P.
+CALL         X:r               P:Unit*   Make a function call to Unit P where the first argument is stored in register X.
+
 JUMP               Y:pc                  Set the Program Counter to Y.
 JUMP_IF      X:r   Y:pc                  Set the Program Counter to Y if the value in register X is false or none.
 

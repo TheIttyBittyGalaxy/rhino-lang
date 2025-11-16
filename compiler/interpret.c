@@ -206,7 +206,7 @@ inline void set_reg(CallStacks *call_stacks, Unit *unit, Record *record, vm_reg 
         var = as.data;                                              \
     }
 
-void interpret_unit(CallStacks *call_stacks, Unit *unit, RunOnString *output_string)
+void interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, RunOnString *output_string)
 {
 
     size_t program_counter = 0;
@@ -214,7 +214,8 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, RunOnString *output_str
     RhinoValue stack_value[128];
     size_t stack_pointer = 0;
 
-    Record *record = push_record(call_stacks, unit);
+    if (!record)
+        record = push_record(call_stacks, unit);
 
 #define GET(reg, up) get_reg(call_stacks, unit, record, reg, up)
 #define PTR(reg, up) point_to_reg(call_stacks, unit, record, reg, up)
@@ -231,8 +232,16 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, RunOnString *output_str
 
         case OP_CALL:
         {
-            FETCH_DATA(Unit *, data);
-            interpret_unit(call_stacks, data, output_string);
+            FETCH_DATA(Unit *, callee);
+
+            Record *callee_record = push_record(call_stacks, callee);
+            for (size_t i = 0; i < callee->parameter_count; i++)
+            {
+                RhinoValue arg = GET(ins.x + i, 0);
+                set_reg(call_stacks, unit, callee_record, i, 0, arg);
+            }
+
+            interpret_unit(call_stacks, callee, callee_record, output_string);
             break;
         }
 
@@ -425,5 +434,5 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
         unit = unit->next;
     }
 
-    interpret_unit(&call_stacks, byte_code->init, output_string);
+    interpret_unit(&call_stacks, byte_code->init, NULL, output_string);
 }

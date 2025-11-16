@@ -44,6 +44,7 @@ typedef struct Unit Unit;
 
 struct Unit
 {
+    size_t parameter_count;
     size_t register_count;
 
     Instruction instruction[1024];

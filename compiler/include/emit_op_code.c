@@ -1,11 +1,12 @@
 // This file was generated automatically by build_program/build.py
 
 // CALL
-// Make a function call to Unit P.
-size_t emit_call(Unit* unit, Unit* p)
+// Make a function call to Unit P where the first argument is stored in register X.
+size_t emit_call(Unit* unit, vm_reg x, Unit* p)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_CALL;
+	unit->instruction[i].x = x;
 	
 	union
 	{

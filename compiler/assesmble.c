@@ -307,17 +307,28 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
         emit_copy_instructions(unit, dst, var);
         break;
     }
-        // TODO: Implement
-        // case PARAMETER_REFERENCE:
+
+    case PARAMETER_REFERENCE:
+    {
+        vm_loc par = get_node_location(a, expr->parameter);
+        emit_copy_instructions(unit, dst, par);
+        break;
+    }
 
     case FUNCTION_CALL:
     {
         if (expr->callee->kind != FUNCTION_REFERENCE)
             fatal_error("Could not assemble CALL expression whose callee is a %s.", expression_kind_string(expr->callee->kind));
 
-        // TODO: Supply the arguments to the call
+        vm_reg first_reg = a->active_registers;
+        for (size_t i = 0; i < expr->arguments.count; i++)
+        {
+            Expression *arg = get_argument(expr->arguments, i)->expr;
+            vm_reg arg_reg = reserve_register(a);
+            assemble_expression(a, arg, local(arg_reg));
+        }
 
-        size_t call_ins = emit_call(unit, 0X0);
+        size_t call_ins = emit_call(unit, first_reg, 0X0);
 
         a->data->call_patch[a->data->call_patch_count++] = (CallPatch){
             .unit = unit,
@@ -666,6 +677,14 @@ Unit *assemble_function(Assembler *global, ByteCode *bc, Function *funct)
         .unit = a.unit,
     };
 
+    a.unit->parameter_count = funct->parameters.count;
+
+    // NOTE: These registers are never released
+    Parameter *parameter;
+    ParameterIterator it = parameter_iterator(funct->parameters);
+    while (parameter = next_parameter_iterator(&it))
+        reserve_register_for_node(&a, (void *)parameter);
+
     assemble_code_block(&a, funct->body);
     return a.unit;
 }
@@ -706,7 +725,7 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
     bc->main = get_unit_of_function(a, apm->main);
 
     // Call to main from the init unit
-    emit_call(unit, bc->main);
+    emit_call(unit, 0, bc->main);
 
     // Patch all function calls
     for (size_t i = 0; i < a->data->call_patch_count; i++)

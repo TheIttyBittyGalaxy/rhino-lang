@@ -12,6 +12,7 @@ void init_byte_code(ByteCode *byte_code)
 
 void init_unit(Unit *unit)
 {
+    unit->parameter_count = 0;
     unit->register_count = 0;
 
     for (size_t i = 0; i < 128; i++)
