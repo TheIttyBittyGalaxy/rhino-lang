@@ -10,13 +10,17 @@ typedef struct
     uint8_t reg;
 } NodeRegister;
 
+typedef struct
+{
+    const char *source_text;
+    Program *apm;
+} GlobalAssemblerData;
+
 typedef struct Assembler Assembler;
 
 struct Assembler
 {
-    const char *source_text;
-    Program *apm;
-
+    GlobalAssemblerData *data;
     Assembler *parent;
     Unit *unit;
 
@@ -31,15 +35,14 @@ struct Assembler
     size_t jump_to_end_of_loop_count[128];
 };
 
-void init_assembler_and_create_unit(Assembler *a, Assembler *parent, Program *apm, const char *source_text)
+void init_assembler_and_create_unit(Assembler *a, Assembler *parent)
 {
     // TODO: Implement a proper system for managing this memory
     a->unit = (Unit *)malloc(sizeof(Unit));
     init_unit(a->unit);
 
     a->parent = parent;
-    a->apm = apm;
-    a->source_text = source_text;
+    a->data = (parent) ? parent->data : NULL;
 
     a->active_registers = 0;
     a->max_registers = 0;
@@ -197,7 +200,7 @@ vm_reg get_register_of_expression(Assembler *a, Expression *expr)
 void assemble_default_value(Assembler *a, RhinoType ty, vm_reg dest)
 {
     Unit *unit = a->unit;
-    Program *apm = a->apm;
+    Program *apm = a->data->apm;
 
     switch (ty.tag)
     {
@@ -268,7 +271,7 @@ void assemble_expression(Assembler *a, Expression *expr, vm_reg dest)
         // TODO: Do something more efficient than this!!
         substr sub = expr->string_value;
         char *buffer = (char *)malloc(sizeof(char) * (sub.len + 1));
-        memcpy(buffer, a->source_text + sub.pos, sub.len);
+        memcpy(buffer, a->data->source_text + sub.pos, sub.len);
         buffer[sub.len] = '\0';
 
         EMIT_A(LOAD_STR, dest);
@@ -580,23 +583,16 @@ void assemble_code_block(Assembler *a, Block *block)
 Unit *assemble_function(Assembler *global, ByteCode *bc, Function *funct)
 {
     Assembler a;
-    init_assembler_and_create_unit(&a, global, global->apm, global->source_text);
+    init_assembler_and_create_unit(&a, global);
     assemble_code_block(&a, funct->body);
     return a.unit;
 }
 
 // ASSEMBLE PROGRAM //
 
-void assemble_program(ByteCode *bc, Program *apm, const char *source_text)
+void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
 {
-    // Create init unit
-    Assembler assembler;
-    Assembler *a = &assembler;
-
-    init_assembler_and_create_unit(a, NULL, apm, source_text);
-    Unit *unit = assembler.unit;
-
-    bc->init = unit;
+    Unit *unit = a->unit;
 
     // Initialise global variables
     Statement *stmt;
@@ -628,5 +624,17 @@ void assemble_program(ByteCode *bc, Program *apm, const char *source_text)
 
 void assemble(Compiler *compiler, Program *apm, ByteCode *byte_code)
 {
-    assemble_program(byte_code, apm, compiler->source_text);
+    // Data used by all unit assemblers
+    GlobalAssemblerData data;
+
+    data.apm = apm;
+    data.source_text = compiler->source_text;
+
+    // Create init unit
+    Assembler assembler;
+    init_assembler_and_create_unit(&assembler, NULL);
+    assembler.data = &data;
+
+    byte_code->init = assembler.unit;
+    assemble_program(&assembler, byte_code, apm);
 }
