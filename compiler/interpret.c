@@ -214,11 +214,11 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, RunOnString *output_str
     RhinoValue stack_value[128];
     size_t stack_pointer = 0;
 
-    Record *r = push_record(call_stacks, unit);
+    Record *record = push_record(call_stacks, unit);
 
-#define GET(reg, up) get_reg(call_stacks, unit, r, reg, up)
-#define PTR(reg, up) point_to_reg(call_stacks, unit, r, reg, up)
-#define SET(reg, up, value) set_reg(call_stacks, unit, r, reg, up, value)
+#define GET(reg, up) get_reg(call_stacks, unit, record, reg, up)
+#define PTR(reg, up) point_to_reg(call_stacks, unit, record, reg, up)
+#define SET(reg, up, value) set_reg(call_stacks, unit, record, reg, up, value)
 
     // printf("%p\n", unit);
     while (program_counter < unit->count)
@@ -242,7 +242,7 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, RunOnString *output_str
 
         case OP_JUMP_IF:
         {
-            RhinoValue value = get_reg(call_stacks, unit, r, ins.x, 0);
+            RhinoValue value = GET(ins.x, 0);
             if (value.kind != RHINO_BOOL)
                 fatal_error("Could not interpret JUMP_IF_FALSE as value in register is %s.", rhino_value_kind_string(value.kind));
 
@@ -407,7 +407,7 @@ void interpret_unit(CallStacks *call_stacks, Unit *unit, RunOnString *output_str
         }
     }
 
-    pop_record(call_stacks, unit, r);
+    pop_record(call_stacks, unit, record);
 }
 
 void interpret(ByteCode *byte_code, RunOnString *output_string)
