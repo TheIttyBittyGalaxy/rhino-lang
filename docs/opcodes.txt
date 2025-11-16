@@ -1,0 +1,39 @@
+CALL                           P:Unit*   Make a function call to Unit P.
+JUMP               Y:pc                  Set the Program Counter to Y.
+JUMP_IF      X:r   Y:pc                  Set the Program Counter to Y if the value in register X is false or none.
+                                                                                      
+COPY         X:u   A:r   B:r             Copy the value in register (A, X) to register (B, X).
+COPY_DOWN    X:u   A:r   B:r             Copy the value in register (A, X) to register B.
+COPY_UP      X:u   A:r   B:r             Copy the value in register A to register (B, X).
+                                                                                                                                                            
+LOAD_NONE    X:u   A:r                   (A, X) = none
+LOAD_TRUE    X:u   A:r                   (A, X) = true
+LOAD_FALSE   X:u   A:r                   (A, X) = false
+LOAD_INT     X:u   A:r         P:int     (A, X) = P
+LOAD_NUM     X:u   A:r         P:double  (A, X) = P
+LOAD_STR     X:u   A:r         P:char*   (A, X) = P
+                                                                
+OUT          X:u   A:r                   Output the value in register (A, X).
+                                                                
+INCA         X:u   A:r   B:r             B = (A, X)          ; (A, X) = (A, X) + 1
+DECA         X:u   A:r   B:r             B = (A, X)          ; (A, X) = (A, X) - 1
+INCB         X:u   A:r   B:r             (A, X) = (A, X) + 1 ; B = (A, X)
+DECB         X:u   A:r   B:r             (A, X) = (A, X) - 1 ; B = (A, X)
+                                                                
+NEG          X:u   A:r   B:r             B =   - (A, X)
+NOT          X:u   A:r   B:r             B = NOT (A, X)
+                                                                
+ADD          X:r   A:r   B:r             X = A + B
+SUB          X:r   A:r   B:r             X = A - B
+MUL          X:r   A:r   B:r             X = A * B
+DIV          X:r   A:r   B:r             X = A / B
+REM          X:r   A:r   B:r             X = the remainder of A / B
+                                                                
+EQLA         X:r   A:r   B:r             X =     A == B
+EQLN         X:r   A:r   B:r             X = NOT A == B
+                                                                
+LESS         X:r   A:r   B:r             X = A <  B
+LESS_EQUAL   X:r   A:r   B:r             X = A <= B
+                                                                
+AND          X:r   A:r   B:r             X = A AND B
+OR           X:r   A:r   B:r             X = A OR  B
