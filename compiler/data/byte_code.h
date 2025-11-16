@@ -20,6 +20,9 @@ typedef uint8_t vm_reg;
     MACRO(JUMP_IF_FALSE)         \
                                  \
     MACRO(MOVE)                  \
+    MACRO(MOVE_FROM_UPVALUE)     \
+    MACRO(MOVE_TO_UPVALUE)       \
+                                 \
     MACRO(LOAD_NONE)             \
     MACRO(LOAD_TRUE)             \
     MACRO(LOAD_FALSE)            \
@@ -29,6 +32,8 @@ typedef uint8_t vm_reg;
                                  \
     MACRO(INCREMENT)             \
     MACRO(DECREMENT)             \
+    MACRO(INCREMENT_UPVALUE)     \
+    MACRO(DECREMENT_UPVALUE)     \
                                  \
     MACRO(OP_NEG)                \
     MACRO(OP_NOT)                \

@@ -7,8 +7,14 @@
 typedef struct
 {
     void *node;
-    uint8_t reg;
+    vm_reg reg;
 } NodeRegister;
+
+typedef struct
+{
+    uint8_t up;
+    vm_reg reg;
+} RegisterLocation;
 
 typedef struct
 {
@@ -124,11 +130,19 @@ Unit *get_unit_of_function(Assembler *a, Function *funct)
     unreachable;
 }
 
-vm_reg get_node_register(Assembler *a, void *node)
+RegisterLocation get_node_location(Assembler *a, void *node)
 {
-    for (size_t i = 0; i < a->active_registers; i++)
-        if (a->node_register[i].node == node)
-            return i;
+    size_t up = 0;
+    while (a)
+    {
+        for (size_t i = 0; i < a->node_register_count; i++)
+            if (a->node_register[i].node == node)
+                return (RegisterLocation){.up = (uint8_t)up, .reg = (vm_reg)i};
+
+        a = a->parent;
+        assert(up < 255); // FIXME: Handle this properly
+        up++;
+    }
 
     fatal_error("Could not get register for APM node %p.", node);
     unreachable;
@@ -236,7 +250,7 @@ void patch(Unit *unit, Instruction ins, size_t location)
 
 // ASSEMBLE EXPRESSION //
 
-vm_reg get_register_of_expression(Assembler *a, Expression *expr)
+RegisterLocation get_register_of_expression(Assembler *a, Expression *expr)
 {
     switch (expr->kind)
     {
@@ -245,11 +259,11 @@ vm_reg get_register_of_expression(Assembler *a, Expression *expr)
         break;
 
     case VARIABLE_REFERENCE:
-        return get_node_register(a, expr->variable);
+        return get_node_location(a, expr->variable);
         break;
 
     case PARAMETER_REFERENCE:
-        return get_node_register(a, expr->parameter);
+        return get_node_location(a, expr->parameter);
         break;
 
         // TODO: Implement
@@ -349,9 +363,14 @@ void assemble_expression(Assembler *a, Expression *expr, vm_reg dest)
         // case ENUM_VALUE_LITERAL:
 
     case VARIABLE_REFERENCE:
-        EMIT_AB(MOVE, dest, get_node_register(a, expr->variable));
+    {
+        RegisterLocation loc = get_node_location(a, expr->variable);
+        if (loc.up == 0)
+            EMIT_AB(MOVE, dest, loc.reg);
+        else
+            EMIT_ABC(MOVE_FROM_UPVALUE, dest, loc.reg, loc.up);
         break;
-
+    }
         // TODO: Implement
         // case PARAMETER_REFERENCE:
 
@@ -394,17 +413,33 @@ void assemble_expression(Assembler *a, Expression *expr, vm_reg dest)
 
     case UNARY_INCREMENT:
     {
-        vm_reg reg = get_register_of_expression(a, expr->subject);
-        EMIT_AB(MOVE, dest, reg);
-        EMIT_A(INCREMENT, reg);
+        RegisterLocation loc = get_register_of_expression(a, expr->subject);
+        if (loc.up == 0)
+        {
+            EMIT_AB(MOVE, dest, loc.reg);
+            EMIT_A(INCREMENT, loc.reg);
+        }
+        else
+        {
+            EMIT_ABC(MOVE_FROM_UPVALUE, dest, loc.reg, loc.up);
+            EMIT_AB(INCREMENT_UPVALUE, loc.reg, loc.up);
+        }
         break;
     }
 
     case UNARY_DECREMENT:
     {
-        vm_reg reg = get_register_of_expression(a, expr->subject);
-        EMIT_AB(MOVE, dest, reg);
-        EMIT_A(DECREMENT, reg);
+        RegisterLocation loc = get_register_of_expression(a, expr->subject);
+        if (loc.up == 0)
+        {
+            EMIT_AB(MOVE, dest, loc.reg);
+            EMIT_A(DECREMENT, loc.reg);
+        }
+        else
+        {
+            EMIT_ABC(MOVE_FROM_UPVALUE, dest, loc.reg, loc.up);
+            EMIT_AB(DECREMENT_UPVALUE, loc.reg, loc.up);
+        }
         break;
     }
 
@@ -598,11 +633,19 @@ void assemble_code_block(Assembler *a, Block *block)
 
         case ASSIGNMENT_STATEMENT:
         {
-            vm_reg dest = get_register_of_expression(a, stmt->assignment_lhs);
             vm_reg src = reserve_register(a);
             assemble_expression(a, stmt->assignment_rhs, src);
             release_register(a);
-            EMIT_AB(MOVE, dest, src);
+
+            RegisterLocation loc = get_register_of_expression(a, stmt->assignment_lhs);
+            if (loc.up == 0)
+            {
+                EMIT_AB(MOVE, loc.reg, src);
+            }
+            else
+            {
+                EMIT_ABC(MOVE_TO_UPVALUE, loc.reg, loc.up, src);
+            }
             break;
         }
 
