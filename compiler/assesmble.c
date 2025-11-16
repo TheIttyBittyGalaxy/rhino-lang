@@ -682,10 +682,11 @@ Unit *assemble_function(Assembler *global, ByteCode *bc, Function *funct)
 void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
 {
     Unit *unit = a->unit;
+    Statement *stmt;
+    StatementIterator it;
 
     // Initialise global variables in the init unit
-    Statement *stmt;
-    StatementIterator it = statement_iterator(apm->program_block->statements);
+    it = statement_iterator(apm->program_block->statements);
     while (stmt = next_statement_iterator(&it))
     {
         if (stmt->kind != VARIABLE_DECLARATION)
@@ -701,8 +702,15 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
             assemble_default_value(a, stmt->variable->type, variable_reg);
     }
 
-    // Assemble main
-    bc->main = assemble_function(a, bc, apm->main);
+    // Assemble all functions declared in the global scope
+    it = statement_iterator(apm->program_block->statements);
+    while (stmt = next_statement_iterator(&it))
+    {
+        if (stmt->kind == FUNCTION_DECLARATION)
+            assemble_function(a, bc, stmt->function);
+    }
+
+    bc->main = get_unit_of_function(a, apm->main);
 
     // Call to main from the init unit
     EMIT(CALL);
