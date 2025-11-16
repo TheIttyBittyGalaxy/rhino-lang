@@ -75,11 +75,14 @@ typedef struct
 
 // BYTE CODE //
 
-typedef struct
+typedef struct Unit Unit;
+
+struct Unit
 {
     Instruction instruction[1024];
     size_t count;
-} Unit;
+    Unit *next; // TODO: Is it possible to get rid of this? It is currently only used for debug printing.
+};
 
 typedef struct
 {

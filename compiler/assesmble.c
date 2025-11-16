@@ -28,6 +28,8 @@ typedef struct
     const char *source_text;
     Program *apm;
 
+    Unit *last_unit;
+
     // TODO: Make this a dynamically sized array
     CallPatch call_patch[128];
     size_t call_patch_count;
@@ -57,14 +59,28 @@ struct Assembler
     size_t jump_to_end_of_loop_count[128];
 };
 
-void init_assembler_and_create_unit(Assembler *a, Assembler *parent)
+void init_assembler_and_create_unit(Assembler *a, Assembler *parent, GlobalAssemblerData *data)
 {
     a->parent = parent;
-    a->data = (parent) ? parent->data : NULL;
+
+    if (parent)
+    {
+        assert(data == NULL);
+        a->data = parent->data;
+    }
+    else
+    {
+        assert(data != NULL);
+        a->data = data;
+    }
 
     // TODO: Implement a proper system for managing this memory
     a->unit = (Unit *)malloc(sizeof(Unit));
     init_unit(a->unit);
+
+    if (a->data->last_unit)
+        a->data->last_unit->next = a->unit;
+    a->data->last_unit = a->unit;
 
     a->active_registers = 0;
     a->max_registers = 0;
@@ -650,7 +666,7 @@ void assemble_code_block(Assembler *a, Block *block)
 Unit *assemble_function(Assembler *global, ByteCode *bc, Function *funct)
 {
     Assembler a;
-    init_assembler_and_create_unit(&a, global);
+    init_assembler_and_create_unit(&a, global, NULL);
 
     a.data->function_unit[a.data->function_unit_count++] = (FunctionUnit){
         .funct = funct,
@@ -715,13 +731,14 @@ void assemble(Compiler *compiler, Program *apm, ByteCode *byte_code)
     data.apm = apm;
     data.source_text = compiler->source_text;
 
+    data.last_unit = NULL;
+
     data.call_patch_count = 0;
     data.function_unit_count = 0;
 
     // Create init unit
     Assembler assembler;
-    init_assembler_and_create_unit(&assembler, NULL);
-    assembler.data = &data;
+    init_assembler_and_create_unit(&assembler, NULL, &data);
 
     byte_code->init = assembler.unit;
     assemble_program(&assembler, byte_code, apm);

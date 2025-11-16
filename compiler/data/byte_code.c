@@ -14,6 +14,7 @@ void init_unit(Unit *unit)
         unit->instruction[i].word = 0x00000000;
 
     unit->count = 0;
+    unit->next = NULL;
 }
 
 size_t printf_instruction(Unit *unit, size_t i)
@@ -55,7 +56,6 @@ size_t printf_instruction(Unit *unit, size_t i)
 
 void printf_unit(Unit *unit)
 {
-    printf("UNIT %p\n", unit);
     size_t i = 0;
     while (i < unit->count)
         i = printf_instruction(unit, i);
@@ -64,6 +64,11 @@ void printf_unit(Unit *unit)
 
 void printf_byte_code(ByteCode *byte_code)
 {
-    printf_unit(byte_code->init);
-    printf_unit(byte_code->main);
+    Unit *unit = byte_code->init;
+    while (unit)
+    {
+        printf("UNIT %p\n", unit);
+        printf_unit(unit);
+        unit = unit->next;
+    }
 }
