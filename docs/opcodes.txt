@@ -28,8 +28,8 @@ OUT          X:u   A:r                   Output the value in register (A, X).
 
 # INCREMENT AND DECREMENT
 
-INC         X:u   A:r                    (A, X) = (A, X) + 1
-DEC         X:u   A:r                    (A, X) = (A, X) - 1
+INC          X:u   A:r                    (A, X) = (A, X) + 1
+DEC          X:u   A:r                    (A, X) = (A, X) - 1
 
 # UNARY OPERATORS
 
