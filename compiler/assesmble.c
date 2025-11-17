@@ -18,6 +18,12 @@ typedef struct
 
 typedef struct
 {
+    void *type;
+    Unit *value_to_str;
+} TypeData;
+
+typedef struct
+{
     Function *funct;
     Unit *unit;
 } FunctionUnit;
@@ -47,6 +53,9 @@ typedef struct
     // TODO: Make this a dynamically sized hash map or the like
     EnumValue *enum_int[256];
     size_t enum_int_count;
+
+    TypeData type_data[256];
+    size_t data_type_count;
 } GlobalAssemblerData;
 
 typedef struct Assembler Assembler;
@@ -473,10 +482,9 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
 
 // META-DATA FOR ENUM VALUES //
 
-// TODO: This function should also create a "convert enum value to string" Unit for each enum_type
-void assign_enum_ints(Assembler *a, Block *block)
+void assemble_enum_types(Assembler *parent, Block *block)
 {
-    GlobalAssemblerData *d = a->data;
+    GlobalAssemblerData *d = parent->data;
 
     Statement *stmt;
     StatementIterator it = statement_iterator(block->statements);
@@ -486,8 +494,40 @@ void assign_enum_ints(Assembler *a, Block *block)
             continue;
 
         EnumType *enum_type = stmt->enum_type;
+
+        Assembler value_to_str;
+        init_assembler_and_create_unit(&value_to_str, parent, NULL);
+        value_to_str.unit->parameter_count = 1;
+
+        size_t type_id = d->data_type_count++;
+        printf("%d\n", type_id);
+        d->type_data[type_id].type = (void *)enum_type;
+        d->type_data[type_id].value_to_str = value_to_str.unit;
+
+        vm_reg parameter_reg = reserve_register(&value_to_str);
+        vm_reg condition_reg = reserve_register(&value_to_str);
+
         for (size_t i = 0; i < enum_type->values.count; i++)
-            d->enum_int[d->enum_int_count++] = get_enum_value(enum_type->values, i);
+        {
+            // Assign an int value to each enum
+            size_t id = d->enum_int_count++;
+            EnumValue *enum_value = get_enum_value(enum_type->values, i);
+            d->enum_int[id] = enum_value;
+
+            // Add to value to string unit
+            emit_load_enum(value_to_str.unit, 0, condition_reg, id);
+            emit_eqla(value_to_str.unit, condition_reg, condition_reg, parameter_reg);
+            size_t jump_to_next_check = emit_jump_if(value_to_str.unit, condition_reg, 0XFFFF);
+
+            substr sub = enum_value->identity; // TODO: Do something more efficient than this!!
+            char *buffer = (char *)malloc(sizeof(char) * (sub.len + 1));
+            memcpy(buffer, d->source_text + sub.pos, sub.len);
+            buffer[sub.len] = '\0';
+            emit_load_str(value_to_str.unit, 0, condition_reg, buffer);
+
+            emit_rtnv(value_to_str.unit, 0, condition_reg);
+            value_to_str.unit->instruction[jump_to_next_check].y = value_to_str.unit->count;
+        }
     }
 }
 
@@ -506,7 +546,7 @@ void assemble_code_block(Assembler *a, Block *block)
 
     // Create representations for all enum values declared in this block
     size_t initial_enum_int_count = a->data->enum_int_count;
-    assign_enum_ints(a, block);
+    assemble_enum_types(a, block);
 
     // Assemble statements
     it = statement_iterator(block->statements);
@@ -768,7 +808,7 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
     StatementIterator it;
 
     // Create representations for enum values
-    assign_enum_ints(a, apm->program_block);
+    assemble_enum_types(a, apm->program_block);
 
     // Initialise global variables in the init unit
     // FIXME: This approach cannot handle global variable that have been declared "out of order"
@@ -829,6 +869,7 @@ void assemble(Compiler *compiler, Program *apm, ByteCode *byte_code)
     data.call_patch_count = 0;
     data.function_unit_count = 0;
     data.enum_int_count = 0;
+    data.data_type_count = 0;
 
     // Create init unit
     Assembler assembler;
