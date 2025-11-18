@@ -266,7 +266,7 @@ RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, R
         }
 
         case OP_RTNV:
-            return_value = GET(ins.x, 0);
+            return_value = GET(ins.a, ins.x);
         case OP_RTNN:
             program_counter = unit->count;
             break;
