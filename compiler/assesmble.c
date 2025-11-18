@@ -280,6 +280,11 @@ void assemble_default_value(Assembler *a, RhinoType ty, vm_loc loc)
     }
 }
 
+// TODO: `assemble_expression_for_reading` is just a first idea about how to generate more efficient byte code for expressions.
+//       It might be that is idea doesn't last! Is there something better?
+void assemble_expression(Assembler *a, Expression *expr, vm_loc dst);
+vm_loc assemble_expression_for_reading(Assembler *a, Expression *expr);
+
 void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
 {
     Unit *unit = a->unit;
@@ -329,7 +334,6 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
     case VARIABLE_REFERENCE:
     {
         vm_loc var = get_node_location(a, expr->variable);
-        // TODO: Sometimes this copy instruction is unneeded as we only ever read the value without writing to it
         emit_copy_instructions(a, dst, var);
         break;
     }
@@ -405,23 +409,25 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
 
     // FIXME: I'm fairly certain we don't actually need to reserve two registers for this, but I can't figure out the logic for that right now
 
-    // FIXME: Currently we are not correctly accounting for the possibility that any of the values involved might be in an upwards scope
-#define CASE_BINARY(expr_kind, emit_ins)               \
-    case expr_kind:                                    \
-    {                                                  \
-        assert(dst.up == 0);                           \
-                                                       \
-        vm_reg lhs = reserve_register(a);              \
-        assemble_expression(a, expr->lhs, local(lhs)); \
-                                                       \
-        vm_reg rhs = reserve_register(a);              \
-        assemble_expression(a, expr->rhs, local(rhs)); \
-                                                       \
-        emit_ins(unit, dst.reg, lhs, rhs);             \
-                                                       \
-        release_register(a);                           \
-        release_register(a);                           \
-        break;                                         \
+// FIXME: Currently we are not correctly accounting for the possibility that any of the values involved might be in an upwards scope
+#define CASE_BINARY(expr_kind, emit_ins)                                             \
+    case expr_kind:                                                                  \
+    {                                                                                \
+        assert(dst.up == 0);                                                         \
+                                                                                     \
+        vm_loc lhs = assemble_expression_for_reading(a, expr->lhs);                  \
+                                                                                     \
+        /* Protect the LHS register while generating RHS */                          \
+        /* FIXME: This will not do anything useful when the location is not local!*/ \
+        reserve_register(a);                                                         \
+                                                                                     \
+        vm_loc rhs = assemble_expression_for_reading(a, expr->rhs);                  \
+        release_register(a);                                                         \
+                                                                                     \
+        assert(lhs.up == 0);                                                         \
+        assert(rhs.up == 0);                                                         \
+        emit_ins(unit, dst.reg, lhs.reg, rhs.reg);                                   \
+        break;                                                                       \
     }
 
         CASE_BINARY(BINARY_MULTIPLY, emit_mul)
@@ -439,6 +445,7 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
         CASE_BINARY(BINARY_LOGICAL_AND, emit_and)
         CASE_BINARY(BINARY_LOGICAL_OR, emit_or)
 
+    // TODO: Use `assemble_expression_for_reading` (if this is a good idea??)
     case BINARY_GREATER_THAN:
     {
         assert(dst.up == 0);
@@ -456,6 +463,7 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
         break;
     }
 
+    // TODO: Use `assemble_expression_for_reading` (if this is a good idea??)
     case BINARY_GREATER_THAN_EQUAL:
     {
         assert(dst.up == 0);
@@ -475,6 +483,7 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
 
 #undef CASE_BINARY
 
+    // TODO: Use `assemble_expression_for_reading` (if this is a good idea??)
     case TYPE_CAST:
     {
         RhinoType cast_from = get_expression_type(apm, a->data->source_text, expr->cast_expr);
@@ -517,6 +526,33 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
     default:
         fatal_error("Could not assemble %s expression.", expression_kind_string(expr->kind));
         break;
+    }
+}
+
+// NOTE: Caller should read the value before reserving new registers, as this may overwrite the value being read
+vm_loc assemble_expression_for_reading(Assembler *a, Expression *expr)
+{
+    Unit *unit = a->unit;
+    Program *apm = a->data->apm;
+
+    switch (expr->kind)
+    {
+    case VARIABLE_REFERENCE:
+        return get_node_location(a, expr->variable);
+
+    case PARAMETER_REFERENCE:
+        return get_node_location(a, expr->parameter);
+
+    case UNARY_POS:
+        return assemble_expression_for_reading(a, expr->operand);
+
+    default:
+    {
+        vm_reg tmp = reserve_register(a);
+        assemble_expression(a, expr, local(tmp));
+        release_register(a); // NOTE: This means the caller has to ensure they use this function before discarding it
+        return local(tmp);
+    }
     }
 }
 
