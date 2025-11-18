@@ -391,3 +391,15 @@ size_t emit_or(Unit* unit, vm_reg x, vm_reg a, vm_reg b)
 	return i;
 }
 
+// AS_STR
+// Cast the value in register (B, X) from any native type to a string and store it in register A.
+size_t emit_as_str(Unit* unit, uint8_t x, vm_reg a, vm_reg b)
+{
+	size_t i = unit->count++;
+	unit->instruction[i].op = OP_AS_STR;
+	unit->instruction[i].x = x;
+	unit->instruction[i].a = a;
+	unit->instruction[i].b = b;
+	return i;
+}
+

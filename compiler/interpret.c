@@ -332,20 +332,8 @@ RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, R
         case OP_OUT:
         {
             RhinoValue value = GET(ins.a, ins.x);
-            if (value.kind == RHINO_NONE)
-                output_to(output_string, "none\n");
-            else if (value.kind == RHINO_BOOL)
-                output_to(output_string, "%s\n", value.as_bool ? "true" : "false");
-            else if (value.kind == RHINO_NUM)
-            {
-                float_to_str(value.as_num);
-                output_to(output_string, "%s\n", float_to_str_buffer);
-            }
-            else if (value.kind == RHINO_STR)
-                output_to(output_string, "%s\n", value.as_str);
-            else
-                fatal_error("Could not output %s value.", rhino_value_kind_string(value.kind));
-
+            assert(value.kind == RHINO_STR);
+            output_to(output_string, "%s\n", value.as_str);
             break;
         }
 
@@ -439,6 +427,33 @@ RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, R
 #undef CASE_BINARY_ARITHMETIC
 #undef CASE_COMPARE_ARITHMETIC
 #undef CASE_BINARY_LOGIC
+
+        case OP_AS_STR:
+        {
+            char buffer[256];
+
+            RhinoValue value = GET(ins.b, ins.x);
+            if (value.kind == RHINO_NONE)
+                sprintf(buffer, "none");
+            else if (value.kind == RHINO_BOOL)
+                sprintf(buffer, "%s", value.as_bool ? "true" : "false");
+            else if (value.kind == RHINO_NUM)
+            {
+                float_to_str(value.as_num);
+                sprintf(buffer, "%s", float_to_str_buffer);
+            }
+            else
+                fatal_error("Could not cast %s value to string.", rhino_value_kind_string(value.kind));
+
+            // TODO: Do something WAAAY more efficient than this!!
+            char *new_str = (char *)malloc(sizeof(char) * (strlen(buffer) + 1));
+            memcpy(new_str, buffer, strlen(buffer));
+            new_str[strlen(buffer)] = '\0';
+
+            SET(ins.a, 0, STR_VALUE(new_str));
+
+            break;
+        }
 
         default:
             fatal_error("Could not interpret %s instruction %p:%04X.", op_code_string((OpCode)ins.op), unit, program_counter - 1);

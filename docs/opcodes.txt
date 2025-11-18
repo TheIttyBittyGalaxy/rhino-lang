@@ -58,3 +58,7 @@ LESS_EQL     X:r   A:r   B:r             X = A <= B
 
 AND          X:r   A:r   B:r             X = A AND B
 OR           X:r   A:r   B:r             X = A OR  B
+
+# TYPE CAST
+
+AS_STR       X:u   A:r   B:r             Cast the value in register (B, X) from any native type to a string and store it in register A.

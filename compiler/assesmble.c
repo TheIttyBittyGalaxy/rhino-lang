@@ -489,7 +489,22 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
     {
         RhinoType cast_from = get_expression_type(apm, a->data->source_text, expr->cast_expr);
         RhinoType cast_to = expr->cast_type;
-        if (cast_from.tag == RHINO_ENUM_TYPE && is_native_type(cast_to, &apm->str_type))
+        if (cast_from.tag == RHINO_NATIVE_TYPE && is_native_type(cast_to, &apm->str_type))
+        {
+            if (dst.up == 0)
+            {
+                assemble_expression(a, expr->cast_expr, local(dst.reg));
+                emit_as_str(unit, 0, dst.reg, dst.reg);
+            }
+            else
+            {
+                vm_reg temp = reserve_register(a);
+                assemble_expression(a, expr->cast_expr, local(temp));
+                emit_as_str(unit, 0, temp, temp);
+                emit_copy_instructions(unit, dst, local(temp));
+            }
+        }
+        else if (cast_from.tag == RHINO_ENUM_TYPE && is_native_type(cast_to, &apm->str_type))
         {
             EnumType *enum_type = cast_from.enum_type;
             Unit *value_to_str = get_type_data(a, (void *)enum_type).value_to_str;
