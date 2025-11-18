@@ -239,7 +239,9 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
     MACRO(BINARY_EQUAL)              \
     MACRO(BINARY_NOT_EQUAL)          \
     MACRO(BINARY_LOGICAL_AND)        \
-    MACRO(BINARY_LOGICAL_OR)
+    MACRO(BINARY_LOGICAL_OR)         \
+                                     \
+    MACRO(TYPE_CAST)
 
 DECLARE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 
@@ -317,6 +319,11 @@ struct Expression
         {
             Expression *lhs;
             Expression *rhs;
+        };
+        struct // TYPE_CAST
+        {
+            Expression *cast_expr;
+            RhinoType cast_type;
         };
     };
 };

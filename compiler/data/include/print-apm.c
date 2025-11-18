@@ -302,6 +302,19 @@ void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text)
 
         break;
 
+    case TYPE_CAST:
+        PRINT("CAST TO t%s", rhino_type_string(apm, expr->cast_type));
+        INDENT();
+
+        NEWLINE();
+        LAST_ON_LINE();
+        PRINT_EXPRESSION(apm, expr->cast_expr, source_text);
+
+        UNINDENT();
+        NEWLINE();
+
+        break;
+
     default:
         fatal_error("Could not pretty print %s expression", expression_kind_string(expr->kind));
     }

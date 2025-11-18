@@ -243,6 +243,10 @@ void dump_apm(Program *apm, const char *source_text)
         case BINARY_LOGICAL_OR:
             printf("\tlhs: %02d\trhs: %02d", expr->lhs, expr->rhs);
             break;
+
+        case TYPE_CAST:
+            printf("\tlhs: %02d\ttype %s", expr->cast_expr, rhino_type_string(apm, expr->cast_type));
+            break;
         }
         printf("\n");
     }

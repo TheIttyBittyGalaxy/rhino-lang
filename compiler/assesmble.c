@@ -55,7 +55,7 @@ typedef struct
     size_t enum_int_count;
 
     TypeData type_data[256];
-    size_t data_type_count;
+    size_t type_data_count;
 } GlobalAssemblerData;
 
 typedef struct Assembler Assembler;
@@ -172,6 +172,16 @@ size_t get_enum_int(Assembler *a, EnumValue *enum_value)
     unreachable;
 }
 
+TypeData get_type_data(Assembler *a, void *type)
+{
+    for (size_t i = 0; i < a->data->type_data_count; i++)
+        if (a->data->type_data[i].type == type)
+            return a->data->type_data[i];
+
+    fatal_error("Could not get type data for %p.", type);
+    unreachable;
+}
+
 // EMIT INSTRUCTIONS //
 
 #include "include/emit_op_code.c"
@@ -284,6 +294,7 @@ void assemble_default_value(Assembler *a, RhinoType ty, vm_loc loc)
 void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
 {
     Unit *unit = a->unit;
+    Program *apm = a->data->apm;
 
     switch (expr->kind)
     {
@@ -474,6 +485,30 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
 
 #undef CASE_BINARY
 
+    case TYPE_CAST:
+    {
+        RhinoType cast_from = get_expression_type(apm, a->data->source_text, expr->cast_expr);
+        RhinoType cast_to = expr->cast_type;
+        if (cast_from.tag == RHINO_ENUM_TYPE && is_native_type(cast_to, &apm->str_type))
+        {
+            EnumType *enum_type = cast_from.enum_type;
+            Unit *value_to_str = get_type_data(a, (void *)enum_type).value_to_str;
+
+            vm_reg param = dst.reg;
+            if (dst.up != 0)
+                param = reserve_register(a);
+            assemble_expression(a, expr->cast_expr, local(param));
+            emit_call(unit, dst.up, dst.reg, param, value_to_str);
+            if (dst.up != 0)
+                release_register(a);
+        }
+        else
+        {
+            fatal_error("Could not assemble type cast from %s to %s.", rhino_type_string(apm, cast_from), rhino_type_string(apm, cast_to));
+        }
+        break;
+    }
+
     default:
         fatal_error("Could not assemble %s expression.", expression_kind_string(expr->kind));
         break;
@@ -499,7 +534,7 @@ void assemble_enum_types(Assembler *parent, Block *block)
         init_assembler_and_create_unit(&value_to_str, parent, NULL);
         value_to_str.unit->parameter_count = 1;
 
-        size_t type_id = d->data_type_count++;
+        size_t type_id = d->type_data_count++;
         printf("%d\n", type_id);
         d->type_data[type_id].type = (void *)enum_type;
         d->type_data[type_id].value_to_str = value_to_str.unit;
@@ -869,7 +904,7 @@ void assemble(Compiler *compiler, Program *apm, ByteCode *byte_code)
     data.call_patch_count = 0;
     data.function_unit_count = 0;
     data.enum_int_count = 0;
-    data.data_type_count = 0;
+    data.type_data_count = 0;
 
     // Create init unit
     Assembler assembler;

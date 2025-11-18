@@ -705,6 +705,25 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
 
         // TODO: Output statements should implicitly cast their expression to a string if it is not a string already
         case OUTPUT_STATEMENT:
+        {
+            if (stmt->expression)
+            {
+                resolve_types_in_expression(c, apm, stmt->expression, block->symbol_table, NATIVE_STR);
+
+                RhinoType expr_type = get_expression_type(apm, c->source_text, stmt->expression);
+                if (!is_native_type(expr_type, &apm->str_type))
+                {
+                    Expression *cast = append_expression(&apm->expression);
+                    cast->span = stmt->expression->span;
+                    cast->kind = TYPE_CAST;
+                    cast->cast_type = NATIVE_STR;
+                    cast->cast_expr = stmt->expression;
+                    stmt->expression = cast;
+                }
+            }
+            break;
+        }
+
         case EXPRESSION_STMT:
         case RETURN_STATEMENT:
         {
