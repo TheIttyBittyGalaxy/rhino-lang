@@ -280,7 +280,6 @@ void assemble_default_value(Assembler *a, RhinoType ty, vm_loc loc)
     }
 }
 
-// TODO: Rework this method to return a register location, rather than receiving one
 void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
 {
     Unit *unit = a->unit;
@@ -330,6 +329,7 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
     case VARIABLE_REFERENCE:
     {
         vm_loc var = get_node_location(a, expr->variable);
+        // TODO: Sometimes this copy instruction is unneeded as we only ever read the value without writing to it
         emit_copy_instructions(a, dst, var);
         break;
     }
