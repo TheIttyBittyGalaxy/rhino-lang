@@ -535,7 +535,6 @@ void assemble_enum_types(Assembler *parent, Block *block)
         value_to_str.unit->parameter_count = 1;
 
         size_t type_id = d->type_data_count++;
-        printf("%d\n", type_id);
         d->type_data[type_id].type = (void *)enum_type;
         d->type_data[type_id].value_to_str = value_to_str.unit;
 
