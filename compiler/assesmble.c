@@ -211,9 +211,9 @@ size_t emit_copy_instructions(Assembler *a, vm_loc dst, vm_loc src)
 
 // PATCH INSTRUCTIONS //
 
-void patch(Unit *unit, Instruction ins, size_t location)
+void patch_y(Unit *unit, size_t location, uint16_t y)
 {
-    unit->instruction[location] = ins;
+    unit->instruction[location].y = y;
 }
 
 #include "include/patch_payload.c"
@@ -565,7 +565,7 @@ void assemble_enum_types(Assembler *parent, Block *block)
             emit_load_str(value_to_str.unit, 0, condition_reg, buffer);
 
             emit_rtnv(value_to_str.unit, 0, condition_reg);
-            value_to_str.unit->instruction[jump_to_next_check].y = value_to_str.unit->count;
+            patch_y(value_to_str.unit, jump_to_next_check, value_to_str.unit->count);
         }
     }
 }
@@ -637,14 +637,13 @@ void assemble_code_block(Assembler *a, Block *block)
                 if (segment->next) // Jump to the end of the if statement
                     jump_to_end[jump_to_end_count++] = emit_jump(unit, 0xFFFF);
 
-                // FIXME: Create a helper function for this
-                unit->instruction[jump_to_next_segment].y = unit->count;
+                patch_y(unit, jump_to_next_segment, unit->count);
 
                 segment = segment->next;
             }
 
             for (size_t i = 0; i < jump_to_end_count; i++)
-                unit->instruction[jump_to_end[i]].y = unit->count; // FIXME: Create a helper function for this
+                patch_y(unit, jump_to_end[i], unit->count);
 
             break;
         }
@@ -692,8 +691,7 @@ void assemble_code_block(Assembler *a, Block *block)
                 // Jump back to the start of the loop
                 emit_jump(unit, start_of_loop);
 
-                // FIXME: Create a helper function for this
-                unit->instruction[jump_to_end].y = unit->count;
+                patch_y(unit, jump_to_end, unit->count);
 
                 release_register(a); // iterator_reg
 
@@ -716,8 +714,7 @@ void assemble_code_block(Assembler *a, Block *block)
             assemble_code_block(a, stmt->block);
             emit_jump(unit, start_of_loop);
 
-            // FIXME: Create a helper function for this
-            unit->instruction[jump_to_end].y = unit->count;
+            patch_y(unit, jump_to_end, unit->count);
             break;
         }
 
@@ -800,8 +797,7 @@ void assemble_code_block(Assembler *a, Block *block)
             for (size_t i = 0; i < a->jump_to_end_of_loop_count[a->loop_depth]; i++)
             {
                 size_t j = a->jump_to_end_of_loop[a->loop_depth][i];
-                // FIXME: Create a helper function for this
-                unit->instruction[j].y = unit->count;
+                patch_y(unit, j, unit->count);
             }
             a->loop_depth--;
         }
