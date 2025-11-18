@@ -95,3 +95,24 @@ with create_include("get_payload_size.c") as f:
             f.write("\t\treturn wordsizeof(" + ins["payload"] + ");\n")
     f.write("\n\treturn 0;\n")
     f.write("}\n")
+
+payloadTypes = []
+for ins in data:
+    if ins["payload"] and not ins["payload"] in payloadTypes:
+        payloadTypes.append(ins["payload"])
+
+def strip_typename(name):
+    return name.lower().replace(" ", "").replace("*", "_ptr")
+
+with create_include("patch_payload.c") as f:
+    for payload in payloadTypes:
+        f.write("void patch_" + strip_typename(payload) + "_payload(Unit* unit, size_t location, "+ payload+" p)\n" )
+        f.write("{\n")
+        f.write("\tunion\n")
+        f.write("\t{\n")
+        f.write("\t\t" + payload + " data;\n")
+        f.write("\t\tuint32_t word[wordsizeof(" + payload + ")];\n")
+        f.write("\t} as = {.data = p};\n")
+        f.write("\tfor (size_t i = 0; i < wordsizeof(" + payload + "); i++)\n")
+        f.write("\t\tunit->instruction[location + i].word = as.word[i];\n")
+        f.write("}\n\n")

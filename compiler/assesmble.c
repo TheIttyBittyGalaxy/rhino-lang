@@ -216,23 +216,7 @@ void patch(Unit *unit, Instruction ins, size_t location)
     unit->instruction[location] = ins;
 }
 
-// FIXME: This assumes very value is 1 or 2 words.
-//        Update this to match include/emit_op_code.
-
-#define PATCH_DATA(T, value, location)                       \
-    {                                                        \
-        assert(wordsizeof(T) <= 2);                          \
-        union                                                \
-        {                                                    \
-            T data;                                          \
-            uint32_t word[2];                                \
-        } as = {.data = value};                              \
-                                                             \
-        size_t __location = location;                        \
-        unit->instruction[__location].word = as.word[0];     \
-        if (wordsizeof(T) == 2)                              \
-            unit->instruction[__location].word = as.word[1]; \
-    }
+#include "include/patch_payload.c"
 
 // ASSEMBLE EXPRESSION //
 
@@ -899,13 +883,8 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
     // Patch all function calls
     for (size_t i = 0; i < a->data->call_patch_count; i++)
     {
-        Unit *unit = a->data->call_patch[i].unit; // NOTE: This variable has to be called `unit` so that the PATCH_DATA macro will work
-        size_t ins = a->data->call_patch[i].instruction;
-
-        Function *call_funct = a->data->call_patch[i].funct;
-        Unit *call_unit = get_unit_of_function(a, call_funct);
-
-        PATCH_DATA(Unit *, call_unit, ins);
+        CallPatch patch = a->data->call_patch[i];
+        patch_unit_ptr_payload(patch.unit, patch.instruction, get_unit_of_function(a, patch.funct));
     }
 }
 
