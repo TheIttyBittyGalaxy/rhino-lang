@@ -186,9 +186,13 @@ TypeData get_type_data(Assembler *a, void *type)
 
 #include "include/emit_op_code.c"
 
-size_t emit_copy_instructions(Unit *unit, vm_loc dst, vm_loc src)
+// Emit instructions that will set registers dst = src
+size_t emit_copy_instructions(Assembler *a, vm_loc dst, vm_loc src)
 {
-    // FIXME: If locations are the same, don't generate any instructions
+    Unit *unit = a->unit;
+
+    if (src.up == dst.up && src.reg == dst.reg)
+        return unit->count;
 
     if (src.up == dst.up)
         return emit_copy(unit, dst.up, dst.reg, src.reg);
@@ -197,10 +201,12 @@ size_t emit_copy_instructions(Unit *unit, vm_loc dst, vm_loc src)
     else if (dst.up == 0)
         return emit_copy_dn(unit, src.up, dst.reg, src.reg);
 
-    // FIXME: Implement moving between two different up levels
+    vm_reg tmp = reserve_register(a);
+    emit_copy_instructions(a, local(tmp), src);
+    size_t last_ins = emit_copy_instructions(a, dst, local(tmp));
+    release_register(a);
 
-    fatal_error("Could not assemble COPY instructions.");
-    unreachable;
+    return last_ins;
 }
 
 // PATCH INSTRUCTIONS //
@@ -340,14 +346,14 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
     case VARIABLE_REFERENCE:
     {
         vm_loc var = get_node_location(a, expr->variable);
-        emit_copy_instructions(unit, dst, var);
+        emit_copy_instructions(a, dst, var);
         break;
     }
 
     case PARAMETER_REFERENCE:
     {
         vm_loc par = get_node_location(a, expr->parameter);
-        emit_copy_instructions(unit, dst, par);
+        emit_copy_instructions(a, dst, par);
         break;
     }
 
@@ -400,7 +406,7 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
     case UNARY_INCREMENT:
     {
         vm_loc src = get_register_of_expression(a, expr->subject);
-        emit_copy_instructions(unit, dst, src);
+        emit_copy_instructions(a, dst, src);
         emit_inc(unit, src.up, src.reg);
         break;
     }
@@ -408,7 +414,7 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
     case UNARY_DECREMENT:
     {
         vm_loc src = get_register_of_expression(a, expr->subject);
-        emit_copy_instructions(unit, dst, src);
+        emit_copy_instructions(a, dst, src);
         emit_dec(unit, src.up, src.reg);
         break;
     }
@@ -501,7 +507,7 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
                 vm_reg temp = reserve_register(a);
                 assemble_expression(a, expr->cast_expr, local(temp));
                 emit_as_str(unit, 0, temp, temp);
-                emit_copy_instructions(unit, dst, local(temp));
+                emit_copy_instructions(a, dst, local(temp));
             }
         }
         else if (cast_from.tag == RHINO_ENUM_TYPE && is_native_type(cast_to, &apm->str_type))
@@ -746,7 +752,7 @@ void assemble_code_block(Assembler *a, Block *block)
             release_register(a);
 
             vm_loc dst = get_register_of_expression(a, stmt->assignment_lhs);
-            emit_copy_instructions(unit, dst, local(src));
+            emit_copy_instructions(a, dst, local(src));
             break;
         }
 
