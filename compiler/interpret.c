@@ -1,0 +1,484 @@
+#include "interpret.h"
+
+#include "fatal_error.h"
+
+// INTERPRETER VALUES //
+
+#define RHINO_VALUE_KIND(MACRO) \
+    MACRO(INVALID_RHINO_KIND)   \
+                                \
+    MACRO(RHINO_NONE)           \
+    MACRO(RHINO_BOOL)           \
+    MACRO(RHINO_NUM)            \
+    MACRO(RHINO_STR)            \
+    MACRO(RHINO_ENUM)
+
+DECLARE_ENUM(RHINO_VALUE_KIND, RhinoValueKind, rhino_value_kind)
+DEFINE_ENUM(RHINO_VALUE_KIND, RhinoValueKind, rhino_value_kind)
+
+typedef struct
+{
+    RhinoValueKind kind;
+    union
+    {
+        uint64_t as_bits;
+        bool as_bool;
+        double as_num;
+        char *as_str;
+        int as_enum;
+    };
+} RhinoValue;
+
+#define NONE_VALUE() ((RhinoValue){.kind = RHINO_NONE, .as_bool = false})
+#define BOOL_VALUE(value) ((RhinoValue){.kind = RHINO_BOOL, .as_bool = value})
+#define NUM_VALUE(value) ((RhinoValue){.kind = RHINO_NUM, .as_num = value})
+#define STR_VALUE(value) ((RhinoValue){.kind = RHINO_STR, .as_str = value})
+#define ENUM_VALUE(value) ((RhinoValue){.kind = RHINO_ENUM, .as_enum = value})
+
+// IO //
+
+char float_to_str_buffer[64];
+
+// FIXME: This implementation cannot handle particularly large floats
+//        e.g. 1000000000000000000000000000000.1
+void float_to_str(double x)
+{
+    size_t c = 0;
+
+    if (x < 0)
+    {
+        float_to_str_buffer[c++] = '-';
+        x = -x;
+    }
+
+    long long integer_portion = x;
+    float rational_portion = x - integer_portion;
+
+    int f = c;
+    do
+        float_to_str_buffer[c++] = '0' + integer_portion % 10;
+    while (integer_portion /= 10);
+    int l = c - 1;
+
+    while (l > f)
+    {
+        char t = float_to_str_buffer[f];
+        float_to_str_buffer[f++] = float_to_str_buffer[l];
+        float_to_str_buffer[l--] = t;
+    }
+
+    if (rational_portion > 0.0001)
+    {
+        float_to_str_buffer[c++] = '.';
+        while (rational_portion > 0.0001)
+        {
+            int d = rational_portion * 10;
+            float_to_str_buffer[c++] = '0' + (d % 10);
+            rational_portion = rational_portion * 10 - d;
+        }
+    }
+
+    float_to_str_buffer[c] = '\0';
+}
+
+void output_to(RunOnString *output, const char *format, ...)
+{
+    if (!output)
+    {
+        va_list args;
+        va_start(args, format);
+        vprintf(format, args);
+        va_end(args);
+        return;
+    }
+
+    // FIXME: This could overflow
+    char buffer[1024];
+
+    va_list args;
+    va_start(args, format);
+    vsprintf(buffer, format, args);
+    va_end(args);
+
+    append_run_on_string_with_terminator(output, buffer);
+}
+
+// CALL STACKS //
+
+typedef struct Record Record;
+
+struct Record
+{
+    Record *covers;
+    RhinoValue register_value[];
+};
+
+typedef struct
+{
+    Unit *unit;
+    Record *top;
+} Stack;
+
+typedef struct
+{
+    Stack stack[64]; // TODO: Set this dynamically according to the number of Units
+    size_t count;
+} CallStacks;
+
+// TODO: Make this a data structure that allows for fast loop-up!
+Stack *get_call_stack(CallStacks *call_stacks, Unit *unit)
+{
+    for (size_t i = 0; i < call_stacks->count; i++)
+        if (call_stacks->stack[i].unit == unit)
+            return call_stacks->stack + i;
+
+    fatal_error("Untable to get call stack for Unit %p.", unit);
+    unreachable;
+}
+
+Record *push_record(CallStacks *call_stacks, Unit *unit)
+{
+    // TODO: Create a proper system for allocation instead of using malloc
+    Record *record = (Record *)malloc(sizeof(Record *) + sizeof(RhinoValue) * unit->register_count);
+
+    Stack *stack = get_call_stack(call_stacks, unit);
+    record->covers = stack->top;
+    stack->top = record;
+
+    return record;
+}
+
+void pop_record(CallStacks *call_stacks, Unit *unit, Record *record)
+{
+    Stack *stack = get_call_stack(call_stacks, unit);
+    stack->top = record->covers;
+
+    free(record);
+}
+
+inline RhinoValue get_reg(CallStacks *call_stacks, Unit *unit, Record *record, vm_reg reg, uint8_t up)
+{
+    if (up > 0)
+    {
+        for (size_t i = 0; i < up; i++)
+            assert(unit = unit->nested_in);
+        assert(record = get_call_stack(call_stacks, unit)->top);
+    }
+
+    return record->register_value[reg];
+}
+
+inline RhinoValue *point_to_reg(CallStacks *call_stacks, Unit *unit, Record *record, vm_reg reg, uint8_t up)
+{
+    if (up > 0)
+    {
+        for (size_t i = 0; i < up; i++)
+            assert(unit = unit->nested_in);
+        assert(record = get_call_stack(call_stacks, unit)->top);
+    }
+
+    return record->register_value + reg;
+}
+
+inline void set_reg(CallStacks *call_stacks, Unit *unit, Record *record, vm_reg reg, uint8_t up, RhinoValue value)
+{
+    if (up > 0)
+    {
+        for (size_t i = 0; i < up; i++)
+            assert(unit = unit->nested_in);
+        assert(record = get_call_stack(call_stacks, unit)->top);
+    }
+
+    record->register_value[reg] = value;
+}
+
+// INTERPRET //
+
+// TODO: Have functions of these be generated by build.py
+
+#define FETCH_DATA(T, var)                                          \
+    T var;                                                          \
+    {                                                               \
+        union                                                       \
+        {                                                           \
+            T data;                                                 \
+            uint32_t word[wordsizeof(T)];                           \
+        } as;                                                       \
+        for (size_t i = 0; i < wordsizeof(T); i++)                  \
+            as.word[i] = unit->instruction[program_counter++].word; \
+        var = as.data;                                              \
+    }
+
+RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, RunOnString *output_string)
+{
+    size_t program_counter = 0;
+
+    RhinoValue stack_value[128];
+    size_t stack_pointer = 0;
+
+    if (!record)
+        record = push_record(call_stacks, unit);
+
+#define GET(reg, up) get_reg(call_stacks, unit, record, reg, up)
+#define PTR(reg, up) point_to_reg(call_stacks, unit, record, reg, up)
+#define SET(reg, up, value) set_reg(call_stacks, unit, record, reg, up, value)
+
+    RhinoValue return_value = NONE_VALUE();
+
+    // printf("%p\n", unit);
+    while (program_counter < unit->count)
+    {
+        // printf_instruction(unit, program_counter);
+        Instruction ins = unit->instruction[program_counter++];
+
+        switch (ins.op)
+        {
+
+        case OP_CALL:
+        {
+            FETCH_DATA(Unit *, callee);
+
+            Record *callee_record = push_record(call_stacks, callee);
+            for (size_t i = 0; i < callee->parameter_count; i++)
+            {
+                RhinoValue arg = GET(ins.b + i, 0);
+                set_reg(call_stacks, unit, callee_record, i, 0, arg);
+            }
+
+            RhinoValue return_value = interpret_unit(call_stacks, callee, callee_record, output_string);
+            SET(ins.a, ins.x, return_value);
+            break;
+        }
+
+        case OP_RUN:
+        {
+            FETCH_DATA(Unit *, callee);
+
+            Record *callee_record = push_record(call_stacks, callee);
+            for (size_t i = 0; i < callee->parameter_count; i++)
+            {
+                RhinoValue arg = GET(ins.b + i, 0);
+                set_reg(call_stacks, unit, callee_record, i, 0, arg);
+            }
+
+            interpret_unit(call_stacks, callee, callee_record, output_string);
+            break;
+        }
+
+        case OP_RTNV:
+            return_value = GET(ins.a, ins.x);
+        case OP_RTNN:
+            program_counter = unit->count;
+            break;
+
+        case OP_JUMP:
+            program_counter = ins.y;
+            break;
+
+        case OP_JUMP_IF:
+        {
+            RhinoValue value = GET(ins.x, 0);
+            if (value.kind != RHINO_BOOL)
+                fatal_error("Could not interpret JUMP_IF_FALSE as value in register is %s.", rhino_value_kind_string(value.kind));
+
+            if (value.as_bool == false)
+                program_counter = ins.y;
+
+            break;
+        }
+
+        case OP_COPY:
+            SET(ins.a, ins.x, GET(ins.b, ins.x));
+            break;
+
+        case OP_COPY_UP:
+            SET(ins.a, ins.x, GET(ins.b, 0));
+            break;
+
+        case OP_COPY_DN:
+            SET(ins.a, 0, GET(ins.b, ins.x));
+            break;
+
+        case OP_LOAD_NONE:
+            SET(ins.a, ins.x, NONE_VALUE());
+            break;
+
+        case OP_LOAD_TRUE:
+            SET(ins.a, ins.x, BOOL_VALUE(true));
+            break;
+
+        case OP_LOAD_FALSE:
+            SET(ins.a, ins.x, BOOL_VALUE(false));
+            break;
+
+        case OP_LOAD_NUM:
+        {
+            FETCH_DATA(double, data);
+            SET(ins.a, ins.x, NUM_VALUE(data));
+            break;
+        }
+
+        case OP_LOAD_STR:
+        {
+            FETCH_DATA(char *, data);
+            SET(ins.a, ins.x, STR_VALUE(data));
+            break;
+        }
+
+        case OP_LOAD_ENUM:
+            SET(ins.a, ins.x, ENUM_VALUE(ins.b));
+            break;
+
+        case OP_OUT:
+        {
+            RhinoValue value = GET(ins.a, ins.x);
+            assert(value.kind == RHINO_STR);
+            output_to(output_string, "%s\n", value.as_str);
+            break;
+        }
+
+        case OP_INC:
+            PTR(ins.a, ins.x)->as_num += 1;
+            break;
+
+        case OP_DEC:
+            PTR(ins.a, ins.x)->as_num -= 1;
+            break;
+
+        case OP_NEG:
+        {
+            RhinoValue value = GET(ins.b, ins.x);
+            value.as_num = -value.as_num;
+            SET(ins.a, 0, value);
+            break;
+        }
+
+        case OP_NOT:
+        {
+            RhinoValue value = GET(ins.b, ins.x);
+            value.as_bool = !value.as_bool;
+            SET(ins.a, 0, value);
+            break;
+        }
+
+#define CASE_BINARY_ARITHMETIC(OP, operation)                                          \
+    case OP:                                                                           \
+        SET(ins.x, 0, NUM_VALUE(GET(ins.a, 0).as_num operation GET(ins.b, 0).as_num)); \
+        break;
+
+#define CASE_COMPARE_ARITHMETIC(OP, operation)                                          \
+    case OP:                                                                            \
+        SET(ins.x, 0, BOOL_VALUE(GET(ins.a, 0).as_num operation GET(ins.b, 0).as_num)); \
+        break;
+
+#define CASE_BINARY_LOGIC(OP, operation)                                                  \
+    case OP:                                                                              \
+        SET(ins.x, 0, BOOL_VALUE(GET(ins.a, 0).as_bool operation GET(ins.b, 0).as_bool)); \
+        break;
+
+            CASE_BINARY_ARITHMETIC(OP_ADD, +)
+            CASE_BINARY_ARITHMETIC(OP_SUB, -)
+            CASE_BINARY_ARITHMETIC(OP_MUL, *)
+            CASE_BINARY_ARITHMETIC(OP_DIV, /)
+
+            CASE_COMPARE_ARITHMETIC(OP_LESS_THN, <)
+            CASE_COMPARE_ARITHMETIC(OP_LESS_EQL, <=)
+
+            CASE_BINARY_LOGIC(OP_AND, &&)
+            CASE_BINARY_LOGIC(OP_OR, ||)
+
+        case OP_REM:
+        {
+            double result = GET(ins.a, 0).as_num;
+            double divisor = GET(ins.b, 0).as_num;
+
+            // FIXME: Make this an approach that works for negative numbers
+            assert(result > 0);
+            assert(divisor > 0);
+
+            while (result >= divisor)
+                result -= divisor;
+
+            SET(ins.x, 0, NUM_VALUE(result));
+            break;
+        }
+
+        case OP_EQLA:
+        case OP_EQLN:
+        {
+            RhinoValue lhs = GET(ins.a, 0);
+            RhinoValue rhs = GET(ins.b, 0);
+            bool result = false;
+
+            // FIXME: Check this works for all data types
+            // FIXME: Implement the correct semantics for strings
+            if (lhs.kind == rhs.kind)
+            {
+                result = lhs.as_bits == rhs.as_bits;
+            }
+
+            if (ins.op == OP_EQLN)
+                result = !result;
+
+            SET(ins.x, 0, BOOL_VALUE(result));
+            break;
+        }
+
+#undef CASE_BINARY_ARITHMETIC
+#undef CASE_COMPARE_ARITHMETIC
+#undef CASE_BINARY_LOGIC
+
+        case OP_AS_STR:
+        {
+            char buffer[256];
+
+            RhinoValue value = GET(ins.b, ins.x);
+            if (value.kind == RHINO_NONE)
+                sprintf(buffer, "none");
+            else if (value.kind == RHINO_BOOL)
+                sprintf(buffer, "%s", value.as_bool ? "true" : "false");
+            else if (value.kind == RHINO_NUM)
+            {
+                float_to_str(value.as_num);
+                sprintf(buffer, "%s", float_to_str_buffer);
+            }
+            else
+                fatal_error("Could not cast %s value to string.", rhino_value_kind_string(value.kind));
+
+            // TODO: Do something WAAAY more efficient than this!!
+            char *new_str = (char *)malloc(sizeof(char) * (strlen(buffer) + 1));
+            memcpy(new_str, buffer, strlen(buffer));
+            new_str[strlen(buffer)] = '\0';
+
+            SET(ins.a, 0, STR_VALUE(new_str));
+
+            break;
+        }
+
+        default:
+            fatal_error("Could not interpret %s instruction %p:%04X.", op_code_string((OpCode)ins.op), unit, program_counter - 1);
+            break;
+        }
+    }
+
+    pop_record(call_stacks, unit, record);
+    return return_value;
+}
+
+void interpret(ByteCode *byte_code, RunOnString *output_string)
+{
+    CallStacks call_stacks;
+    call_stacks.count = 0;
+
+    Unit *unit = byte_code->init;
+    while (unit)
+    {
+        size_t i = call_stacks.count++;
+        assert(call_stacks.count <= 64); // TODO: Set the size of the array dynamically according to the number of Units
+        call_stacks.stack[i].unit = unit;
+        call_stacks.stack[i].top = NULL;
+        unit = unit->next;
+    }
+
+    interpret_unit(&call_stacks, byte_code->init, NULL, output_string);
+}

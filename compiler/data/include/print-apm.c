@@ -130,12 +130,7 @@ void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text)
         break;
 
     case NONE_LITERAL:
-#ifdef PRINT_PARSED
         PRINT("none");
-#endif
-#ifdef PRINT_RESOLVED
-        PRINT(none_variant_string(expr->none_variant));
-#endif
         break;
 
     case BOOLEAN_LITERAL:
@@ -301,6 +296,19 @@ void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text)
         NEWLINE();
         LAST_ON_LINE();
         PRINT_EXPRESSION(apm, expr->rhs, source_text);
+
+        UNINDENT();
+        NEWLINE();
+
+        break;
+
+    case TYPE_CAST:
+        PRINT("CAST TO t%s", rhino_type_string(apm, expr->cast_type));
+        INDENT();
+
+        NEWLINE();
+        LAST_ON_LINE();
+        PRINT_EXPRESSION(apm, expr->cast_expr, source_text);
 
         UNINDENT();
         NEWLINE();

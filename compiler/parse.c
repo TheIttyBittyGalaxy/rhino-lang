@@ -172,6 +172,7 @@ bool peek_statement(Compiler *c)
            PEEK(KEYWORD_LOOP) ||
            PEEK(KEYWORD_WHILE) ||
            PEEK(KEYWORD_DEF) ||
+           PEEK(KEYWORD_RETURN) ||
            PEEK(ARROW_R) ||
            peek_expression(c);
 }
@@ -476,6 +477,7 @@ void parse_statement(Compiler *c, Program *apm, StatementListAllocator *allocato
     if (PEEK(KEYWORD_IF))
     {
         stmt->kind = IF_SEGMENT;
+        stmt->next = NULL;
 
         EAT(KEYWORD_IF);
         stmt->condition = parse_expression(c, apm);
@@ -486,9 +488,13 @@ void parse_statement(Compiler *c, Program *apm, StatementListAllocator *allocato
 
         stmt->body = parse_block(c, apm, block);
 
+        Statement *segment_stmt = stmt;
         while (PEEK(KEYWORD_ELSE))
         {
-            Statement *segment_stmt = append_statement(allocator);
+            segment_stmt->next = append_statement(allocator);
+            segment_stmt = segment_stmt->next;
+            segment_stmt->next = NULL;
+
             START_SPAN(segment_stmt);
 
             EAT(KEYWORD_ELSE);
@@ -879,7 +885,6 @@ Expression *parse_expression_with_precedence(Compiler *c, Program *apm, ExprPrec
     else if (PEEK(KEYWORD_NONE))
     {
         lhs->kind = NONE_LITERAL;
-        lhs->none_variant = NONE_UNDETERMINED;
         ADVANCE();
     }
     else if (PEEK(INTEGER))

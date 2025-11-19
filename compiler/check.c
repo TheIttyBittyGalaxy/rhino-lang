@@ -222,6 +222,11 @@ void check_expression(Compiler *c, Program *apm, Expression *expr)
         check_expression(c, apm, expr->rhs);
         break;
 
+    case TYPE_CAST:
+        // TODO: Check that it is possible/valid to convert the expression to the specified type
+        check_expression(c, apm, expr->cast_expr);
+        break;
+
     default:
         fatal_error("Could not check %s expression", expression_kind_string(expr->kind));
         break;

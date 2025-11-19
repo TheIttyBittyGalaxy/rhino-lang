@@ -1,0 +1,64 @@
+# NOTE: This file is used by the build program to automatically generate C code for the compiler
+#       Is is also meant for human reference.
+
+# TODO: Generate a Markdown file using this data
+
+# CALL
+
+CALL         X:u   A:r   B:r   P:Unit*   Make a function call to Unit P where the first argument is stored in register B, and the return value is stored in register (A, X).
+RUN                      B:r   P:Unit*   Make a function call to Unit P where the first argument is stored in register B, and do nothing with the return value.
+RTNN                                     Return the the current unit.
+RTNV         X:u   A:r                   Return the the current unit with the return value in register (A, X).
+
+# JUMP
+
+JUMP               Y:pc                  Set the Program Counter to Y.
+JUMP_IF      X:r   Y:pc                  Set the Program Counter to Y if the value in register X is false or none.
+
+# MOVE AND LOAD VALUES
+
+COPY         X:u   A:r   B:r             (A, X) = (B, X)
+COPY_UP      X:u   A:r   B:r             (A, X) =  B
+COPY_DN      X:u   A:r   B:r              A     = (B, X)
+
+LOAD_NONE    X:u   A:r                   (A, X) = none
+LOAD_TRUE    X:u   A:r                   (A, X) = true
+LOAD_FALSE   X:u   A:r                   (A, X) = false
+LOAD_NUM     X:u   A:r         P:double  (A, X) = P
+LOAD_STR     X:u   A:r         P:char*   (A, X) = P
+LOAD_ENUM    X:u   A:r   B:i             (A, X) = B
+
+# OUTPUT
+
+OUT          X:u   A:r                   Output the value in register (A, X).
+
+# INCREMENT AND DECREMENT
+
+INC          X:u   A:r                    (A, X) = (A, X) + 1
+DEC          X:u   A:r                    (A, X) = (A, X) - 1
+
+# UNARY OPERATORS
+
+NEG          X:u   A:r   B:r             A =   - (B, X)
+NOT          X:u   A:r   B:r             A = NOT (B, X)
+
+# BINARY OPERATORS
+
+ADD          X:r   A:r   B:r             X = A + B
+SUB          X:r   A:r   B:r             X = A - B
+MUL          X:r   A:r   B:r             X = A * B
+DIV          X:r   A:r   B:r             X = A / B
+REM          X:r   A:r   B:r             X = the remainder of A / B
+
+EQLA         X:r   A:r   B:r             X =     A == B
+EQLN         X:r   A:r   B:r             X = NOT A == B
+
+LESS_THN     X:r   A:r   B:r             X = A <  B
+LESS_EQL     X:r   A:r   B:r             X = A <= B
+
+AND          X:r   A:r   B:r             X = A AND B
+OR           X:r   A:r   B:r             X = A OR  B
+
+# TYPE CAST
+
+AS_STR       X:u   A:r   B:r             Cast the value in register (B, X) from any native type to a string and store it in register A.

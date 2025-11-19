@@ -1,1 +1,1 @@
-g++ -o build_program build_program/*.c
+python build_program/build.py

@@ -178,13 +178,6 @@ struct SymbolTable
 SymbolTable *allocate_symbol_table(Allocator *allocator, SymbolTable *parent);
 void declare_symbol(Program *apm, SymbolTable *table, SymbolTag tag, void *ptr, substr identity);
 
-// None variants
-#define LIST_NONE_VARIANT(MACRO) \
-    MACRO(NONE_UNDETERMINED)     \
-    MACRO(NONE_NULL)
-
-DECLARE_ENUM(LIST_NONE_VARIANT, NoneVariant, none_variant);
-
 // Expression Precedence
 // Ordered from "happens last" to "happens first"
 #define LIST_EXPR_PRECEDENCE(MACRO)    \
@@ -246,7 +239,9 @@ DECLARE_ENUM(LIST_EXPR_PRECEDENCE, ExprPrecedence, expr_precedence)
     MACRO(BINARY_EQUAL)              \
     MACRO(BINARY_NOT_EQUAL)          \
     MACRO(BINARY_LOGICAL_AND)        \
-    MACRO(BINARY_LOGICAL_OR)
+    MACRO(BINARY_LOGICAL_OR)         \
+                                     \
+    MACRO(TYPE_CAST)
 
 DECLARE_ENUM(LIST_EXPRESSIONS, ExpressionKind, expression_kind)
 
@@ -260,10 +255,6 @@ struct Expression
         {
             substr identity;
             bool given_error;
-        };
-        struct // NONE_LITERAL
-        {
-            NoneVariant none_variant;
         };
         struct // BOOLEAN_LITERAL
         {
@@ -329,6 +320,11 @@ struct Expression
             Expression *lhs;
             Expression *rhs;
         };
+        struct // TYPE_CAST
+        {
+            Expression *cast_expr;
+            RhinoType cast_type;
+        };
     };
 };
 
@@ -393,6 +389,7 @@ struct Statement
         {
             Block *body;
             Expression *condition;
+            Statement *next;
         };
         struct // BREAK_LOOP
         {

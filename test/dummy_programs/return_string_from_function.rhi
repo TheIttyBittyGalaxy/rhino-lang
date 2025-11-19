@@ -1,0 +1,8 @@
+fn wow() str:
+    return "It lives! :o";
+
+fn main():
+    > wow();
+
+// SUCCESS
+// It lives! :o

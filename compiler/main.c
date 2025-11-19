@@ -6,7 +6,8 @@
 #include "parse.h"
 #include "resolve.h"
 #include "check.h"
-#include "transpile.h"
+#include "assemble.h"
+#include "interpret.h"
 
 // OUTPUT MARCOS //
 
@@ -51,6 +52,7 @@ bool flag_token_dump = false;
 bool flag_parse_dump = false;
 bool flag_resolve_dump = false;
 bool flag_dump_tree = false;
+bool flag_byte_code_dump = false;
 
 bool process_arguments(int argc, char *argv[])
 {
@@ -67,6 +69,8 @@ bool process_arguments(int argc, char *argv[])
             flag_parse_dump = true;
         else if ((strcmp(argv[i], "-r") == 0) || strcmp(argv[i], "-resolve") == 0)
             flag_resolve_dump = true;
+        else if ((strcmp(argv[i], "-b") == 0) || strcmp(argv[i], "-byte") == 0)
+            flag_byte_code_dump = true;
         else if ((strcmp(argv[i], "-n") == 0) || strcmp(argv[i], "-nice") == 0)
             flag_dump_tree = true;
         else
@@ -128,9 +132,16 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
 
-        transpile(&compiler, &apm);
+        ByteCode byte_code;
+        init_byte_code(&byte_code);
+        assemble(&compiler, &apm, &byte_code);
+
+        RunOnString output_buffer;
+        init_run_on_string(&output_buffer, 1);
+        interpret(&byte_code, &output_buffer);
 
         printf("SUCCESS\n");
+        printf(output_buffer.str);
 
         return EXIT_SUCCESS;
     }
@@ -194,9 +205,15 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    // Transpile
-    HEADING("Transpile");
-    transpile(&compiler, &apm);
+    HEADING("Asessble");
+    ByteCode byte_code;
+    init_byte_code(&byte_code);
+    assemble(&compiler, &apm, &byte_code);
+    if (flag_byte_code_dump)
+        printf_byte_code(&byte_code);
+
+    HEADING("Interpret");
+    interpret(&byte_code, NULL);
 
     HEADING("Complete");
     return EXIT_SUCCESS;

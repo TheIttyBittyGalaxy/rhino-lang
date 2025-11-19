@@ -1,0 +1,19 @@
+int result;
+int x;
+
+fn factorial() {
+    if x > 1 {
+        result = result * x--;
+        factorial();
+    }
+}
+
+fn main() {
+    x = 4;
+    result = 1;
+    factorial();
+    > result;
+}
+
+// SUCCESS
+// 24
