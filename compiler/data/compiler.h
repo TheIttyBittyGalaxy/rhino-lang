@@ -113,6 +113,7 @@ typedef struct
     size_t token_count;
 
     // Parse
+    Allocator apm_allocator;
     size_t next_token;
     ParseStatus parse_status;
 

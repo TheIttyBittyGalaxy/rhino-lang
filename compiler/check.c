@@ -2,18 +2,18 @@
 
 void check_block(Compiler *c, Program *apm, Block *block);
 void check_function(Compiler *c, Program *apm, Function *funct);
-void check_statement_list(Compiler *c, Program *apm, StatementList statement_list);
+void check_statement_list(Compiler *c, Program *apm, StatementList *statement_list);
 void check_expression(Compiler *c, Program *apm, Expression *expr);
 
 void check_block(Compiler *c, Program *apm, Block *block)
 {
     if (block->singleton_block)
     {
-        Statement *stmt = get_statement(block->statements, 0);
+        Statement *stmt = get_statement(&block->statements, 0);
         if (is_declaration(stmt))
             raise_compilation_error(c, SINGLETON_BLOCK_CANNOT_CONTAIN_DECLARATION, stmt->span);
     }
-    check_statement_list(c, apm, block->statements);
+    check_statement_list(c, apm, &block->statements);
 }
 
 void check_function(Compiler *c, Program *apm, Function *funct)
@@ -21,11 +21,11 @@ void check_function(Compiler *c, Program *apm, Function *funct)
     check_block(c, apm, funct->body);
 }
 
-void check_statement_list(Compiler *c, Program *apm, StatementList statement_list)
+void check_statement_list(Compiler *c, Program *apm, StatementList *statement_list)
 {
     Statement *stmt;
-    StatementIterator it = statement_iterator(statement_list);
-    while (stmt = next_statement_iterator(&it))
+    Iterator it = create_iterator(statement_list);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         switch (stmt->kind)
         {
@@ -179,8 +179,8 @@ void check_expression(Compiler *c, Program *apm, Expression *expr)
         check_expression(c, apm, expr->callee);
 
         Argument *arg;
-        ArgumentIterator it = argument_iterator(expr->arguments);
-        while (arg = next_argument_iterator(&it))
+        Iterator it = create_iterator(&expr->arguments);
+        while (arg = advance_iterator_of(&it, Argument))
             check_expression(c, apm, arg->expr);
 
         break;

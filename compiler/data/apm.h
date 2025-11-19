@@ -10,36 +10,44 @@ typedef struct NativeType NativeType;
 
 typedef struct EnumValue EnumValue;
 typedef struct EnumType EnumType;
-DECLARE_LIST_ALLOCATOR(EnumValue, enum_value)
-DECLARE_LIST_ALLOCATOR(EnumType, enum_type)
 
 typedef struct Property Property;
 typedef struct StructType StructType;
-DECLARE_LIST_ALLOCATOR(Property, property)
-DECLARE_LIST_ALLOCATOR(StructType, struct_type)
 
 typedef struct Variable Variable;
-DECLARE_LIST_ALLOCATOR(Variable, variable)
 
 typedef struct Expression Expression;
-DECLARE_LIST_ALLOCATOR(Expression, expression)
 
 typedef struct Statement Statement;
-DECLARE_LIST_ALLOCATOR(Statement, statement)
 
 typedef struct Block Block;
 typedef struct SymbolTable SymbolTable;
-DECLARE_LIST_ALLOCATOR(Block, block)
-DECLARE_LIST_ALLOCATOR(SymbolTable, symbol_table)
 
 typedef struct Function Function;
 typedef struct Parameter Parameter;
 typedef struct Argument Argument;
-DECLARE_LIST_ALLOCATOR(Function, function)
-DECLARE_LIST_ALLOCATOR(Parameter, parameter)
-DECLARE_LIST_ALLOCATOR(Argument, argument)
 
 typedef struct Program Program;
+
+// Create strongly-typed lists from allocators
+
+#define DECLARE_LIST_OF(T, snake_case)                        \
+    typedef struct                                            \
+    {                                                         \
+        Bucket *bucket;                                       \
+        size_t count;                                         \
+    } T##List;                                                \
+                                                              \
+    T##List create_##snake_case##_list(Allocator *allocator); \
+    Iterator create_iterator(T##List *list);                  \
+    T *get_##snake_case(T##List *list, size_t i);
+
+DECLARE_LIST_OF(Argument, argument)
+DECLARE_LIST_OF(EnumValue, enum_value)
+DECLARE_LIST_OF(Expression, expression)
+DECLARE_LIST_OF(Parameter, parameter)
+DECLARE_LIST_OF(Property, property)
+DECLARE_LIST_OF(Statement, statement)
 
 // Types
 #define LIST_RHINO_TYPE_TAG(MACRO)      \
@@ -174,7 +182,7 @@ struct SymbolTable
 };
 
 SymbolTable *allocate_symbol_table(Allocator *allocator, SymbolTable *parent);
-void declare_symbol(Program *apm, SymbolTable *table, SymbolTag tag, void *ptr, substr identity);
+void declare_symbol(Allocator *allocator, SymbolTable *table, SymbolTag tag, void *ptr, substr identity);
 
 // Expression Precedence
 // Ordered from "happens last" to "happens first"
@@ -453,21 +461,6 @@ struct Argument
 // Program
 struct Program
 {
-    Allocator statement_lists;
-    Allocator enum_value_lists;
-    Allocator property_lists;
-    Allocator parameter_lists;
-    Allocator arguments_lists;
-
-    Allocator symbol_table;
-
-    ExpressionListAllocator expression;
-    FunctionListAllocator function;
-    VariableListAllocator variable;
-    EnumTypeListAllocator enum_type;
-    StructTypeListAllocator struct_type;
-    BlockListAllocator block;
-
     NativeType none_type;
     NativeType bool_type;
     NativeType int_type;
@@ -475,7 +468,6 @@ struct Program
     NativeType str_type;
 
     Function *main;
-
     Block *program_block;
     SymbolTable *global_symbol_table;
 };
@@ -484,7 +476,6 @@ void init_program(Program *apm, Allocator *allocator);
 
 // Display APM
 const char *rhino_type_string(Program *apm, RhinoType ty);
-void dump_apm(Program *apm, const char *source_text);
 void print_parsed_apm(Program *apm, const char *source_text);
 void print_resolved_apm(Program *apm, const char *source_text);
 

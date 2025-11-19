@@ -5,8 +5,8 @@
 void determine_main_function(Compiler *c, Program *apm)
 {
     Statement *declaration;
-    StatementIterator it = statement_iterator(apm->program_block->statements);
-    while (declaration = next_statement_iterator(&it))
+    Iterator it = create_iterator(&apm->program_block->statements);
+    while (declaration = advance_iterator_of(&it, Statement))
     {
         if (declaration->kind == FUNCTION_DECLARATION)
         {
@@ -162,8 +162,8 @@ void resolve_identities_in_expression(Compiler *c, Program *apm, Expression *exp
         }
 
         Argument *arg;
-        ArgumentIterator it = argument_iterator(expr->arguments);
-        while (arg = next_argument_iterator(&it))
+        Iterator it = create_iterator(&expr->arguments);
+        while (arg = advance_iterator_of(&it, Argument))
             resolve_identities_in_expression(c, apm, arg->expr, symbol_table);
 
         break;
@@ -218,22 +218,22 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
     assert(!block->declaration_block);
 
     Statement *stmt;
-    StatementIterator it;
+    Iterator it;
 
     // Add all functions to symbol table. This allows functions to recursively refer to each other.
-    it = statement_iterator(block->statements);
-    while (stmt = next_statement_iterator(&it))
+    it = create_iterator(&block->statements);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         if (stmt->kind != FUNCTION_DECLARATION)
             continue;
 
         Function *funct = stmt->function;
-        declare_symbol(apm, block->symbol_table, FUNCTION_SYMBOL, funct, funct->identity);
+        declare_symbol(&c->apm_allocator, block->symbol_table, FUNCTION_SYMBOL, funct, funct->identity);
     }
 
     // Sequentially resolve identities in each statement, adding variables and types to the symbol table as they are encountered
-    it = statement_iterator(block->statements);
-    while (stmt = next_statement_iterator(&it))
+    it = create_iterator(&block->statements);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         switch (stmt->kind)
         {
@@ -248,7 +248,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
                 resolve_identities_in_expression(c, apm, stmt->type_expression, block->symbol_table);
 
             Variable *var = stmt->variable;
-            declare_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, stmt->variable, var->identity);
+            declare_symbol(&c->apm_allocator, block->symbol_table, VARIABLE_SYMBOL, stmt->variable, var->identity);
 
             break;
         }
@@ -260,7 +260,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
         case ENUM_TYPE_DECLARATION:
         {
             EnumType *enum_type = stmt->enum_type;
-            declare_symbol(apm, block->symbol_table, ENUM_TYPE_SYMBOL, stmt->enum_type, enum_type->identity);
+            declare_symbol(&c->apm_allocator, block->symbol_table, ENUM_TYPE_SYMBOL, stmt->enum_type, enum_type->identity);
 
             break;
         }
@@ -270,7 +270,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
             resolve_identities_in_struct_type(c, apm, stmt->struct_type, block->symbol_table);
 
             StructType *struct_type = stmt->struct_type;
-            declare_symbol(apm, block->symbol_table, STRUCT_TYPE_SYMBOL, stmt->struct_type, struct_type->identity);
+            declare_symbol(&c->apm_allocator, block->symbol_table, STRUCT_TYPE_SYMBOL, stmt->struct_type, struct_type->identity);
 
             break;
         }
@@ -298,7 +298,7 @@ void resolve_identities_in_code_block(Compiler *c, Program *apm, Block *block)
             resolve_identities_in_expression(c, apm, stmt->iterable, block->symbol_table);
 
             Variable *iterator = stmt->iterator;
-            declare_symbol(apm, block->symbol_table, VARIABLE_SYMBOL, stmt->iterator, iterator->identity);
+            declare_symbol(&c->apm_allocator, block->symbol_table, VARIABLE_SYMBOL, stmt->iterator, iterator->identity);
 
             resolve_identities_in_code_block(c, apm, stmt->body);
 
@@ -340,11 +340,11 @@ void resolve_identities_in_function(Compiler *c, Program *apm, Function *funct, 
         resolve_identities_in_expression(c, apm, funct->return_type_expression, symbol_table);
 
     Parameter *parameter;
-    ParameterIterator it = parameter_iterator(funct->parameters);
-    while (parameter = next_parameter_iterator(&it))
+    Iterator it = create_iterator(&funct->parameters);
+    while (parameter = advance_iterator_of(&it, Parameter))
     {
         resolve_identities_in_expression(c, apm, parameter->type_expression, symbol_table);
-        declare_symbol(apm, funct->body->symbol_table, PARAMETER_SYMBOL, parameter, parameter->identity);
+        declare_symbol(&c->apm_allocator, funct->body->symbol_table, PARAMETER_SYMBOL, parameter, parameter->identity);
     }
 
     resolve_identities_in_code_block(c, apm, funct->body);
@@ -353,8 +353,8 @@ void resolve_identities_in_function(Compiler *c, Program *apm, Function *funct, 
 void resolve_identities_in_struct_type(Compiler *c, Program *apm, StructType *struct_type, SymbolTable *symbol_table)
 {
     Property *property;
-    PropertyIterator it = property_iterator(struct_type->properties);
-    while (property = next_property_iterator(&it))
+    Iterator it = create_iterator(&struct_type->properties);
+    while (property = advance_iterator_of(&it, Property))
         resolve_identities_in_expression(c, apm, property->type_expression, struct_type->body->symbol_table);
 }
 
@@ -367,8 +367,8 @@ void resolve_identities_in_declaration_block(Compiler *c, Program *apm, Block *b
     //       Presumably, this may change at some point in the future?
 
     Statement *stmt;
-    StatementIterator it = statement_iterator(block->statements);
-    while (stmt = next_statement_iterator(&it))
+    Iterator it = create_iterator(&block->statements);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         if (stmt->kind == FUNCTION_DECLARATION)
             resolve_identities_in_function(c, apm, stmt->function, block->symbol_table);
@@ -486,8 +486,8 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
         {
             EnumType *enum_type = type_hint.enum_type;
             EnumValue *enum_value;
-            EnumValueIterator it = enum_value_iterator(enum_type->values);
-            while (enum_value = next_enum_value_iterator(&it))
+            Iterator it = create_iterator(&enum_type->values);
+            while (enum_value = advance_iterator_of(&it, EnumValue))
             {
                 if (substr_match(c->source_text, expr->identity, enum_value->identity))
                 {
@@ -520,8 +520,8 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
 
         // TODO: Use the parameter types as type hints for the arguments
         Argument *arg;
-        ArgumentIterator it = argument_iterator(expr->arguments);
-        while (arg = next_argument_iterator(&it))
+        Iterator it = create_iterator(&expr->arguments);
+        while (arg = advance_iterator_of(&it, Argument))
             resolve_types_in_expression(c, apm, arg->expr, symbol_table, NATIVE_NONE);
 
         break;
@@ -541,8 +541,8 @@ void resolve_types_in_expression(Compiler *c, Program *apm, Expression *expr, Sy
 
         EnumType *enum_type = subject->type.enum_type;
         EnumValue *enum_value;
-        EnumValueIterator it = enum_value_iterator(enum_type->values);
-        while (enum_value = next_enum_value_iterator(&it))
+        Iterator it = create_iterator(&enum_type->values);
+        while (enum_value = advance_iterator_of(&it, EnumValue))
         {
             if (substr_match(c->source_text, expr->field, enum_value->identity))
             {
@@ -597,8 +597,8 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
     assert(!block->declaration_block);
 
     Statement *stmt;
-    StatementIterator it = statement_iterator(block->statements);
-    while (stmt = next_statement_iterator(&it))
+    Iterator it = create_iterator(&block->statements);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         switch (stmt->kind)
         {
@@ -711,7 +711,7 @@ void resolve_types_in_code_block(Compiler *c, Program *apm, Block *block)
                 RhinoType expr_type = get_expression_type(apm, c->source_text, stmt->expression);
                 if (!is_native_type(expr_type, &apm->str_type))
                 {
-                    Expression *cast = append_expression(&apm->expression);
+                    Expression *cast = allocate(&c->apm_allocator, Expression);
                     cast->span = stmt->expression->span;
                     cast->kind = TYPE_CAST;
                     cast->cast_type = NATIVE_STR;
@@ -746,8 +746,8 @@ void resolve_types_in_function(Compiler *c, Program *apm, Function *funct, Symbo
         funct->return_type = NATIVE_NONE; // FIXME: None is used to mean "null". There there be another type for "no return value"
 
     Parameter *parameter;
-    ParameterIterator it = parameter_iterator(funct->parameters);
-    while (parameter = next_parameter_iterator(&it))
+    Iterator it = create_iterator(&funct->parameters);
+    while (parameter = advance_iterator_of(&it, Parameter))
     {
         parameter->type = resolve_type_expression(c, apm, parameter->type_expression, symbol_table);
     }
@@ -758,8 +758,8 @@ void resolve_types_in_function(Compiler *c, Program *apm, Function *funct, Symbo
 void resolve_types_in_struct_type(Compiler *c, Program *apm, StructType *struct_type, SymbolTable *symbol_table)
 {
     Property *property;
-    PropertyIterator it = property_iterator(struct_type->properties);
-    while (property = next_property_iterator(&it))
+    Iterator it = create_iterator(&struct_type->properties);
+    while (property = advance_iterator_of(&it, Property))
         property->type = resolve_type_expression(c, apm, property->type_expression, struct_type->body->symbol_table);
 }
 
@@ -768,11 +768,11 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
     assert(block->declaration_block);
 
     Statement *stmt;
-    StatementIterator it;
+    Iterator it;
 
     // Resolve types in variable declarations
-    it = statement_iterator(block->statements);
-    while (stmt = next_statement_iterator(&it))
+    it = create_iterator(&block->statements);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         if (stmt->kind != VARIABLE_DECLARATION)
             continue;
@@ -791,8 +791,8 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
     {
         changes_made = false;
 
-        it = statement_iterator(block->statements);
-        while (stmt = next_statement_iterator(&it))
+        it = create_iterator(&block->statements);
+        while (stmt = advance_iterator_of(&it, Statement))
         {
             if (stmt->kind == VARIABLE_DECLARATION && !stmt->type_expression && stmt->variable->type.tag == RHINO_UNINITIALISED_TYPE_TAG)
             {
@@ -809,8 +809,8 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
         }
     } while (changes_made);
 
-    it = statement_iterator(block->statements);
-    while (stmt = next_statement_iterator(&it))
+    it = create_iterator(&block->statements);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         if (stmt->kind == VARIABLE_DECLARATION && stmt->variable->type.tag == RHINO_UNINITIALISED_TYPE_TAG)
         {
@@ -820,8 +820,8 @@ void resolve_types_in_declaration_block(Compiler *c, Program *apm, Block *block)
     }
 
     // Resolve structs and functions
-    it = statement_iterator(block->statements);
-    while (stmt = next_statement_iterator(&it))
+    it = create_iterator(&block->statements);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         if (stmt->kind == FUNCTION_DECLARATION)
             resolve_types_in_function(c, apm, stmt->function, block->symbol_table);
@@ -862,8 +862,8 @@ size_t determine_order_of_expression(Compiler *c, Program *apm, Expression *expr
     {
         size_t largest_order = 0;
         Argument *arg;
-        ArgumentIterator it = argument_iterator(expr->arguments);
-        while (arg = next_argument_iterator(&it))
+        Iterator it = create_iterator(&expr->arguments);
+        while (arg = advance_iterator_of(&it, Argument))
         {
             size_t order = determine_order_of_expression(c, apm, arg->expr);
             if (order > largest_order)
@@ -921,10 +921,10 @@ void resolve_variable_orders(Compiler *c, Program *apm, Block *block)
     assert(block->declaration_block);
 
     Statement *stmt;
-    StatementIterator it;
+    Iterator it;
 
-    it = statement_iterator(block->statements);
-    while (stmt = next_statement_iterator(&it))
+    it = create_iterator(&block->statements);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         if (stmt->kind != VARIABLE_DECLARATION)
             continue;
@@ -937,8 +937,8 @@ void resolve_variable_orders(Compiler *c, Program *apm, Block *block)
     {
         changes_made = false;
 
-        it = statement_iterator(block->statements);
-        while (stmt = next_statement_iterator(&it))
+        it = create_iterator(&block->statements);
+        while (stmt = advance_iterator_of(&it, Statement))
         {
             if (stmt->kind == VARIABLE_DECLARATION && stmt->initial_value)
             {

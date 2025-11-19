@@ -351,7 +351,7 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
         vm_reg first_arg_reg = a->active_registers;
         for (size_t i = 0; i < expr->arguments.count; i++)
         {
-            Expression *arg = get_argument(expr->arguments, i)->expr;
+            Expression *arg = get_argument(&expr->arguments, i)->expr;
             vm_reg arg_reg = reserve_register(a);
             assemble_expression(a, arg, local(arg_reg));
         }
@@ -561,8 +561,8 @@ void assemble_enum_types(Assembler *parent, Block *block)
     GlobalAssemblerData *d = parent->data;
 
     Statement *stmt;
-    StatementIterator it = statement_iterator(block->statements);
-    while (stmt = next_statement_iterator(&it))
+    Iterator it = create_iterator(&block->statements);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         if (stmt->kind != ENUM_TYPE_DECLARATION)
             continue;
@@ -584,7 +584,7 @@ void assemble_enum_types(Assembler *parent, Block *block)
         {
             // Assign an int value to each enum
             size_t id = d->enum_int_count++;
-            EnumValue *enum_value = get_enum_value(enum_type->values, i);
+            EnumValue *enum_value = get_enum_value(&enum_type->values, i);
             d->enum_int[id] = enum_value;
 
             // Add to value to string unit
@@ -615,15 +615,15 @@ void assemble_code_block(Assembler *a, Block *block)
     Unit *unit = a->unit;
 
     Statement *stmt;
-    StatementIterator it;
+    Iterator it;
 
     // Create representations for all enum values declared in this block
     size_t initial_enum_int_count = a->data->enum_int_count;
     assemble_enum_types(a, block);
 
     // Assemble statements
-    it = statement_iterator(block->statements);
-    while (stmt = next_statement_iterator(&it))
+    it = create_iterator(&block->statements);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         // Track JUMP instructions to the end of the loop
         if (stmt->kind == FOR_LOOP ||
@@ -830,8 +830,8 @@ void assemble_code_block(Assembler *a, Block *block)
     }
 
     // Assemble nested functions
-    it = statement_iterator(block->statements);
-    while (stmt = next_statement_iterator(&it))
+    it = create_iterator(&block->statements);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         if (stmt->kind == FUNCTION_DECLARATION)
             assemble_function(a, stmt->function);
@@ -854,10 +854,10 @@ void assemble_function(Assembler *parent, Function *funct)
     a.unit->parameter_count = funct->parameters.count;
 
     // NOTE: These registers are never released
-    Parameter *parameter;
-    ParameterIterator it = parameter_iterator(funct->parameters);
-    while (parameter = next_parameter_iterator(&it))
-        reserve_register_for_node(&a, (void *)parameter);
+    Parameter *param;
+    Iterator it = create_iterator(&funct->parameters);
+    while (param = advance_iterator_of(&it, Parameter))
+        reserve_register_for_node(&a, (void *)param);
 
     assemble_code_block(&a, funct->body);
 }
@@ -866,15 +866,15 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
 {
     Unit *unit = a->unit;
     Statement *stmt;
-    StatementIterator it;
+    Iterator it;
 
     // Create representations for enum values
     assemble_enum_types(a, apm->program_block);
 
     // Initialise global variables in the init unit
     // FIXME: This approach cannot handle global variable that have been declared "out of order"
-    it = statement_iterator(apm->program_block->statements);
-    while (stmt = next_statement_iterator(&it))
+    it = create_iterator(&apm->program_block->statements);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         if (stmt->kind != VARIABLE_DECLARATION)
             continue;
@@ -890,8 +890,8 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
     }
 
     // Assemble all functions declared in the global scope
-    it = statement_iterator(apm->program_block->statements);
-    while (stmt = next_statement_iterator(&it))
+    it = create_iterator(&apm->program_block->statements);
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         if (stmt->kind == FUNCTION_DECLARATION)
             assemble_function(a, stmt->function);

@@ -51,7 +51,6 @@ bool flag_test_mode = false;
 bool flag_token_dump = false;
 bool flag_parse_dump = false;
 bool flag_resolve_dump = false;
-bool flag_dump_tree = false;
 bool flag_byte_code_dump = false;
 
 bool process_arguments(int argc, char *argv[])
@@ -71,8 +70,6 @@ bool process_arguments(int argc, char *argv[])
             flag_resolve_dump = true;
         else if ((strcmp(argv[i], "-b") == 0) || strcmp(argv[i], "-byte") == 0)
             flag_byte_code_dump = true;
-        else if ((strcmp(argv[i], "-n") == 0) || strcmp(argv[i], "-nice") == 0)
-            flag_dump_tree = true;
         else
             return false;
     }
@@ -90,13 +87,6 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    // Global allocator
-    Allocator global_allocator;
-
-    // FIXME: The bucket size of the global allocator is supposed to be 32KB so that it may store 32 x 1 KB buckets.
-    //        However, because some space is used by the allocator itself, it can only store 31
-    init_allocator(&global_allocator, NULL, 32768);
-
     // Test mode
     if (flag_test_mode)
     {
@@ -111,7 +101,6 @@ int main(int argc, char *argv[])
         tokenise(&compiler);
 
         Program apm;
-        init_program(&apm, &global_allocator);
         parse(&compiler, &apm);
         resolve(&compiler, &apm);
         check(&compiler, &apm);
@@ -172,25 +161,14 @@ int main(int argc, char *argv[])
 
     HEADING("Parse");
     Program apm;
-    init_program(&apm, &global_allocator);
     parse(&compiler, &apm);
     if (flag_parse_dump)
-    {
-        if (flag_dump_tree)
-            print_parsed_apm(&apm, compiler.source_text);
-        else
-            dump_apm(&apm, compiler.source_text);
-    }
+        print_parsed_apm(&apm, compiler.source_text);
 
     HEADING("Resolve");
     resolve(&compiler, &apm);
     if (flag_resolve_dump)
-    {
-        if (flag_dump_tree)
-            print_resolved_apm(&apm, compiler.source_text);
-        else
-            dump_apm(&apm, compiler.source_text);
-    }
+        print_resolved_apm(&apm, compiler.source_text);
 
     HEADING("Check");
     check(&compiler, &apm);

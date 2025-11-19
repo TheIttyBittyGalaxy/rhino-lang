@@ -193,9 +193,9 @@ void PRINT_EXPRESSION(Program *apm, Expression *expr, const char *source_text)
             INDENT();
 
             Argument *arg;
-            ArgumentIterator it = argument_iterator(expr->arguments);
+            Iterator it = create_iterator(&expr->arguments);
             size_t i = 0;
-            while (arg = next_argument_iterator(&it))
+            while (arg = advance_iterator_of(&it, Argument))
             {
                 if (i == expr->arguments.count - 1)
                     LAST_ON_LINE();
@@ -499,9 +499,9 @@ void PRINT_BLOCK(Program *apm, Block *block, const char *source_text)
     NEWLINE();
 
     Statement *stmt;
-    StatementIterator it = statement_iterator(block->statements);
+    Iterator it = create_iterator(&block->statements);
     size_t i = 0;
-    while (stmt = next_statement_iterator(&it))
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         if (i == block->statements.count - 1)
             LAST_ON_LINE();
@@ -547,9 +547,9 @@ void PRINT_FUNCTION(Program *apm, Function *funct, const char *source_text)
         INDENT();
 
         Parameter *parameter;
-        ParameterIterator it = parameter_iterator(funct->parameters);
+        Iterator it = create_iterator(&funct->parameters);
         size_t i = 0;
-        while (parameter = next_parameter_iterator(&it))
+        while (parameter = advance_iterator_of(&it, Parameter))
         {
             if (i == funct->parameters.count - 1)
                 LAST_ON_LINE();
@@ -589,9 +589,9 @@ void PRINT_ENUM_TYPE(Program *apm, EnumType *enum_type, const char *source_text)
         NEWLINE();
 
         EnumValue *enum_value;
-        EnumValueIterator it = enum_value_iterator(enum_type->values);
+        Iterator it = create_iterator(&enum_type->values);
         size_t i = 0;
-        while (enum_value = next_enum_value_iterator(&it))
+        while (enum_value = advance_iterator_of(&it, EnumValue))
         {
             if (i == enum_type->values.count - 1)
                 LAST_ON_LINE();
@@ -626,9 +626,9 @@ void PRINT_STRUCT_TYPE(Program *apm, StructType *struct_type, const char *source
         NEWLINE();
 
         Property *property;
-        PropertyIterator it = property_iterator(struct_type->properties);
+        Iterator it = create_iterator(&struct_type->properties);
         size_t i = 0;
-        while (property = next_property_iterator(&it))
+        while (property = advance_iterator_of(&it, Property))
         {
             if (i == struct_type->properties.count - 1)
                 LAST_ON_LINE();
@@ -666,9 +666,9 @@ void PRINT_APM(Program *apm, const char *source_text)
     NEWLINE();
     NEWLINE();
     Statement *stmt;
-    StatementIterator it = statement_iterator(apm->program_block->statements);
+    Iterator it = create_iterator(&apm->program_block->statements);
     size_t i = 0;
-    while (stmt = next_statement_iterator(&it))
+    while (stmt = advance_iterator_of(&it, Statement))
     {
         if (i == apm->program_block->statements.count - 1)
             LAST_ON_LINE();
