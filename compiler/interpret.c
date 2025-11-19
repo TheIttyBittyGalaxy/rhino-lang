@@ -1,7 +1,5 @@
 #include "interpret.h"
 
-#include "fatal_error.h"
-
 // INTERPRETER VALUES //
 
 #define RHINO_VALUE_KIND(MACRO) \

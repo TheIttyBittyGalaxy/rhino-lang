@@ -1,7 +1,7 @@
 #ifndef FATAL_ERROR_H
 #define FATAL_ERROR_H
 
-#include "core.h"
+#include "libs.h"
 
 void fatal_error_at_line(const char *message, const char *file, int line, ...);
 

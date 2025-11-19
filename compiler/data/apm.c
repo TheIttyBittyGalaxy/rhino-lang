@@ -1,7 +1,5 @@
 #include "apm.h"
 
-#include "../fatal_error.h"
-
 // ENUMS //
 
 DEFINE_ENUM(LIST_RHINO_TYPE_TAG, RhinoTypeTag, rhino_type_tag)
@@ -340,10 +338,10 @@ void dump_apm(Program *apm, const char *source_text)
 // PRINT APM //
 
 #define PRINT_PARSED
-#include "include/print-apm.c"
+#include "../include/print-apm.c"
 
 #define PRINT_RESOLVED
-#include "include/print-apm.c"
+#include "../include/print-apm.c"
 
 // STATEMENT METHODS //
 

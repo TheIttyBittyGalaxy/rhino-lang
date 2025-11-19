@@ -1,1 +1,1 @@
-g++ -o rhino compiler/*.c compiler/data/*.c -g -fcompare-debug-second
+g++ -o rhino compiler/*.c compiler/core/*.c compiler/data/*.c -g -fcompare-debug-second

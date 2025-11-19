@@ -1,9 +1,7 @@
 #ifndef APM_H
 #define APM_H
 
-#include "../core.h"
-#include "../memory.h"
-#include "substr.h"
+#include "../core/core.h"
 
 // Forward Declarations
 

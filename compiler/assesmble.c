@@ -1,7 +1,5 @@
 #include "assemble.h"
 
-#include "fatal_error.h"
-
 // ASSEMBLER //
 
 typedef struct

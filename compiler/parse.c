@@ -1,8 +1,5 @@
 #include "parse.h"
 
-#include "data/substr.h"
-#include "fatal_error.h"
-
 // FORWARD DECLARATIONS //
 
 // Token consumption

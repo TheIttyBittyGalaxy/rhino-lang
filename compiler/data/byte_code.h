@@ -1,7 +1,7 @@
 #ifndef BYTE_CODE_H
 #define BYTE_CODE_H
 
-#include "../core.h"
+#include "../core/core.h"
 
 // UTILITY //
 

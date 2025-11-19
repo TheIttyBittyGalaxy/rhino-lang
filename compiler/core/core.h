@@ -1,14 +1,11 @@
 #ifndef CORE_H
 #define CORE_H
 
-#include <assert.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "fatal_error.h"
+#include "libs.h"
+#include "memory.h"
+#include "run_on_string.h"
+#include "substr.h"
 
 // UNREACHABLE //
 

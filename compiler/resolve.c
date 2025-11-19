@@ -1,7 +1,5 @@
 #include "resolve.h"
 
-#include "fatal_error.h"
-
 // DETERMINE MAIN FUNCTION //
 
 void determine_main_function(Compiler *c, Program *apm)

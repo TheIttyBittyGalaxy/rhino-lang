@@ -1,7 +1,7 @@
 #ifndef SUBSTR_H
 #define SUBSTR_H
 
-#include "../core.h"
+#include "libs.h"
 
 typedef struct
 {

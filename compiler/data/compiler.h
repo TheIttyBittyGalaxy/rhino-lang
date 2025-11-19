@@ -1,8 +1,7 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
-#include "../core.h"
-#include "substr.h"
+#include "../core/core.h"
 #include "token.h"
 
 // Compilation error code

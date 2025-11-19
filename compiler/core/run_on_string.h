@@ -1,7 +1,7 @@
 #ifndef RUN_ON_STRING_H
 #define RUN_ON_STRING_H
 
-#include "../core.h"
+#include "libs.h"
 #include "substr.h"
 
 typedef struct

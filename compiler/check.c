@@ -1,7 +1,5 @@
 #include "check.h"
 
-#include "fatal_error.h"
-
 void check_block(Compiler *c, Program *apm, Block *block);
 void check_function(Compiler *c, Program *apm, Function *funct);
 void check_statement_list(Compiler *c, Program *apm, StatementList statement_list);

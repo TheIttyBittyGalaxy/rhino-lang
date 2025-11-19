@@ -1,7 +1,7 @@
 #ifndef PARSE_H
 #define PARSE_H
 
-#include "core.h"
+#include "core/core.h"
 #include "data/apm.h"
 #include "data/compiler.h"
 
