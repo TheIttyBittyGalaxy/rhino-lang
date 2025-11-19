@@ -764,12 +764,9 @@ void assemble_code_block(Assembler *a, Block *block)
 
         case ASSIGNMENT_STATEMENT:
         {
-            vm_reg src = reserve_register(a);
-            assemble_expression(a, stmt->assignment_rhs, local(src));
-            release_register(a);
-
+            vm_loc src = assemble_expression_for_reading(a, stmt->assignment_rhs);
             vm_loc dst = get_register_of_expression(a, stmt->assignment_lhs);
-            emit_copy_instructions(a, dst, local(src));
+            emit_copy_instructions(a, dst, src);
             break;
         }
 
@@ -788,19 +785,14 @@ void assemble_code_block(Assembler *a, Block *block)
 
         case OUTPUT_STATEMENT:
         {
-            vm_reg reg = reserve_register(a);
-            assemble_expression(a, stmt->expression, local(reg));
-            emit_out(unit, 0, reg);
-            release_register(a);
+            vm_loc loc = assemble_expression_for_reading(a, stmt->expression);
+            emit_out(unit, loc.up, loc.reg);
             break;
         }
 
-        // TODO: Is there a way of doing this without the reserving a register?
         case EXPRESSION_STMT:
         {
-            vm_reg reg = reserve_register(a);
-            assemble_expression(a, stmt->expression, local(reg));
-            release_register(a);
+            assemble_expression_for_reading(a, stmt->expression);
             break;
         }
 
