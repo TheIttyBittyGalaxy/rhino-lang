@@ -1,8 +1,8 @@
-fn print_sum(int x, int y) int:
+fn sum(int x, int y) int:
     return x + y;
 
 fn main() {
-    def x = print_sum(1,2);
+    def x = sum(1,2);
     > x;
 }
 

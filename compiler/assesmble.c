@@ -853,7 +853,7 @@ void assemble_code_block(Assembler *a, Block *block)
             {
                 vm_reg reg = reserve_register(a);
                 assemble_expression(a, stmt->expression, local(reg));
-                emit_rtnv(unit, reg, 0);
+                emit_rtnv(unit, 0, reg);
                 release_register(a);
             }
             else
