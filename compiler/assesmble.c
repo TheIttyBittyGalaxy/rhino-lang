@@ -149,7 +149,10 @@ vm_loc get_node_location(Assembler *a, void *node)
     {
         for (size_t i = 0; i < a->node_register_count; i++)
             if (a->node_register[i].node == node)
-                return (vm_loc){.up = (uint8_t)up, .reg = (vm_reg)i};
+                return (vm_loc){
+                    .up = (uint8_t)up,
+                    .reg = a->node_register[i].reg,
+                };
 
         a = a->parent;
         assert(up < 255); // FIXME: Handle this properly
@@ -548,7 +551,7 @@ vm_loc assemble_expression_for_reading(Assembler *a, Expression *expr)
     {
         vm_reg tmp = reserve_register(a);
         assemble_expression(a, expr, local(tmp));
-        release_register(a); // NOTE: This means the caller has to ensure they use this function before discarding it
+        release_register(a); // NOTE: This means the caller has to ensure they use this result before discarding it
         return local(tmp);
     }
     }
