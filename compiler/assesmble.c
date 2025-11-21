@@ -936,7 +936,6 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
             if (stmt->variable->order != i)
                 continue;
 
-            printf_substr(a->data->source_text, stmt->variable->identity);
             vm_reg variable_reg = reserve_register_for_node(a, (void *)stmt->variable);
 
             if (stmt->initial_value)
