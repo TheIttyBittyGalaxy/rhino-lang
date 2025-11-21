@@ -705,18 +705,18 @@ void assemble_code_block(Assembler *a, Block *block)
             // FIXME: Can the two jumps in this loop be combined into one?
             if (iterable->kind == RANGE_LITERAL)
             {
-                // Reserve a register for the iterator
-                vm_reg iterator_reg = reserve_register_for_node(a, (void *)iterator);
-
                 // Initialise iterator to the first value in the range
+                vm_reg iterator_reg = reserve_register_for_node(a, (void *)iterator);
                 assemble_expression(a, iterable->first, local(iterator_reg));
 
-                size_t start_of_loop = unit->count;
+                // Calculate last value in range
+                vm_reg last_reg = reserve_register(a);
+                assemble_expression(a, iterable->last, local(last_reg));
 
                 // Check condition and jump to end if false
+                size_t start_of_loop = unit->count;
                 vm_reg condition_reg = reserve_register(a);
-                assemble_expression(a, iterable->last, local(condition_reg));
-                emit_less_eql(unit, condition_reg, iterator_reg, condition_reg);
+                emit_less_eql(unit, condition_reg, iterator_reg, last_reg);
 
                 size_t jump_to_end = emit_jump_if(unit, condition_reg, 0xFFFF);
                 release_register(a); // condition_reg
@@ -730,6 +730,7 @@ void assemble_code_block(Assembler *a, Block *block)
 
                 patch_y(unit, jump_to_end, unit->count);
 
+                release_register(a); // last_reg
                 release_register(a); // iterator_reg
 
                 break;
