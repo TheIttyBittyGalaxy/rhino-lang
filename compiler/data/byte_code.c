@@ -34,52 +34,12 @@ void init_unit(Unit *unit)
     for (size_t j = 0; j < wordsizeof(T); j++) \
         as.word[j] = unit->instruction[i++].word;
 
-size_t printf_instruction(Unit *unit, size_t i)
-{
-    Instruction ins = unit->instruction[i];
-
-    printf("\x1b[34m%04X  ", i);
-    printf("\x1b[37m%-*s  ", 13, op_code_string((OpCode)ins.op));
-    printf("\x1b[90m%02X %02X %02X %02X\n", ins.b, ins.a, ins.x, ins.op);
-
-    i++;
-
-    size_t playload = get_playload_size((OpCode)ins.op);
-
-    if (ins.op == OP_LOAD_NUM)
-    {
-        size_t j = i;
-        GET_DATA(double);
-        printf("      \x1b[90m%-*f  %02X %02X %02X %02X\n", 13, as.value, as.byte[0][3], as.byte[0][2], as.byte[0][1], as.byte[0][0]);
-        i = j + 1;
-        playload--;
-    }
-
-    else if (ins.op == OP_CALL || ins.op == OP_RUN || ins.op == OP_LOAD_STR)
-    {
-        size_t j = i;
-        GET_DATA(void *);
-        printf("      \x1b[90m%-*p  %02X %02X %02X %02X\n", 13, as.value, as.byte[0][3], as.byte[0][2], as.byte[0][1], as.byte[0][0]);
-        i = j + 1;
-        playload--;
-    }
-
-    if (playload > 0)
-    {
-        printf("\x1b[90m");
-        while (playload--)
-        {
-            Instruction data = unit->instruction[i++];
-            printf("                     %02X %02X %02X %02X\n", data.b, data.a, data.x, data.op);
-        }
-    }
-    printf("\x1b[0m");
-
-    return i;
-}
+#include "../include/printf_instruction.c"
 
 void printf_unit(Unit *unit)
 {
+    printf("             \x1b[04mUNIT %p\x1b[0m\n", unit);
+
     size_t i = 0;
     while (i < unit->count)
         i = printf_instruction(unit, i);
@@ -91,7 +51,6 @@ void printf_byte_code(ByteCode *byte_code)
     Unit *unit = byte_code->init;
     while (unit)
     {
-        printf("UNIT \x1b[90m%p\x1b[0m\n", unit);
         printf_unit(unit);
         unit = unit->next;
     }
