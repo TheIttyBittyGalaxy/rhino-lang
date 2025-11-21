@@ -11,7 +11,7 @@ size_t printf_instruction(Unit* unit, size_t i)
 	switch (ins.op) {
 	case OP_CALL:
 	{
-		printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b);
+		printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b);
 
 		union
 		{
@@ -29,7 +29,7 @@ size_t printf_instruction(Unit* unit, size_t i)
 	}
 	case OP_RUN:
 	{
-		printf("        \x1b[90mb \x1b[0m%02d\n", ins.b);
+		printf("        \x1b[90mb \x1b[0m%2d\n", ins.b);
 
 		union
 		{
@@ -46,18 +46,18 @@ size_t printf_instruction(Unit* unit, size_t i)
 		break;
 	}
 	case OP_RTNN: printf("\n"); break;
-	case OP_RTNV: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d\n", ins.x, ins.a); break;
+	case OP_RTNV: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a); break;
 	case OP_JUMP: printf("        \x1b[90my \x1b[0m%04X\n", ins.y); break;
-	case OP_JUMP_IF: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90my \x1b[0m%04X\n", ins.x, ins.y); break;
-	case OP_COPY: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_COPY_UP: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_COPY_DN: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_LOAD_NONE: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d\n", ins.x, ins.a); break;
-	case OP_LOAD_TRUE: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d\n", ins.x, ins.a); break;
-	case OP_LOAD_FALSE: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d\n", ins.x, ins.a); break;
+	case OP_JUMP_IF: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90my \x1b[0m%04X\n", ins.x, ins.y); break;
+	case OP_COPY: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_COPY_UP: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_COPY_DN: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_LOAD_NONE: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a); break;
+	case OP_LOAD_TRUE: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a); break;
+	case OP_LOAD_FALSE: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a); break;
 	case OP_LOAD_NUM:
 	{
-		printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d\n", ins.x, ins.a);
+		printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a);
 
 		union
 		{
@@ -75,7 +75,7 @@ size_t printf_instruction(Unit* unit, size_t i)
 	}
 	case OP_LOAD_STR:
 	{
-		printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d\n", ins.x, ins.a);
+		printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a);
 
 		union
 		{
@@ -91,24 +91,24 @@ size_t printf_instruction(Unit* unit, size_t i)
 			printf("%02X %02X %02X %02X\n", as.byte[j][3], as.byte[j][2], as.byte[j][1], as.byte[j][0]);
 		break;
 	}
-	case OP_LOAD_ENUM: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_OUT: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d\n", ins.x, ins.a); break;
-	case OP_INC: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d\n", ins.x, ins.a); break;
-	case OP_DEC: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d\n", ins.x, ins.a); break;
-	case OP_NEG: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_NOT: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_ADD: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_SUB: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_MUL: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_DIV: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_REM: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_EQLA: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_EQLN: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_LESS_THN: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_LESS_EQL: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_AND: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_OR: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
-	case OP_AS_STR: printf("  \x1b[90mx \x1b[0m%02d  \x1b[90ma \x1b[0m%02d  \x1b[90mb \x1b[0m%02d\n", ins.x, ins.a, ins.b); break;
+	case OP_LOAD_ENUM: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_OUT: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a); break;
+	case OP_INC: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a); break;
+	case OP_DEC: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a); break;
+	case OP_NEG: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_NOT: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_ADD: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_SUB: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_MUL: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_DIV: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_REM: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_EQLA: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_EQLN: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_LESS_THN: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_LESS_EQL: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_AND: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_OR: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_AS_STR: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
 	}
 
 	printf("\x1b[0m");

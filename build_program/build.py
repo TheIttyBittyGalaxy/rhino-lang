@@ -121,7 +121,7 @@ with create_include("printf_instruction.c") as f:
             f.write("  \\x1b[90m" + arg[0].lower() + " \\x1b[0m")
             
             if arg[0] == "Y": f.write("%04X")
-            else: f.write("%02d")
+            else: f.write("%2d")
         f.write("\\n\"")
         for arg in ins["args"]:
             if arg[0] == "P": continue
