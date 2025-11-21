@@ -736,6 +736,22 @@ void assemble_code_block(Assembler *a, Block *block)
                 break;
             }
 
+            // TODO: Make this an actual loop rather than duplicating the body of the loop for each enum
+            if (iterable->kind == TYPE_REFERENCE && iterable->type.tag == RHINO_ENUM_TYPE)
+            {
+                EnumType *enum_type = iterable->type.enum_type;
+
+                vm_reg iterator_reg = reserve_register_for_node(a, (void *)iterator);
+                for (size_t i = 0; i < enum_type->values.count; i++)
+                {
+                    emit_load_enum(unit, 0, iterator_reg, i);
+                    assemble_code_block(a, stmt->body);
+                }
+                release_register(a); // iterator_reg
+
+                break;
+            }
+
             fatal_error("Could not assemble for loop with %s iterable.", expression_kind_string(iterable->kind));
             break;
         }
