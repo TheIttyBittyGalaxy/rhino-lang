@@ -38,7 +38,7 @@ DEFINE_LIST_OF(Statement, statement)
 
 // RHINO TYPE //
 
-// FIXME: Indicate if the string is noneable
+// FIXME: Indicate if the type is noneable
 const char *rhino_type_string(Program *apm, RhinoType ty)
 {
     switch (ty.tag)
@@ -240,6 +240,9 @@ bool are_types_equal(RhinoType a, RhinoType b)
     if (a.tag != b.tag)
         return false;
 
+    if (a.is_noneable != b.is_noneable)
+        return false;
+
     if (a.tag == RHINO_NATIVE_TYPE && a.native_type != b.native_type)
         return false;
 
@@ -254,7 +257,7 @@ bool are_types_equal(RhinoType a, RhinoType b)
 
 bool is_native_type(RhinoType ty, NativeType *native_type)
 {
-    return ty.tag == RHINO_NATIVE_TYPE && ty.native_type == native_type;
+    return ty.tag == RHINO_NATIVE_TYPE && !ty.is_noneable && ty.native_type == native_type;
 }
 
 bool allow_assign_a_to_b(Program *apm, RhinoType a, RhinoType b)
@@ -270,6 +273,14 @@ bool allow_assign_a_to_b(Program *apm, RhinoType a, RhinoType b)
 
     if (a.is_noneable && b.is_noneable)
         return true;
+
+    if (!a.is_noneable && b.is_noneable)
+    {
+        RhinoType b_ = b;
+        b_.is_noneable = false;
+        if (allow_assign_a_to_b(apm, a, b_))
+            return true;
+    }
 
     return false;
 }

@@ -276,10 +276,8 @@ RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, R
         case OP_JUMP_IF:
         {
             RhinoValue value = GET(ins.x, 0);
-            if (value.kind != RHINO_BOOL)
-                fatal_error("Could not interpret JUMP_IF_FALSE as value in register is %s.", rhino_value_kind_string(value.kind));
 
-            if (value.as_bool == false)
+            if ((value.kind == RHINO_BOOL && value.as_bool == false) || value.kind == RHINO_NONE)
                 program_counter = ins.y;
 
             break;
@@ -428,9 +426,15 @@ RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, R
 
         case OP_AS_STR:
         {
-            char buffer[256];
-
             RhinoValue value = GET(ins.b, ins.x);
+            if (value.kind == RHINO_STR)
+            {
+                if (!(ins.x == 0 && ins.a == ins.b))
+                    SET(ins.a, 0, value);
+                break;
+            }
+
+            char buffer[256];
             if (value.kind == RHINO_NONE)
                 sprintf(buffer, "none");
             else if (value.kind == RHINO_BOOL)

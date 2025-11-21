@@ -254,6 +254,12 @@ void assemble_default_value(Assembler *a, RhinoType ty, vm_loc loc)
     Unit *unit = a->unit;
     Program *apm = a->data->apm;
 
+    if (ty.is_noneable)
+    {
+        emit_load_none(unit, loc.up, loc.reg);
+        return;
+    }
+
     switch (ty.tag)
     {
     case RHINO_NATIVE_TYPE:
