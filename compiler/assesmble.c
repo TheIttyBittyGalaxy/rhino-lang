@@ -925,21 +925,25 @@ void assemble_program(Assembler *a, ByteCode *bc, Program *apm)
     assemble_enum_types(a, apm->program_block);
 
     // Initialise global variables in the init unit
-    // FIXME: This approach cannot handle global variable that have been declared "out of order"
-    it = create_iterator(&apm->program_block->statements);
-    while (stmt = advance_iterator_of(&it, Statement))
+    for (size_t i = 0; i <= apm->program_block->max_var_order; i++)
     {
-        if (stmt->kind != VARIABLE_DECLARATION)
-            continue;
+        it = create_iterator(&apm->program_block->statements);
+        while (stmt = advance_iterator_of(&it, Statement))
+        {
+            if (stmt->kind != VARIABLE_DECLARATION)
+                continue;
 
-        // TODO: This code was copy/pasted from assemble_code_block - is there a better way to factor this?
-        // FIXME: I think it's fine that we never release this, but check?
-        vm_reg variable_reg = reserve_register_for_node(a, (void *)stmt->variable);
+            if (stmt->variable->order != i)
+                continue;
 
-        if (stmt->initial_value)
-            assemble_expression(a, stmt->initial_value, local(variable_reg));
-        else
-            assemble_default_value(a, stmt->variable->type, local(variable_reg));
+            printf_substr(a->data->source_text, stmt->variable->identity);
+            vm_reg variable_reg = reserve_register_for_node(a, (void *)stmt->variable);
+
+            if (stmt->initial_value)
+                assemble_expression(a, stmt->initial_value, local(variable_reg));
+            else
+                assemble_default_value(a, stmt->variable->type, local(variable_reg));
+        }
     }
 
     // Assemble all functions declared in the global scope

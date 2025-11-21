@@ -919,6 +919,7 @@ size_t determine_order_of_expression(Compiler *c, Program *apm, Expression *expr
 void resolve_variable_orders(Compiler *c, Program *apm, Block *block)
 {
     assert(block->declaration_block);
+    block->max_var_order = 0;
 
     Statement *stmt;
     Iterator it;
@@ -946,6 +947,10 @@ void resolve_variable_orders(Compiler *c, Program *apm, Block *block)
                 if (order > stmt->variable->order)
                 {
                     stmt->variable->order = order;
+
+                    if (order > block->max_var_order)
+                        block->max_var_order = order;
+
                     changes_made = true;
                 }
             }

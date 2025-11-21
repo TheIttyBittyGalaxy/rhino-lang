@@ -427,6 +427,7 @@ struct Block
     bool singleton_block;
     SymbolTable *symbol_table;
     StatementList statements;
+    size_t max_var_order;
 };
 
 // Function
