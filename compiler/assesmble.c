@@ -66,6 +66,7 @@ struct Assembler
     Unit *unit;
 
     uint8_t active_registers;
+    bool value_in_unreserved_reg;
 
     NodeRegister node_register[256];
     size_t node_register_count;
@@ -410,25 +411,55 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
 
     // FIXME: I'm fairly certain we don't actually need to reserve two registers for this, but I can't figure out the logic for that right now
 
-// FIXME: Currently we are not correctly accounting for the possibility that any of the values involved might be in an upwards scope
-#define CASE_BINARY(expr_kind, emit_ins)                                             \
-    case expr_kind:                                                                  \
-    {                                                                                \
-        assert(dst.up == 0);                                                         \
-                                                                                     \
-        vm_loc lhs = assemble_expression_for_reading(a, expr->lhs);                  \
-                                                                                     \
-        /* Protect the LHS register while generating RHS */                          \
-        /* FIXME: This will not do anything useful when the location is not local!*/ \
-        reserve_register(a);                                                         \
-                                                                                     \
-        vm_loc rhs = assemble_expression_for_reading(a, expr->rhs);                  \
-        release_register(a);                                                         \
-                                                                                     \
-        assert(lhs.up == 0);                                                         \
-        assert(rhs.up == 0);                                                         \
-        emit_ins(unit, dst.reg, lhs.reg, rhs.reg);                                   \
-        break;                                                                       \
+#define CASE_BINARY(expr_kind, emit_ins)                            \
+    case expr_kind:                                                 \
+    {                                                               \
+        vm_loc lhs = assemble_expression_for_reading(a, expr->lhs); \
+        bool lhs_reserved = false;                                  \
+        if (lhs.up > 0)                                             \
+        {                                                           \
+            lhs_reserved = true;                                    \
+            vm_loc tmp = local(reserve_register(a));                \
+            emit_copy_instructions(a, tmp, lhs);                    \
+            lhs = tmp;                                              \
+        }                                                           \
+        else if (a->value_in_unreserved_reg)                        \
+        {                                                           \
+            lhs_reserved = true;                                    \
+            reserve_register(a);                                    \
+        }                                                           \
+                                                                    \
+        vm_loc rhs = assemble_expression_for_reading(a, expr->rhs); \
+        bool rhs_reserved = false;                                  \
+        if (rhs.up > 0)                                             \
+        {                                                           \
+            rhs_reserved = true;                                    \
+            vm_loc tmp = local(reserve_register(a));                \
+            emit_copy_instructions(a, tmp, rhs);                    \
+            rhs = tmp;                                              \
+        }                                                           \
+                                                                    \
+        bool dst_reserved = false;                                  \
+        if (dst.up > 0)                                             \
+        {                                                           \
+            dst_reserved = true;                                    \
+            vm_loc tmp = local(reserve_register(a));                \
+            emit_copy_instructions(a, tmp, dst);                    \
+            dst = tmp;                                              \
+        }                                                           \
+                                                                    \
+        emit_ins(unit, dst.reg, lhs.reg, rhs.reg);                  \
+                                                                    \
+        if (lhs_reserved)                                           \
+            release_register(a);                                    \
+                                                                    \
+        if (rhs_reserved)                                           \
+            release_register(a);                                    \
+                                                                    \
+        if (dst_reserved)                                           \
+            release_register(a);                                    \
+                                                                    \
+        break;                                                      \
     }
 
         CASE_BINARY(BINARY_MULTIPLY, emit_mul)
@@ -535,6 +566,7 @@ vm_loc assemble_expression_for_reading(Assembler *a, Expression *expr)
 {
     Unit *unit = a->unit;
     Program *apm = a->data->apm;
+    a->value_in_unreserved_reg = false;
 
     switch (expr->kind)
     {
@@ -551,7 +583,8 @@ vm_loc assemble_expression_for_reading(Assembler *a, Expression *expr)
     {
         vm_reg tmp = reserve_register(a);
         assemble_expression(a, expr, local(tmp));
-        release_register(a); // NOTE: This means the caller has to ensure they use this result before discarding it
+        release_register(a);
+        a->value_in_unreserved_reg = true;
         return local(tmp);
     }
     }
