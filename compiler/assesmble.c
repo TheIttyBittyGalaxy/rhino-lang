@@ -266,7 +266,7 @@ void assemble_default_value(Assembler *a, RhinoType ty, vm_loc loc)
         // else if (IS_STR_TYPE(ty))
         else
         {
-            fatal_error("Could not transpile default value for value of native type %s.", ty.native_type->name);
+            fatal_error("Could not assemble default value for value of native type %s.", ty.native_type->name);
         }
 
         break;
@@ -278,7 +278,7 @@ void assemble_default_value(Assembler *a, RhinoType ty, vm_loc loc)
         // case RHINO_STRUCT_TYPE:
 
     default:
-        fatal_error("Could not transpile default value for value of type %s.", rhino_type_string(apm, ty));
+        fatal_error("Could not assemble default value for value of type %s.", rhino_type_string(apm, ty));
     }
 }
 
