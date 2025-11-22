@@ -1,0 +1,28 @@
+struct Trig {
+    struct Point {
+        int x;
+        int y;
+    }
+
+    Point a;
+    Point b;
+    Point c;
+}
+
+fn main() {
+    Trig t;
+    > a.x;
+    > a.y;
+    > b.x;
+    > b.y;
+    > c.x;
+    > c.y;
+}
+
+// SUCCESS
+// 0
+// 0
+// 0
+// 0
+// 0
+// 0
