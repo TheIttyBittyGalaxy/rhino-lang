@@ -403,8 +403,32 @@ void assemble_expression(Assembler *a, Expression *expr, vm_loc dst)
         break;
     }
 
-        // TODO: Implement
-        // case INDEX_BY_FIELD:
+    case INDEX_BY_FIELD:
+    {
+        RhinoType subject_type = get_expression_type(apm, a->data->source_text, expr->subject);
+        assert(subject_type.tag == RHINO_STRUCT_TYPE);
+        StructType *struct_type = subject_type.struct_type;
+
+        vm_loc subject = assemble_expression_for_reading(a, expr->subject);
+
+        Property *field;
+        Iterator it = create_iterator(&struct_type->properties);
+        size_t field_index = 0;
+        while (field = advance_iterator_of(&it, Property))
+        {
+            if (substr_match(a->data->source_text, expr->field, field->identity))
+                break;
+            field_index++;
+        }
+
+        // FIXME: Account for these situations
+        assert(dst.up == 0);
+        assert(subject.up == 0);
+
+        emit_copy_fm(unit, field_index, dst.reg, subject.reg);
+
+        break;
+    }
 
     case UNARY_POS:
         assemble_expression(a, expr->operand, dst);
