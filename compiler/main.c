@@ -9,6 +9,8 @@
 #include "assemble.h"
 #include "interpret.h"
 
+#include "debug/memmap.c"
+
 // OUTPUT MARCOS //
 
 #define HEADING(text) printf("\n\x1b[32m" text "\n\x1b[0m")
@@ -52,6 +54,7 @@ bool flag_token_dump = false;
 bool flag_parse_dump = false;
 bool flag_resolve_dump = false;
 bool flag_byte_code_dump = false;
+bool flag_memmap = false;
 
 bool process_arguments(int argc, char *argv[])
 {
@@ -70,6 +73,8 @@ bool process_arguments(int argc, char *argv[])
             flag_resolve_dump = true;
         else if ((strcmp(argv[i], "-b") == 0) || strcmp(argv[i], "-byte") == 0)
             flag_byte_code_dump = true;
+        else if ((strcmp(argv[i], "-memmap") == 0))
+            flag_memmap = true;
         else
             return false;
     }
@@ -172,6 +177,14 @@ int main(int argc, char *argv[])
 
     HEADING("Check");
     check(&compiler, &apm);
+
+    if (flag_memmap)
+    {
+        HEADING("Memmap");
+        memmap(&apm, compiler.apm_allocator);
+        HEADING("Complete");
+        return EXIT_SUCCESS;
+    }
 
     // Report errors
     if (compiler.error_count > 0)

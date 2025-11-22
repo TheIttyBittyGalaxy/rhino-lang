@@ -25,6 +25,8 @@ struct Allocator
     Bucket *current;
 };
 
+extern Bucket *next_available_bucket;
+
 void init_allocator(Allocator *allocator);
 
 void *allocate_chunk(Allocator *allocator, size_t size, size_t align);

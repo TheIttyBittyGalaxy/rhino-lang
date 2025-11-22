@@ -1,6 +1,7 @@
 # Local repo files
 local.rhi
 test-results.html
+memmap.txt
 
 # Prerequisites
 *.d
