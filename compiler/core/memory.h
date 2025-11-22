@@ -6,7 +6,7 @@
 // ALLOCATORS //
 
 #define BUCKETS_PER_BLOCK 64
-#define BUCKET_SIZE 512
+#define BUCKET_SIZE 128
 
 typedef struct Bucket Bucket;
 typedef struct Allocator Allocator;
