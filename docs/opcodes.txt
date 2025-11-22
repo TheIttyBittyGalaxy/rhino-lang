@@ -20,6 +20,8 @@ JUMP_IF      X:r   Y:pc                  Set the Program Counter to Y if the val
 COPY         X:u   A:r   B:r             (A, X) = (B, X)
 COPY_UP      X:u   A:r   B:r             (A, X) =  B
 COPY_DN      X:u   A:r   B:r              A     = (B, X)
+COPY_FM      X:i   A:r   B:r              A     = B[X]
+COPY_TO      X:i   A:r   B:r              A[X]  = B
 
 LOAD_NONE    X:u   A:r                   (A, X) = none
 LOAD_TRUE    X:u   A:r                   (A, X) = true
@@ -27,6 +29,8 @@ LOAD_FALSE   X:u   A:r                   (A, X) = false
 LOAD_NUM     X:u   A:r         P:double  (A, X) = P
 LOAD_STR     X:u   A:r         P:char*   (A, X) = P
 LOAD_ENUM    X:u   A:r   B:i             (A, X) = B
+
+NEW_STRUCT   X:u   A:r   B:i             (A, X) = New struct with B value fields
 
 # OUTPUT
 

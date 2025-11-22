@@ -117,6 +117,30 @@ size_t emit_copy_dn(Unit* unit, uint8_t x, vm_reg a, vm_reg b)
 	return i;
 }
 
+// COPY_FM
+// A = B[X]
+size_t emit_copy_fm(Unit* unit, uint8_t x, vm_reg a, vm_reg b)
+{
+	size_t i = unit->count++;
+	unit->instruction[i].op = OP_COPY_FM;
+	unit->instruction[i].x = x;
+	unit->instruction[i].a = a;
+	unit->instruction[i].b = b;
+	return i;
+}
+
+// COPY_TO
+// A[X] = B
+size_t emit_copy_to(Unit* unit, uint8_t x, vm_reg a, vm_reg b)
+{
+	size_t i = unit->count++;
+	unit->instruction[i].op = OP_COPY_TO;
+	unit->instruction[i].x = x;
+	unit->instruction[i].a = a;
+	unit->instruction[i].b = b;
+	return i;
+}
+
 // LOAD_NONE
 // (A, X) = none
 size_t emit_load_none(Unit* unit, uint8_t x, vm_reg a)
@@ -196,6 +220,18 @@ size_t emit_load_enum(Unit* unit, uint8_t x, vm_reg a, uint8_t b)
 {
 	size_t i = unit->count++;
 	unit->instruction[i].op = OP_LOAD_ENUM;
+	unit->instruction[i].x = x;
+	unit->instruction[i].a = a;
+	unit->instruction[i].b = b;
+	return i;
+}
+
+// NEW_STRUCT
+// (A, X) = New struct with B value fields
+size_t emit_new_struct(Unit* unit, uint8_t x, vm_reg a, uint8_t b)
+{
+	size_t i = unit->count++;
+	unit->instruction[i].op = OP_NEW_STRUCT;
 	unit->instruction[i].x = x;
 	unit->instruction[i].a = a;
 	unit->instruction[i].b = b;

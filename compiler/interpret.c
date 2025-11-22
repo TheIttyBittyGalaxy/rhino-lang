@@ -9,7 +9,8 @@
     MACRO(RHINO_BOOL)           \
     MACRO(RHINO_NUM)            \
     MACRO(RHINO_STR)            \
-    MACRO(RHINO_ENUM)
+    MACRO(RHINO_ENUM)           \
+    MACRO(RHINO_STRUCT)
 
 DECLARE_ENUM(RHINO_VALUE_KIND, RhinoValueKind, rhino_value_kind)
 DEFINE_ENUM(RHINO_VALUE_KIND, RhinoValueKind, rhino_value_kind)
@@ -24,6 +25,7 @@ typedef struct
         double as_num;
         char *as_str;
         int as_enum;
+        size_t offset;
     };
 } RhinoValue;
 
@@ -101,6 +103,32 @@ void output_to(RunOnString *output, const char *format, ...)
     append_run_on_string_with_terminator(output, buffer);
 }
 
+// MEMORY //
+
+typedef struct
+{
+    size_t next;
+    RhinoValue value[1024]; // FIXME: This should be dynamically allocated memory
+} Memory;
+
+inline RhinoValue get_mem(Memory *memory, size_t i)
+{
+    return memory->value[i];
+}
+
+inline void set_mem(Memory *memory, size_t i, RhinoValue value)
+{
+    memory->value[i] = value;
+}
+
+// TODO: Currently we allocate memory, but never deallocate
+inline size_t allocate_mem(Memory *memory, size_t amt)
+{
+    size_t pos = memory->next;
+    memory->next += amt;
+    return pos;
+}
+
 // CALL STACKS //
 
 typedef struct Record Record;
@@ -123,7 +151,7 @@ typedef struct
     size_t count;
 } CallStacks;
 
-// TODO: Make this a data structure that allows for fast loop-up!
+// TODO: Make this a data structure that allows for fast look-up!
 Stack *get_call_stack(CallStacks *call_stacks, Unit *unit)
 {
     for (size_t i = 0; i < call_stacks->count; i++)
@@ -207,7 +235,7 @@ inline void set_reg(CallStacks *call_stacks, Unit *unit, Record *record, vm_reg 
         var = as.data;                                              \
     }
 
-RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, RunOnString *output_string)
+RhinoValue interpret_unit(Memory *memory, CallStacks *call_stacks, Unit *unit, Record *record, RunOnString *output_string)
 {
     size_t program_counter = 0;
 
@@ -243,7 +271,7 @@ RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, R
                 set_reg(call_stacks, unit, callee_record, i, 0, arg);
             }
 
-            RhinoValue return_value = interpret_unit(call_stacks, callee, callee_record, output_string);
+            RhinoValue return_value = interpret_unit(memory, call_stacks, callee, callee_record, output_string);
             SET(ins.a, ins.x, return_value);
             break;
         }
@@ -259,7 +287,7 @@ RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, R
                 set_reg(call_stacks, unit, callee_record, i, 0, arg);
             }
 
-            interpret_unit(call_stacks, callee, callee_record, output_string);
+            interpret_unit(memory, call_stacks, callee, callee_record, output_string);
             break;
         }
 
@@ -295,6 +323,22 @@ RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, R
             SET(ins.a, 0, GET(ins.b, ins.x));
             break;
 
+        case OP_COPY_TO:
+        {
+            RhinoValue _struct = GET(ins.b, 0);
+            RhinoValue value = get_mem(memory, _struct.offset + ins.x);
+            SET(ins.a, 0, value);
+            break;
+        }
+
+        case OP_COPY_FM:
+        {
+            RhinoValue _struct = GET(ins.a, 0);
+            RhinoValue value = GET(ins.b, 0);
+            set_mem(memory, _struct.offset + ins.x, value);
+            break;
+        }
+
         case OP_LOAD_NONE:
             SET(ins.a, ins.x, NONE_VALUE());
             break;
@@ -324,6 +368,15 @@ RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, R
         case OP_LOAD_ENUM:
             SET(ins.a, ins.x, ENUM_VALUE(ins.b));
             break;
+
+        case OP_NEW_STRUCT:
+        {
+            RhinoValue value;
+            value.kind = RHINO_STRUCT;
+            value.offset = allocate_mem(memory, ins.b);
+            SET(ins.a, ins.x, value);
+            break;
+        }
 
         case OP_OUT:
         {
@@ -469,6 +522,9 @@ RhinoValue interpret_unit(CallStacks *call_stacks, Unit *unit, Record *record, R
 
 void interpret(ByteCode *byte_code, RunOnString *output_string)
 {
+    Memory memory;
+    memory.next = 0;
+
     CallStacks call_stacks;
     call_stacks.count = 0;
 
@@ -482,5 +538,5 @@ void interpret(ByteCode *byte_code, RunOnString *output_string)
         unit = unit->next;
     }
 
-    interpret_unit(&call_stacks, byte_code->init, NULL, output_string);
+    interpret_unit(&memory, &call_stacks, byte_code->init, NULL, output_string);
 }

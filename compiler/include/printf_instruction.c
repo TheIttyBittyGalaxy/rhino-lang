@@ -52,6 +52,8 @@ size_t printf_instruction(Unit* unit, size_t i)
 	case OP_COPY: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
 	case OP_COPY_UP: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
 	case OP_COPY_DN: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_COPY_FM: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_COPY_TO: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
 	case OP_LOAD_NONE: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a); break;
 	case OP_LOAD_TRUE: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a); break;
 	case OP_LOAD_FALSE: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a); break;
@@ -92,6 +94,7 @@ size_t printf_instruction(Unit* unit, size_t i)
 		break;
 	}
 	case OP_LOAD_ENUM: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
+	case OP_NEW_STRUCT: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d  \x1b[90mb \x1b[0m%2d\n", ins.x, ins.a, ins.b); break;
 	case OP_OUT: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a); break;
 	case OP_INC: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a); break;
 	case OP_DEC: printf("  \x1b[90mx \x1b[0m%2d  \x1b[90ma \x1b[0m%2d\n", ins.x, ins.a); break;

@@ -280,8 +280,29 @@ void assemble_default_value(Assembler *a, RhinoType ty, vm_loc loc)
         // TODO: Implement
         // case RHINO_ENUM_TYPE:
 
-        // TODO: Implement
-        // case RHINO_STRUCT_TYPE:
+    case RHINO_STRUCT_TYPE:
+    {
+        StructType *struct_type = ty.struct_type;
+        emit_new_struct(unit, loc.up, loc.reg, struct_type->properties.count);
+
+        assert(loc.up == 0); // FIXME: Make this not necessary
+
+        vm_reg tmp = reserve_register(a);
+
+        Property *prop;
+        Iterator it = create_iterator(&struct_type->properties);
+        size_t i = 0;
+        while (prop = advance_iterator_of(&it, Property))
+        {
+            assemble_default_value(a, prop->type, local(tmp));
+            emit_copy_to(unit, i, loc.reg, tmp);
+            i++;
+        }
+
+        release_register(a); // tmp
+
+        break;
+    }
 
     default:
         fatal_error("Could not assemble default value for value of type %s.", rhino_type_string(apm, ty));
