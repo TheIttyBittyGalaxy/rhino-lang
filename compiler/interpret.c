@@ -323,7 +323,7 @@ RhinoValue interpret_unit(Memory *memory, CallStacks *call_stacks, Unit *unit, R
             SET(ins.a, 0, GET(ins.b, ins.x));
             break;
 
-        case OP_COPY_TO:
+        case OP_COPY_FM:
         {
             RhinoValue _struct = GET(ins.b, 0);
             RhinoValue value = get_mem(memory, _struct.offset + ins.x);
@@ -331,7 +331,7 @@ RhinoValue interpret_unit(Memory *memory, CallStacks *call_stacks, Unit *unit, R
             break;
         }
 
-        case OP_COPY_FM:
+        case OP_COPY_TO:
         {
             RhinoValue _struct = GET(ins.a, 0);
             RhinoValue value = GET(ins.b, 0);
