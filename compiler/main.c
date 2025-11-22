@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    HEADING("Asessble");
+    HEADING("Assemble");
     ByteCode byte_code;
     init_byte_code(&byte_code);
     assemble(&compiler, &apm, &byte_code);
