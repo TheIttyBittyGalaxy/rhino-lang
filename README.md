@@ -1,4 +1,4 @@
-# Badger 🦡
+# Rhino 🦏
 A programming language I am creating for my own enjoyment and, hopefully, for use on future projects! :D
 
 ## Rough Roadmap
@@ -14,7 +14,7 @@ Create an interpreted version of the language. The goal is to design the languag
 
 
 ### Phase 2: Back-end 
-Remove the interpreter and make Badger a compiled language. This will be the primary goal. That said, insights from phase 1 and from trying to properly implment the language may inform changes to the language's design. I think I have no choice but to cross this bridge when I get to it?
+Remove the interpreter and make Rhino a compiled language. This will be the primary goal. That said, insights from phase 1 and from trying to properly implment the language may inform changes to the language's design. I think I have no choice but to cross this bridge when I get to it?
 
 - Lowering pass
 - Optimisation pass
